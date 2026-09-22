@@ -16,7 +16,7 @@ from jev_trading.state.features import FEATURE_COLUMNS, build_features
 
 THRESHOLD = 0.0014  # round-trip cost hurdle: 2 * (0.05% + 0.02%)
 COST_PER_TRADE = 0.0014
-LABEL_COL = "future_return_15"
+LABEL_COL = "future_return_15m"  # ponytail: P4 turn renames the rest of this target plumbing
 
 
 def _ms(year: int, month: int, day: int) -> int:

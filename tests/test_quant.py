@@ -48,7 +48,7 @@ def _stub_compute_labels(bars: pl.DataFrame) -> pl.DataFrame:
     close = bars["close"].to_numpy()
     n = len(bars)
     fr15 = (close[15:] / close[:-15] - 1).tolist() + [None] * min(15, n)  # null tail, like the real engine
-    return pl.DataFrame({"timestamp": bars["timestamp"], "future_return_15": fr15})
+    return pl.DataFrame({"timestamp": bars["timestamp"], "future_return_15m": fr15})
 
 
 @pytest.fixture
