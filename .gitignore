@@ -1,6 +1,9 @@
 # Secrets — monid CLI state includes a live API key
 .monid/
 
+# Agent workspace
+.agents/
+
 # Python
 .venv/
 __pycache__/
