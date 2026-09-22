@@ -166,7 +166,7 @@ P4 Quant baseline         ✅ (EXP-002 PASS: LGBM auc 0.637 vs 0.50 prior, 2024 
 P5 Jev + Policy           🟡 Mock complete / position-aware pending
 P6 Risk kernel            ✅
 P7 Event simulator        🟡 Loop + arms done / GATE FAIL (EXP-003: no cost survival)
-P8 Shadow                 ⬜ BLOCKED (P7 gate)
+P8 Shadow                 🟡 LIVE-VERIFIED (paper trader runs on live data; P7 gate still FAIL)
 P9 Frontier strategist    ✅ WorldModel + StrategyGenerator + Overseer + Guardrail + BarFeed
                           (116/116 tests green; EXP-004 next: prove real-Jev selectivity)
 
@@ -224,6 +224,10 @@ Stack deferred (Redis/ClickHouse/NATS/Postgres/Grafana/MLflow/Docker/React P0–
 - `dashboard/core.py` + `scripts/dashboard.py`: Streamlit UI dashboard (Status, Experiments, Frontier, Regime, Backtest)
 
 ### Resume notes for next session
+- **P8 shadow live-verified**: `PaperTrader` + `scripts/paper_trade.py` built and run on
+  live Binance 1m BTCUSDT (4 bars, 0 entries — p_up ~0.13 vs 0.40 threshold, consistent with
+  P7 FAIL). Pipeline validates end-to-end; logs in `events/shadow_*.jsonl` (replayable via
+  `simulator.verify_log`). No tiny-live until P7 iterate succeeds.
 - Next step: EXP-004 — prove real Jev selectivity on a thin recorded slice (A1 client + A2 serializer + A4 record ~20k candidate bars + A5 calibration report)
 - Gate stays frozen: test period [2025, 2026) untouched until an iterate shows valid profit
 - Stack deferred: no Redis/NATS/ClickHouse/Postgres/Grafana/MLflow/Docker/React until cost-surviving edge demonstrated

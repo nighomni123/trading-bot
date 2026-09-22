@@ -17,7 +17,7 @@ Live feed → State engine → Quant engine → Jev(mock) → Policy → Risk ke
 
 ## Status
 
-Phases tracked in the implementation plan: P0 bootstrap → P8 shadow report.
+Phases tracked in the implementation plan: P0 bootstrap → P9 frontier + P8 shadow live-verified.
 
 ## Dev
 
@@ -63,7 +63,21 @@ python3 -m venv .venv
 
 Results print as JSON to stdout and are written to `experiments/EXP-xxx/experiment.yaml`.
 
-### 4. Frontier strategist (P9)
+### 4. Paper trading on live data (P8 shadow)
+
+```bash
+# Zero-real-money shadow trading on live Binance 1m BTCUSDT perp:
+#   Binance -> state -> quant(LGBM) -> jev(mock) -> policy -> risk -> paper exec -> JSONL
+.venv/bin/python scripts/paper_trade.py --capital 10000 --size-btc 0.01 \
+    --p-thr 0.40 --fee-mult 1.0 --duration 0     # Ctrl+C to stop
+
+# Short run for testing:
+.venv/bin/python scripts/paper_trade.py --duration 120 --poll-interval 30
+```
+
+Event logs (replayable via `simulator.verify_log`) land in `events/shadow_*.jsonl`.
+
+### 5. Frontier strategist (P9)
 
 ```bash
 # The frontier layer analyzes regime + calibration + PnL and proposes parameter artifacts.
@@ -72,12 +86,13 @@ Results print as JSON to stdout and are written to `experiments/EXP-xxx/experime
 # and tested as new EXP experiments — never applied to live configs directly.
 ```
 
-### 5. Run tests
+### 6. Run tests
 
 ```bash
 .venv/bin/python -m pytest -q                     # all tests
 .venv/bin/python -m pytest tests/test_frontier.py -v  # frontier only
 ```
 
-Data lands in `data/` (gitignored), models in `models/`, event logs in `events/`.
+Data lands in `data/` (gitignored), models in `models/`, event logs in `events/`
+(both `p7_*.jsonl` backtest logs and `shadow_*.jsonl` live paper-trading logs).
 Experiment artifacts in `experiments/EXP-xxx/`.

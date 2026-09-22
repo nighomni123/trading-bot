@@ -30,8 +30,8 @@ PHASES: list[tuple[str, str]] = [
     ("P4 Quant (EXP-002)", "DONE (PASS)"),
     ("P5 Jev + Policy", "MOCK COMPLETE"),
     ("P6 Risk kernel", "DONE"),
-    ("P7 Simulator (EXP-003)", "GATE FAIL"),
-    ("P8 Shadow", "BLOCKED (P7 gate)"),
+    ("P7 Event Simulator (EXP-003)", "GATE FAIL"),
+    ("P8 Shadow (paper exec)", "LIVE-VERIFIED"),
     ("P9 Frontier Strategist", "DONE"),
 ]
 
