@@ -6,10 +6,11 @@ suggested_size_btc stays 0.0 — sizing is risk's job. confidence =
 min(p_up_15, trade_ok) for ENTER_LONG, min(p_dn_15, trade_ok) for ENTER_SHORT,
 0.0 for NO_ACTION.
 
-Edge check runs only when quant provides expected_return_15 AND
-configs/costs.json exists with round_trip_cost (fraction of price per round
-trip); otherwise it is skipped. Missing quant probs default to 0.0 and missing
-jev answers to neutral 0.5 — both fail the entry gates (safe).
+Edge check runs only when quant provides expected_return_15 AND a round-trip
+cost is known (explicit `round_trip_cost` in configs/costs.json, else derived
+as 2 * (taker_fee_pct + slippage_pct)); otherwise it is skipped. Missing quant
+probs default to 0.0 and missing jev answers to neutral 0.5 — both fail the
+entry gates (safe).
 
 ponytail: cfg["exit"] thresholds are unused here — decide() has no position
 context, so EXIT/REDUCE belong to the position-aware loop; upgrade path: pass
@@ -18,6 +19,7 @@ open position into decide().
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field
@@ -39,12 +41,20 @@ def load_config(path: str = "configs/policy.json") -> dict:
     return json.loads(p.read_text())
 
 
+@lru_cache(maxsize=1)
 def _round_trip_cost() -> float | None:
+    """Fraction of price per round trip. Cached: configs are run inputs, and this
+    sits in the per-decision hot path (file IO per bar would dominate the sim)."""
     p = Path(__file__).resolve().parents[3] / "configs/costs.json"
     if not p.is_file():
         return None
-    v = json.loads(p.read_text()).get("round_trip_cost")
-    return float(v) if isinstance(v, (int, float)) else None
+    c = json.loads(p.read_text())
+    if isinstance(c.get("round_trip_cost"), (int, float)):
+        return float(c["round_trip_cost"])
+    try:  # single source with labels/engine.py: 2 * (taker + slippage) per round trip
+        return 2 * (float(c["taker_fee_pct"]) + float(c["slippage_pct"])) / 100
+    except (KeyError, ValueError, TypeError):
+        return None
 
 
 def _check(reasons: list[str], side: str, label: str, passed: bool) -> bool:

@@ -53,7 +53,18 @@ def test_enter_long_all_pass():
     assert d.reasons
     assert d.reasons[-1] == "ENTER_LONG"
     assert any("p_up_15" in r and "pass" in r for r in d.reasons)
-    assert not any("edge" in r for r in d.reasons)  # no expected_return_15 / costs.json -> skipped
+    assert not any("edge" in r for r in d.reasons)  # no expected_return_15 -> skipped
+
+
+def test_edge_gate_activates_on_expected_return():
+    q = quant(p_up_15=0.8, expected_return_15=0.001)  # below 2.0 * 0.0014 hurdle
+    d = decide(q, jev(trade_ok=0.9, failure_regime=0.1))
+    assert d.action == Action.NO_ACTION
+    assert any("edge" in r and "fail" in r for r in d.reasons)
+    q = quant(p_up_15=0.8, expected_return_15=0.003)  # above hurdle
+    d = decide(q, jev(trade_ok=0.9, failure_regime=0.1))
+    assert d.action == Action.ENTER_LONG
+    assert any("edge" in r and "pass" in r for r in d.reasons)
 
 
 def test_enter_short_mirror():

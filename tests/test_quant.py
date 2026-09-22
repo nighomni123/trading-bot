@@ -13,7 +13,15 @@ import polars as pl
 import pytest
 
 from jev_trading.quant.model import load_models, save_models
-from jev_trading.quant.train import COST_PER_TRADE, THRESHOLD, prepare_xy, train_models
+from jev_trading.quant.train import (
+    COST_PER_TRADE,
+    EMBARGO_MS,
+    PURGE_MS,
+    THRESHOLD,
+    _split_train_valid,
+    prepare_xy,
+    train_models,
+)
 
 T0 = 1672531200000  # 2023-01-01T00:00:00Z, epoch ms
 MIN = 60_000
@@ -109,6 +117,25 @@ def test_bad_split_raises(bars, stub_labels):
     te, vs = _split_for(X)
     with pytest.raises(AssertionError):
         train_models(bars, lgbm_params={"n_estimators": 2}, split=(vs + MIN, te))
+
+
+def test_purge_and_valid_side_embargo_isolate_label_horizon():
+    bars = make_bars(120, seed=13)
+    joined = pl.DataFrame(
+        {
+            "timestamp": bars["timestamp"],
+            "future_return_15m": _stub_compute_labels(bars)["future_return_15m"],
+        }
+    )
+    train_end = T0 + 80 * MIN
+    valid_start = train_end
+    valid_end = T0 + 140 * MIN
+    train, valid = _split_train_valid(joined, train_end, valid_start, valid_end)
+
+    assert train["timestamp"].max() < train_end - PURGE_MS
+    assert valid["timestamp"].min() >= valid_start + EMBARGO_MS
+    assert valid["timestamp"].max() < valid_end - EMBARGO_MS
+    assert valid["timestamp"].min() - train["timestamp"].max() >= PURGE_MS + EMBARGO_MS
 
 
 def test_prepare_xy_with_real_labels():

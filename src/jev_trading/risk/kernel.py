@@ -6,28 +6,33 @@ spread -> daily loss -> order-rate -> EXIT/REDUCE allow -> ENTER position/levera
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from jev_trading.contracts import Action
 
 
 class Proposal(BaseModel):
     action: Action
-    confidence: float
+    confidence: float = Field(ge=0.0, le=1.0)
     suggested_size_btc: float = Field(default=0.0, ge=0.0)
 
 
 class Portfolio(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     position_btc: float
-    capital_usd: float
+    capital_usd: float = Field(gt=0.0)
     daily_pnl_usd: float
-    open_orders: int
+    open_orders: int = Field(ge=0)
 
 
 class MarketCheck(BaseModel):
-    spread_bps: float
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    spread_bps: float = Field(ge=0.0)
     last_update_ms: int
     now_ms: int
 
@@ -35,21 +40,38 @@ class MarketCheck(BaseModel):
 class RiskDecision(BaseModel):
     allowed: bool
     reason: str
-    approved_size_btc: float
+    approved_size_btc: float = Field(ge=0.0)
     halted: bool
 
 
 class RiskConfig(BaseModel):
-    max_position_btc: float
-    max_leverage: float
-    daily_loss_limit_usd: float
-    trade_loss_limit_usd: float
-    max_spread_bps: float
-    min_depth_usd: float
-    stale_data_ms: int
-    max_orders_per_min: int
-    max_open_positions: int
-    risk_per_trade_pct: float
+    model_config = ConfigDict(allow_inf_nan=False)
+    """Every field here is enforced in evaluate(); no aspirational keys.
+
+    ponytail: depth/position-count limits were removed — unenforceable without
+    book data / PositionState, both of which arrive with P7/P8. Re-add with
+    wiring, not as silent config.
+    """
+
+    max_position_btc: float = Field(gt=0.0)
+    max_leverage: float = Field(gt=0.0)
+    daily_loss_limit_usd: float = Field(gt=0.0)
+    trade_loss_limit_usd: float = Field(gt=0.0)
+    max_spread_bps: float = Field(gt=0.0)
+    stale_data_ms: int = Field(gt=0)
+    max_orders_per_min: int = Field(gt=0)
+    risk_per_trade_pct: float = Field(gt=0.0)
+    # Borrowed from freqtrade/plugins/protections (cloned /tmp/oss/freqtrade):
+    # - cooldown_ms mirrors CooldownPeriod._cooldown_period: after a closed
+    #   trade, lock ENTERs until close_time + stop_duration (per-pair lock).
+    #   0 = off (MVP default; set >0 in P7 hostile-cost arms if needed).
+    # - max_drawdown_pct mirrors MaxDrawdownProtection._max_drawdown
+    #   (equity mode): halt when peak-to-current equity drawdown exceeds X%
+    #   of capital. 0 = off. Rejected alternative: freqtrade's legacy
+    #   ratios mode (cumulative close_profit drop) — equity mode is the
+    #   edge-case-correct one for a USD-capital paper account.
+    cooldown_ms: int = Field(default=0, ge=0)
+    max_drawdown_pct: float = Field(default=0.0, ge=0.0, le=100.0)
 
 
 class RiskKernel:
@@ -68,21 +90,32 @@ class RiskKernel:
         self._manual_only = False
         self._daily_pnl_usd = 0.0
         self._approvals: list[int] = []
+        self._cooldown_until_ms = 0  # freqtrade CooldownPeriod: ENTER lock after an EXIT
+        self._peak_pnl_usd = 0.0  # freqtrade MaxDrawdown (equity mode): peak daily pnl
 
     @property
     def halted(self) -> bool:
         return self._halt_reason is not None
 
-    def register_fill(self, pnl_usd: float) -> None:
+    def register_fill(self, pnl_usd: float, close_time_ms: int | None = None) -> None:
+        """Record a fill and optionally arm cooldown at the actual close time."""
+        if not isinstance(pnl_usd, (int, float)) or not math.isfinite(pnl_usd):
+            raise ValueError("pnl_usd must be finite")
         self._daily_pnl_usd += pnl_usd
+        self._peak_pnl_usd = max(self._peak_pnl_usd, self._daily_pnl_usd)
         if pnl_usd <= -self.cfg.trade_loss_limit_usd:
             self._latch("trade_loss_limit_usd", manual_only=True)
         elif self._daily_pnl_usd <= -self.cfg.daily_loss_limit_usd:
             self._latch("daily_loss_limit_usd")
+        if close_time_ms is not None and self.cfg.cooldown_ms > 0:
+            self._cooldown_until_ms = max(
+                self._cooldown_until_ms, close_time_ms + self.cfg.cooldown_ms
+            )
 
     def reset_daily(self) -> None:
         """New day: clear pnl, order-rate window, and non-trade-loss halts."""
         self._daily_pnl_usd = 0.0
+        self._peak_pnl_usd = 0.0
         self._approvals.clear()
         if not self._manual_only:
             self._halt_reason = None
@@ -90,9 +123,11 @@ class RiskKernel:
     def reset_manual(self) -> None:
         """Ops reset: clears every halt, including trade_loss_limit_usd."""
         self._daily_pnl_usd = 0.0
+        self._peak_pnl_usd = 0.0
         self._approvals.clear()
         self._halt_reason = None
         self._manual_only = False
+        self._cooldown_until_ms = 0
 
     def evaluate(
         self,
@@ -105,8 +140,8 @@ class RiskKernel:
         p = proposal if isinstance(proposal, Proposal) else Proposal.model_validate(proposal)
         port = portfolio if isinstance(portfolio, Portfolio) else Portfolio.model_validate(portfolio)
         mkt = market if isinstance(market, MarketCheck) else MarketCheck.model_validate(market)
-        if ref_price_usd <= 0:
-            raise ValueError("ref_price_usd must be positive")
+        if not isinstance(ref_price_usd, (int, float)) or not math.isfinite(ref_price_usd) or ref_price_usd <= 0:
+            raise ValueError("ref_price_usd must be positive and finite")
         if self._halt_reason is not None:
             return self._decide(False, f"halted:{self._halt_reason}", 0.0)
         if now_ms - mkt.last_update_ms > self.cfg.stale_data_ms:
@@ -119,6 +154,23 @@ class RiskKernel:
         if port.daily_pnl_usd <= -self.cfg.daily_loss_limit_usd:
             self._latch("daily_loss_limit_usd")
             return self._decide(False, "daily_loss_limit_usd", 0.0)
+        # Borrowed from freqtrade MaxDrawdownProtection (equity mode,
+        # max_drawdown_protection.py::_max_drawdown): halt when the
+        # peak-to-current drawdown exceeds max_allowed_drawdown. Ours is
+        # per-day (peak tracked in register_fill/reset_daily) as % of the
+        # portfolio capital passed in — exact denominator, unlike the
+        # fill-time path which lacks capital context.
+        if self.cfg.max_drawdown_pct > 0 and port.capital_usd > 0:
+            self._peak_pnl_usd = max(self._peak_pnl_usd, port.daily_pnl_usd)
+            dd_pct = (self._peak_pnl_usd - port.daily_pnl_usd) / port.capital_usd * 100.0
+            if dd_pct > self.cfg.max_drawdown_pct:
+                self._latch("max_drawdown_pct")
+                return self._decide(False, "max_drawdown_pct", 0.0)
+        # Borrowed from freqtrade CooldownPeriod._cooldown_period
+        # (cooldown_period.py): after a closed trade, lock new ENTERs until
+        # close_time + stop_duration. Ours arms on every approved EXIT.
+        if p.action in (Action.ENTER_LONG, Action.ENTER_SHORT) and now_ms < self._cooldown_until_ms:
+            return self._decide(False, "cooldown_ms", 0.0)
         self._approvals = [t for t in self._approvals if now_ms - t <= 60_000]
         if len(self._approvals) >= self.cfg.max_orders_per_min:
             return self._decide(False, "max_orders_per_min", 0.0)

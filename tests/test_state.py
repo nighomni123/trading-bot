@@ -71,6 +71,16 @@ def test_short_series_null_safe():
     assert not feats["ret_5m"].tail(10).is_null().any()
 
 
+def test_zero_oi_yields_null_not_inf():
+    bars = make_bars(2000, seed=9)
+    oi = bars["open_interest"].to_list()
+    oi[500] = 0.0  # zero divisor for row 500 + 1440
+    feats = build_features(bars.with_columns(pl.Series("open_interest", oi)))
+    assert feats["oi_change_1d"][1940] is None
+    arr = feats["oi_change_1d"].drop_nulls().to_numpy()
+    assert not np.isinf(arr).any() and not np.isnan(arr).any()
+
+
 def test_build_state_dict():
     feats = build_features(make_bars(3000, seed=5))
     d = build_state_dict(feats.row(2500, named=True))

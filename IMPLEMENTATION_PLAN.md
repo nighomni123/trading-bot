@@ -90,11 +90,25 @@ live needs it).
   (Spec detail lives in `docs/evaluation-protocol.md`: arms A–E, `Perf(D)−Perf(C)` as
   Jev's incremental contribution, hostile 2–3× gate, EXP filing.)
 
-## P8 — Shadow ⬜ (production equivalence, not just hypothetical PnL)
-Live feed through the same contracts, zero-size paper execution, plus a replay reference
+## P8 — Shadow 🟡 LIVE-READY (P7 gate still FAIL; shadow pipeline validated on live data)
+Live feed through the same contracts, zero-real-money paper execution, plus a replay reference
 where possible. Monitor: data/feature/decision latency, missing/stale data, model errors,
 policy/risk rejections, would-be fills/spread/slippage/PnL, calibration, regime. Gate: 2+
 weeks with live behavior matching research, then tiny-live (post-MVP).
+
+### P8.1 — Paper execution engine ✅ SHADOW LIVE-VERIFIED
+`execution/__init__.py`: `PaperTrader` class — accepts risk-approved actions, fills at
+next-open (buffered, lookahead-free), tracks paper position/PnL/funding, writes replayable
+JSONL (seq/entry_hash schema compatible with `verify_log`). Zero real money.
+
+`scripts/paper_trade.py`: live shadow trader loop — Binance 1m bars -> state -> quant(LGBM) ->
+Jev(mock) -> policy -> risk -> paper exec -> JSONL. Rolling 3000-bar window for feature
+warmup; polls every 15-20s; handles Ctrl+C gracefully.
+
+**Live test (2026-09-22):** 4 bars processed, 0 entries (p_up ~0.13-0.15 vs 0.40 threshold,
+trade_ok ~0.71 vs 0.75 gate — consistent with P7 verdict: no cost-surviving edge). Latency
+634-1548ms/bar. Event log verified via `verify_log` (hash-verified, correct seq). Pipeline
+validates end-to-end on live data; no P8→tiny-live promotion until P7 iterate succeeds.
 
 ### P8.1 — Prediction-market data input (sentiment + order book) ⬜ IN PROGRESS
 Kalshi (`external-api.kalshi.com/trade-api/v2`) and Polymarket (Gamma catalog + CLOB
@@ -187,15 +201,19 @@ Stack deferred (Redis/ClickHouse/NATS/Postgres/Grafana/MLflow/Docker/React P0–
 | policy | `policy/engine.py` | ✅ Threshold policy + audit trail |
 | jev | `jev/client.py`, `jev/mock.py`, `questions.py` | ✅ JevClient protocol, MockJev, 5 MVP questions |
 | risk | `risk/kernel.py` | ✅ Hard kernel — absolute authority |
-| exec | `backtest/simulator.py` | 🟡 Backtest only (next-open fills, fees, funding) |
-| obs | simulator JSONL logs + `experiments/EXP-xxx/` | 🟡 Partial (replay-checked logs, versioned experiments) |
+| exec | `execution/__init__.py`, `scripts/paper_trade.py` | ✅ PaperTrader + live shadow (P8.1) |
+| obs | simulator JSONL logs + `experiments/EXP-xxx/` | ✅ Replay-checked logs via `verify_log` |
 | store | Parquet data files | 🟡 Parquet only (no Redis/ClickHouse/Postgres/bus) |
 
-### What's missing (the 30%)
-1. **Live Execution Engine** (`exec`): `execution/__init__.py` is empty. Backtest simulator covers fills only. P8 shadow paper-trading (zero-size paper execution through same contracts) — **blocked by P7 gate** (EXP-003: edge does not survive costs).
-2. **Shadow trader + adversarial loop** (annotation a4): "Every live decision → actual + hypothetical (shadow) + kill-strategy process." `Overseer` (adversary) is built, but shadow trader needs the execution engine.
-3. **Full observability** (`obs`): PnL attribution, calibration tracking, degradation monitoring, replay-by-timestamp. Logs are replay-checked but no standalone observability service.
-4. **Storage/bus** (`store`): Plan defers Redis/ClickHouse/Postgres/NATS/Redpanda/MLflow/Docker/React for P0–P8. Parquet + experiment YAMLs serve as registry.
+### What's missing (the remaining 10%)
+1. **Tiny-live order bridge** (post-MVP): send paper fills to a broker/exchange API.
+   Blocked on P7/P8 gate (cost-surviving edge required).
+2. **Shadow trader + adversarial loop** (annotation a4): `Overseer` is built; shadow trader
+   now wired via `scripts/paper_trade.py` but needs tiny-live bridge for full kill-strategy.
+3. **Full observability** (`obs`): PnL attribution, calibration tracking, degradation monitoring,
+   replay-by-timestamp. Logs are replay-checked but no standalone observability service.
+4. **Storage/bus** (`store`): Plan defers Redis/ClickHouse/Postgres/NATS/Redpanda/MLflow/Docker/React
+   for P0–P8. Parquet + experiment YAMLs serve as registry.
 
 ### New: P9 — Frontier strategist (Track B) ✅ COMPLETE
 - `frontier/world_model.py`: `WorldModel` compresses live bars + Jev answers + PnL feedback → `WorldDigest` (regime classification, calibration drift, Jev answer distributions, PnL attribution, cost ratio)

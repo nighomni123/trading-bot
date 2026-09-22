@@ -78,6 +78,7 @@ def build_features(bars: pl.DataFrame) -> pl.DataFrame:
 
     close = pl.col("close")
     prev_close = close.shift(1)
+    oi_shift = pl.col("open_interest").shift(DAY)
     log_ret = (close / prev_close).log()
     tr = pl.max_horizontal(
         pl.col("high") - pl.col("low"),
@@ -94,7 +95,12 @@ def build_features(bars: pl.DataFrame) -> pl.DataFrame:
         ema200=close.ewm_mean(span=200, adjust=False, min_samples=200),
         funding=pl.col("funding_rate"),
         funding_z=_rolling_z("funding_rate", DAY),
-        oi_change_1d=pl.col("open_interest") / pl.col("open_interest").shift(DAY) - 1,
+        # zero prior OI means "no quote", not a -100%/+inf move: change is undefined (null),
+        # so downstream drop_nulls removes the row instead of feeding sklearn inf/NaN.
+        oi_change_1d=pl.when(oi_shift == 0)
+        .then(pl.lit(None, dtype=pl.Float64))
+        .otherwise(pl.col("open_interest") / oi_shift)
+        - 1,
         volume_z=_rolling_z("volume", DAY),
     )
     # ponytail: trend_score divides a multi-hour EMA gap by per-minute rv_30m, so it

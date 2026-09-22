@@ -1,7 +1,9 @@
 import pytest
 
+from pydantic import ValidationError
+
 from jev_trading.contracts import Action
-from jev_trading.risk.kernel import MarketCheck, Portfolio, Proposal, RiskKernel
+from jev_trading.risk.kernel import MarketCheck, Portfolio, Proposal, RiskConfig, RiskKernel
 
 NOW = 1_700_000_000_000
 PRICE = 50_000.0
@@ -29,11 +31,11 @@ def test_config_loads_from_risk_json():
         "daily_loss_limit_usd": 50.0,
         "trade_loss_limit_usd": 20.0,
         "max_spread_bps": 5.0,
-        "min_depth_usd": 0.0,
         "stale_data_ms": 15000,
         "max_orders_per_min": 12,
-        "max_open_positions": 1,
         "risk_per_trade_pct": 1.0,
+        "cooldown_ms": 0,
+        "max_drawdown_pct": 0.0,
     }
     assert RiskKernel().cfg.max_leverage == 2.0
 
@@ -108,6 +110,51 @@ def test_rate_limit_rejects_13th_approved_decision_in_60s():
     d = k.evaluate(exit_proposal, portfolio(), market(), NOW, PRICE)
     assert not d.allowed
     assert "max_orders_per_min" in d.reason
+
+
+def test_cooldown_blocks_enter_until_close_plus_duration():
+    k = RiskKernel()
+    k.cfg.cooldown_ms = 60_000
+    exit_proposal = Proposal(action=Action.EXIT, confidence=0.9)
+    assert k.evaluate(exit_proposal, portfolio(), market(), NOW, PRICE).allowed
+    k.register_fill(-1.0, close_time_ms=NOW)
+
+    blocked_at = MarketCheck(spread_bps=1.0, last_update_ms=NOW + 59_999, now_ms=NOW + 59_999)
+    blocked = k.evaluate(entry(), portfolio(), blocked_at, NOW + 59_999, PRICE)
+    assert not blocked.allowed
+    assert blocked.reason == "cooldown_ms"
+
+    ready_at = MarketCheck(spread_bps=1.0, last_update_ms=NOW + 60_000, now_ms=NOW + 60_000)
+    ready = k.evaluate(entry(), portfolio(), ready_at, NOW + 60_000, PRICE)
+    assert ready.allowed
+    assert ready.reason == "ok"
+
+
+def test_drawdown_halt_uses_peak_to_current_daily_pnl():
+    k = RiskKernel()
+    k.cfg.max_drawdown_pct = 10.0
+    k.register_fill(100.0)
+    d = k.evaluate(entry(), portfolio(capital_usd=1_000.0, daily_pnl_usd=-11.0), market(), NOW, PRICE)
+    assert not d.allowed
+    assert d.reason == "max_drawdown_pct"
+    assert k.halted
+
+
+def test_invalid_risk_config_is_rejected_fail_closed():
+    base = {
+        "max_position_btc": 0.1,
+        "max_leverage": 2.0,
+        "daily_loss_limit_usd": 50.0,
+        "trade_loss_limit_usd": 20.0,
+        "max_spread_bps": 5.0,
+        "stale_data_ms": 15_000,
+        "max_orders_per_min": 12,
+        "risk_per_trade_pct": 1.0,
+    }
+    with pytest.raises(ValidationError):
+        RiskConfig.model_validate({**base, "cooldown_ms": -1})
+    with pytest.raises(ValidationError):
+        RiskConfig.model_validate({**base, "max_drawdown_pct": float("nan")})
 
 
 def test_no_action_always_allowed():
