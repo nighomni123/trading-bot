@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>AI Inside — Platform Architecture (BTC Perp / 5m-1h)</title>
+<style>
+:root{--bg:#0b0f14;--surface:#121820;--panel:#171f2e;--text:#e7edf3;--muted:#9aa5b1;--line:#2a3548;--accent:#4fb0d6;--security:#e8844c;--brain:#a97ce3;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif;background:var(--bg);color:var(--text);line-height:1.35}
+header{padding:26px 32px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#11182a,#0b0f14)}
+h1{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0 0 6px}
+.subtitle{color:var(--muted);font-size:14px}
+.container{max-width:1280px;margin:0 auto;padding:24px 32px 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.card h3{font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.card .layer{font-size:11px;color:var(--accent);margin-bottom:4px}
+.card p{font-size:13px;margin:6px 0 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(79,176,214,.12);color:var(--accent);border:1px solid rgba(79,176,214,.25)}
+.badge.sec{background:rgba(232,132,76,.12);color:var(--security);border-color:rgba(232,132,76,.25)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;margin:22px 0;overflow-x:auto}
+svg{display:block;width:100%;height:auto}
+.note{background:#142030;border-left:4px solid var(--accent);padding:14px 16px;border-radius:10px;margin:14px 0;font-size:13.5px}
+.note.sec{border-color:var(--security)}
+.note h4{margin:0 0 6px;font-size:14px}
+pre{background:#0c1220;padding:10px 12px;border-radius:8px;overflow-x:auto;font-size:12px;border:1px solid var(--line);color:#dde1ea}
+</style></head><body>
+<header><h1>Platform Architecture — AI inside, not LLM-then-trades</h1><p class="subtitle">BTC perpetual futures primary (5m–1h horizon). NIFTY futures second. NIFTY options deferred (contract-surface complexity). Research/execution platform with six systems.</p></header>
+<div class="container">
+
+<div class="diagram" aria-label="System diagram">
+<svg viewBox="0 0 1200 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-layer architecture: sources → market state → quant + frontier brain → policy → Jev → risk kernel → execution → observability; storage/bus behind; shadow + adversarial loop on feedback">
+<style>
+.t{font-family:system-ui,sans-serif;font-size:11.5px;fill:#e7edf3;font-weight:600}
+.tl{font-size:9.5px;fill:#9aa5b1}
+.b{fill:#a97ce3;stroke:#a97ce3}
+.g{fill:#4fb0d6;stroke:#4fb0d6}
+.r{fill:#e8844c;stroke:#e8844c}
+.e{fill:#171f2e;stroke:#2a3548;stroke-width:1.2}
+.ln{stroke:#2a3548;stroke-width:1.4}
+</style>
+<!-- Row 1 -->
+<rect x="60" y="60" w="160" h="72" rx="10" class="e"/><text x="140" y="88" text-anchor="middle" class="t">Market Sources</text><text x="140" y="104" text-anchor="middle" class="tl">BTC / NIFTY / news</text>
+<rect x="290" y="60" w="160" h="72" rx="10" class="e"/><text x="370" y="88" text-anchor="middle" class="t">Market State</text><text x="370" y="104" text-anchor="middle" class="tl">Price / book / vol / OI / funding</text>
+<!-- Row 2 -->
+<rect x="60" y="210" w="160" h="72" rx="10" class="e"/><text x="140" y="238" text-anchor="middle" class="t">Quant Engine</text><text x="140" y="254" text-anchor="middle" class="tl">LightGBM / XGB / baseline</text>
+<rect x="290" y="210" w="160" h="72" rx="10" fill="#22163a" stroke="#a97ce3" stroke-width="1.8"/><text x="370" y="238" text-anchor="middle" class="t" fill="#e7edf3">Frontier Brain</text><text x="370" y="254" text-anchor="middle" class="tl">Hypothesis / policy</text>
+<rect x="520" y="210" w="160" h="72" rx="10" class="e"/><text x="600" y="238" text-anchor="middle" class="t">Policy Engine</text><text x="600" y="254" text-anchor="middle" class="tl">Version / conditions</text>
+<rect x="740" y="210" w="160" h="72" rx="10" fill="#161728" stroke="#4fb0d6" stroke-width="1.4"/><text x="820" y="238" text-anchor="middle" class="t" fill="#e7edf3">Jev (Fast Judgment)</text><text x="820" y="254" text-anchor="middle" class="tl">TypeSafe: yes/no / choice / eval</text>
+<!-- Row 3 -->
+<rect x="520" y="370" w="160" h="72" rx="10" fill="#2a2015" stroke="#e8844c" stroke-width="1.8"/><text x="600" y="398" text-anchor="middle" class="t" fill="#fde8d4">Risk Kernel (Hard)</text><text x="600" y="414" text-anchor="middle" class="tl">Non-AI limits / kill-switch</text>
+<rect x="740" y="370" w="160" h="72" rx="10" class="e"/><text x="820" y="398" text-anchor="middle" class="t">Execution Engine</text><text x="820" y="414" text-anchor="middle" class="tl">Sizing / orders / fills</text>
+<rect x="60" y="370" w="160" h="72" rx="10" class="e"/><text x="140" y="398" text-anchor="middle" class="t">Observability</text><text x="140" y="414" text-anchor="middle" class="tl">PnL / attribution / replay</text>
+<rect x="290" y="370" w="160" h="72" rx="10" fill="#11182a" stroke="#9aa5b1" stroke-width="1"/><text x="370" y="398" text-anchor="middle" class="t">Storage / Bus</text><text x="370" y="414" text-anchor="middle" class="tl">Redis / ClickHouse / NATS / MLflow</text>
+<!-- Edges -->
+<line x1="220" y1="96" x2="290" y2="96" class="ln"/><line x1="450" y1="96" x2="520" y2="96" class="ln"/>
+<line x1="220" y1="246" x2="290" y2="246" class="ln"/><line x1="450" y1="246" x2="520" y2="246" class="ln"/><line x1="680" y1="246" x2="740" y2="246" class="ln"/>
+<line x1="140" y1="282" x2="140" y2="370" class="ln"/><line x1="370" y1="282" x2="370" y2="370" class="ln"/><line x1="600" y1="282" x2="600" y2="370" class="ln"/><line x1="820" y1="282" x2="820" y2="370" class="ln"/>
+<line x1="820" y1="442" x2="820" y2="496" class="ln"/><line x1="680" y1="406" x2="740" y2="406" class="ln"/><line x1="600" y1="442" x2="520" y2="442" class="ln"/>
+<line x1="140" y1="442" x2="140" y2="496" class="ln"/>
+<!-- Feedback loop -->
+<path d="M 140 496 Q 80 560 290 560 T 370 496" fill="none" stroke="#4fb0d6" stroke-width="1.4" stroke-dasharray="6,3"/>
+<text x="190" y="548" font-size="9" fill="#4fb0d6">replay / calibration / shadow</text>
+<!-- Key legend -->
+<rect x="60" y="600" w="880" h="60" rx="8" fill="#11182a" stroke="#2a3548"/>
+<text x="80" y="625" font-size="12" fill="#e7edf3" font-weight="700">Interface separation — the core of the architecture:</text>
+<text x="80" y="643" font-size="11" fill="#9aa5b1">Frontier Brain → Policy Engine → Jev (TypeSafe evaluations) → Risk Kernel (hard non-AI rules) → Execution Engine. Frontier is NOT on the ms/sec critical path.</text>
+</svg>
+</div>
+
+<h2>6 layers (the systems you described)</h2>
+<div class="grid">
+  <div class="card"><h3>Market Sources <span class="badge">input</span></h3><p>BTC venue WebSocket/REST; NIFTY broker (Kite / Upstox); macro/news feed.</p></div>
+  <div class="card"><h3>Market State <span class="badge">state</span></h3><p>Normalized common schema: price / book / vol / OI / funding / regime / liquidity. Redis hot.</p></div>
+  <div class="card"><h3>Quant Engine <span class="badge">model</span></h3><p>LightGBM/XGBoost baselines + PyTorch where justified. Outputs probs per horizon (5m–1h).</p></div>
+  <div class="card"><h3>Frontier Brain <span class="badge" style="background:rgba(169,124,227,.12);color:#a97ce3;border-color:rgba(169,124,227,.25)">reason</span></h3><p>Hypothesis generation + strategy design + regime analysis. Produces <b>policy candidates</b>, never direct orders.</p></div>
+  <div class="card"><h3>Policy Engine <span class="badge">control</span></h3><p>Strategy version / conditions / thresholds / allowed actions. Converts brain output to executable policy.</p></div>
+  <div class="card"><h3>Jev <span class="badge">decision</span></h3><p>TypeSafe API: yes/no, choice, evaluation, ratings. Answers multiple bounded questions per state.</p></div>
+  <div class="card"><h3>Risk Kernel <span class="badge sec">gate (hard)</span></h3><p>Position / loss / exposure / spread / liquidity / kill-switch / stale-data limits. Non-AI; cannot be overridden.</p></div>
+  <div class="card"><h3>Execution <span class="badge">act</span></h3><p>Deterministic sizing + market/limit/stop + fill tracking. Shadow + live paths.</p></div>
+  <div class="card"><h3>Observability <span class="badge">feedback</span></h3><p>PnL attribution / calibration / strategy degradation. Replay by timestamp. Feeds research loop + adversarial model.</p></div>
+  <div class="card"><h3>Storage / Bus <span class="badge">infra</span></h3><p>Redis (hot) · ClickHouse (ticks) · Parquet archive · Postgres (metadata) · NATS / Redpanda.</p></div>
+</div>
+
+<h2>Orientation decision (from your spec, not my inference)</h2>
+<div class="note">
+<h4>BTC perpetual futures — first market (5m–1h)</h4>
+<p>Continuous 24/7 market = cleanest lab for <b>slow strategic reasoning + fast repeated evaluation</b>. Frontier can reassess every 15–60m; Jev operates continuously. No expiry/strike/Greeks/IV/louidity-spread/commercial-constraints noise.</p>
+</div>
+<div class="note sec">
+<h4>NIFTY options — deferred, not rejected</h4>
+<p><b>Built into platform day one.</b> Not started because the contract state is substantially richer: NSE currently has four weekly NIFTY expiries plus monthly/quarterly/longer-dated contracts; weekly and monthly NIFTY options expire Tuesday. Direction + magnitude + timing + IV + skew + expiry + strike selection + theta + gamma + spread/Greeks/liquidity = far more state than BTC perp. ([NSE India][1])</p>
+<p>Also: Indian retail-algo framework (SEBI, applicable to all brokers from Apr 1 2026) is part of engineering requirements, not an afterthought. ([SEBI][11])</p>
+</div>
+<div class="note">
+<h4>Why not NIFTY futures as first? It's second.</h4>
+<p>NIFTY futures add only the daily market window (NSE 09:15–15:40 IST + pre-open 09:00) — manageable, but less continuous opportunity for the architecture to operate. Included from the start as a parallel instrument; BTC perp remains the primary testbed.</p>
+</div>
+
+<h2>Layer-by-layer (the table from your spec)</h2>
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+<thead><tr style="background:#171f2e"><th style="text-align:left;padding:8px 10px;border-bottom:1px solid #2a3548">Layer</th><th>Tool / Component</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Feed</td><td>Native exchange WS (primary); CCXT for research</td><td>Live ticks / book / funding; REST for snapshots / history / recovery</td></tr>
+<tr><td>NIFTY feed</td><td>Kite / Upstox (WebSocket + REST)</td><td>NSE market + order connectivity; normalize to common schema</td></tr>
+<tr><td>Event bus</td><td>NATS JetStream → Redpanda (later)</td><td>Replayable system: market.raw → normalized → features → signal → decision → orders → fills → pnl</td></tr>
+<tr><td>Features</td><td>Python + Polars / NumPy</td><td>Returns (10s/30s/1m/5m/15m/1h) · vol (realized / vol-of-vol / ATR / implied) · microstructure (spread/depth/imbalance) · funding/basis/OI · regime (trend / mean-reversion / vol / liquidity)</td></tr>
+<tr><td>Quant</td><td>LightGBM / XGBoost + sklearn</td><td>Per horizon: P(up/down/threshold), expected return, stop-loss prob. Boring = good.</td></tr>
+<tr><td>Deep (conditional)</td><td>PyTorch</td><td>Only where data justifies it; not default.</td></tr>
+<tr><td>Backtest</td><td>VectorBT → custom event-driven simulator</td><td>Cost-aware (spread, fees, slippage, partial fills, funding, liquidity, gap, rejection)</td></tr>
+<tr><td>Frontier</td><td>GPT / Claude / Gemini-class API</td><td>Periodic compressed world model → strategy/policy candidate. Not on critical path.</td></tr>
+<tr><td>Fast decision</td><td>Jev (TypeSafe API)</td><td>Bounded questions (yes/no / choice / evaluation / rating). High-volume.</td></tr>
+<tr><td>Policy</td><td>Python (ordinary code)</td><td>Convert strategy → executable policy with explicit thresholds.</td></tr>
+<tr><td>Risk</td><td>Python → Rust eventually</td><td>Hard rules only. Kill switch / daily loss / stale data / spread / execution deviation.</td></tr>
+<tr><td>Execution</td><td>Python / Rust + native broker / exchange API</td><td>Market / limit / stop / cancel-replace. Later TWAP/VWAP/iceberg.</td></tr>
+<tr><td>Model tracking</td><td>MLflow</td><td>Model / experiment / version / alias / lineage / promotion (momentum_v7, v8...)</td></tr>
+<tr><td>Monitoring</td><td>Prometheus + Grafana; Loki logs</td><td>System + trading metrics + audit trail.</td></tr>
+<tr><td>Deployment (v1)</td><td>Docker Compose; Ubuntu VPS (8 vCPU / 16–32 GB / NVMe)</td><td>Not Kubernetes / not co-location / not GPUs initially.</td></tr>
+</tbody></table>
+
+<h2>The interface separation (what makes this a platform, not an LLM that trades)</h2>
+<pre>FRONTIER MODEL (slow, periodic)
+  → strategy / policy CANDIDATE (not an order)
+  → POLICY ENGINE (version / conditions / thresholds / allowed actions)
+  → JEV (fast, bounded, TypeSafe: yes/no/choice/evaluation/ratings)
+  → RISK KERNEL (hard non-AI rules — cannot be overridden by any model)
+  → EXECUTION ENGINE (deterministic sizing + orders + fills)
+  → MARKET (fills / positions feed back to market state)
+  → OBSERVABILITY (PnL attribution / calibration / degradation / replay)
+  → RESEARCH / FRONTIER (new hypotheses, adversarial kill-strategy, shadow trader)
+
+Meanwhile, Jev answers continuously — never trying to "reason" the strategy, only evaluate whether current state satisfies the policy conditions.</pre>
+
+<h2>Learning loop (not continuous live modification by the model)</h2>
+<div class="note"><h4>Strict loop — live data does NOT feed directly back into live strategy</h4><p>Live → Data → Attribution → Research → Frontier (hypotheses) → Strategy v2 → Backtest → Walk-forward → Paper → Shadow → Live. Shadow + adversarial process runs alongside. MLflow tracks versions so you can say exactly which data/features/parameters/training/backtest/deployment produced each strategy.</p></div>
+
+<h2>Adversarial + shadow (your idea, made explicit)</h2>
+<div class="grid">
+  <div class="card"><h3>Shadow trader <span class="badge">audit</span></h3><p>Every live decision → actual trade + hypothetical (shadow) trade. Discover whether Jev / frontend / quant actually contribute vs baseline / randomized.</p></div>
+  <div class="card"><h3>Adversarial strategist <span class="badge sec">kill</span></h3><p>Second frontier process: "Why shouldn't we trade?" Tests regime change, cost erosion, overfit, signal degradation — before the live strategy convinces itself.</p></div>
+  <div class="card"><h3>Replay <span class="badge">audit</span></h3><p>Replay market-state at 10:37:21 Mar 18 → reproduce decision. More valuable than a fancy dashboard.</p></div>
+</div>
+
+<h2>Deployment (v1 — keep it small)</h2>
+<pre>DEV: laptop (Python / Jupyter / Polars / VectorBT / PyTorch / LightGBM / MLflow / Docker)
+PROD (v1): one Linux VPS — 8 vCPU / 16–32 GB RAM / NVMe / Ubuntu / Docker Compose
+Containers: market-feed · state-engine · feature-engine · quant-engine · jev-service · policy-engine · risk-engine · execution-engine · clickhouse · postgres · redis · nats · mlflow · monitoring · dashboard</pre>
+<p style="font-size:12px;color:var(--muted)">No Kubernetes, no Kafka clusters, no GPUs, no co-location — architecture theatre is what this design avoids.</p>
+
+<footer style="margin-top:30px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)">
+Built from your architecture spec — BTC perpetual first (5m–1h), NIFTY futures second, NIFTY options deferred until policy/quant/Jev/risk chain is proven. See source spec <code>trading-platform-architecture.json</code> and this rendered HTML.
+</footer>
+</div>
+</body></html>

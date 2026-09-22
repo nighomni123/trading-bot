@@ -1,0 +1,5 @@
+{
+  "enter_long": {"p_up_15": 0.60, "jev_trade_ok": 0.75, "jev_failure_max": 0.35, "min_edge_over_cost": 2.0},
+  "enter_short": {"p_dn_15": 0.60, "jev_trade_ok": 0.75, "jev_failure_max": 0.35, "min_edge_over_cost": 2.0},
+  "exit": {"p_up_below": 0.45, "p_dn_below": 0.45}
+}

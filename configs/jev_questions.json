@@ -1,0 +1,27 @@
+[
+  {
+    "name": "breakout",
+    "kind": "yesno",
+    "instructions": "Is a directional breakout developing?"
+  },
+  {
+    "name": "liquidity_ok",
+    "kind": "yesno",
+    "instructions": "Is liquidity sufficient to enter without meaningful slippage?"
+  },
+  {
+    "name": "vol_risk",
+    "kind": "yesno",
+    "instructions": "Is the volatility regime elevated enough to make an entry risky?"
+  },
+  {
+    "name": "failure_regime",
+    "kind": "yesno",
+    "instructions": "Are funding or volatility extremes signaling a crowded, failure-prone market?"
+  },
+  {
+    "name": "trade_ok",
+    "kind": "yesno",
+    "instructions": "Taking trend strength and failure risk together, is this a tradeable moment?"
+  }
+]

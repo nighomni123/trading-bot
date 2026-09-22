@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "title": "AI Inside — Platform With Frontier Brain (BTC Perp / 5m-1h)",
+    "type": "architecture",
+    "subject": "Research-and-execution platform with AI inside (not LLM that trades)",
+    "locale": "en",
+    "version": "v1.0",
+    "quality_profile": "showcase",
+    "author": "User architecture specification",
+    "description": "Six-layer platform oriented to BTC perpetual futures (5m-1h). Frontier model produces strategy/policy; Jev evaluates bounded state; deterministic risk kernel approves; execution delivers. NIFTY futures / options layered later. No live execution in v1.",
+    "viewBox": "0 0 1200 780"
+  },
+  "nodes": [
+    {"id":"sources","label":"Market Sources","type":"external","layer":"input","x":60,"y":60,"w":160,"h":72,"detail":"BTC venue (WS/REST); NIFTY broker (Kite/Upstox WS); macro/news"},
+    {"id":"marketstate","label":"Market State","type":"backend","layer":"state","x":290,"y":60,"w":160,"h":72,"detail":"Prices / book / vol / OI / funding / regime / liquidity score. Normalized common schema."},
+    {"id":"quant","label":"Quant Engine","type":"backend","layer":"model","x":60,"y":210,"w":160,"h":72,"detail":"LightGBM/XGBoost + baseline. Outputs probs (up/down/expected return) per horizon."},
+    {"id":"brain","label":"Frontier Brain","type":"backend","layer":"reason","x":290,"y":210,"w":160,"h":72,"detail":"Hypothesis + strategy design + regime analysis. Produces POLICY CANDIDATE, not orders."},
+    {"id":"policy","label":"Policy Engine","type":"backend","layer":"control","x":520,"y":210,"w":160,"h":72,"detail":"Strategy version, conditions, thresholds, allowed actions. Converts brain -> executable policy."},
+    {"id":"jev","label":"Jev (Fast Judgment)","type":"backend","layer":"decision","x":740,"y":210,"w":160,"h":72,"detail":"Bounded yes/no / choice / evaluation / ratings (TypeSafe API). Many questions per state."},
+    {"id":"risk","label":"Risk Kernel (Hard)","type":"security","layer":"gate","x":520,"y":370,"w":160,"h":72,"detail":"Position / loss / exposure / liquidity / kill-switch / stale-data / spread limits. Non-AI. Cannot be overridden."},
+    {"id":"exec","label":"Execution Engine","type":"backend","layer":"act","x":740,"y":370,"w":160,"h":72,"detail":"Sizing + order (market/limit/stop) + fill tracking. Deterministic. Shadow + live paths."},
+    {"id":"obs","label":"Observability","type":"backend","layer":"feedback","x":60,"y":370,"w":160,"h":72,"detail":"PnL attribution / calibration / strategy degradation / replayable by timestamp."},
+    {"id":"store","label":"Storage / Bus","type":"database","layer":"infra","x":290,"y":370,"w":160,"h":72,"detail":"Redis (hot) + ClickHouse (ticks) + Parquet (archive) + Postgres (metadata) + NATS/Redpanda."}
+  ],
+  "edges": [
+    {"from":"sources","to":"marketstate","label":"normalize (WS primary)"},
+    {"from":"marketstate","to":"quant","label":"features"},
+    {"from":"marketstate","to":"brain","label":"compressed world state"},
+    {"from":"quant","to":"brain","label":"probabilities"},
+    {"from":"brain","to":"policy","label":"strategy / policy candidate"},
+    {"from":"policy","to":"jev","label":"questions / conditions"},
+    {"from":"marketstate","to":"jev","label":"current state"},
+    {"from":"jev","to":"policy","label":"scores / decisions"},
+    {"from":"policy","to":"risk","label":"proposed action"},
+    {"from":"risk","to":"exec","label":"approved / rejected"},
+    {"from":"exec","to":"marketstate","label":"fills / positions (loop)"},
+    {"from":"exec","to":"obs","label":"trades / PnL"},
+    {"from":"obs","to":"brain","label":"research / degradation / calibration"},
+    {"from":"store","to":"marketstate","label":"hot / historical"},
+    {"from":"store","to":"quant","label":"training data"},
+    {"from":"store","to":"obs","label":"audit / replay"}
+  ],
+  "annotations": [
+    {"id":"a1","label":"NOTE: BTC perpetual primary (5m-1h). NIFTY futures second. NIFTY options deferred — contract surface (weekly/monthly/quarterly + Tue expiries) = direction/magnitude/timing/IV/skew/expiry/strike/Greeks/liquidity/spread complexity. See NSE contract specs.","x":30,"y":490,"w":1140,"h":60,"badge":"Orientation"},
+    {"id":"a2","label":"Interface separation (core idea): Frontier -> Policy -> Jev -> Risk -> Execution. Frontier is NOT on ms/sec critical path. Produces strategy candidates; Jev evaluates bounded states at high volume; Risk hard non-AI rules; Execution deterministic.","x":30,"y":560,"w":1140,"h":60,"badge":"Architecture"},
+    {"id":"a3","label":"Stack: NATS/Redpanda (bus) · Redis hot · ClickHouse ticks · Parquet archive · LightGBM/XGBoost quant · PyTorch (where justified) · VectorBT · Jev TypeSafe API · MLflow registry · Prometheus/Grafana · React · Docker Compose (no K8s initially).","x":30,"y":630,"w":1140,"h":60,"badge":"Stack"},
+    {"id":"a4","label":"Shadow trader + adversarial strategist: every live decision -> actual + hypothetical (shadow) + kill-strategy process. MLflow tracks versions (momentum_v7/v8...). Replay by replaying market-state at past timestamp.","x":30,"y":700,"w":1140,"h":60,"badge":"Learning / Audit"}
+  ]
+}

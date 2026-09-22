@@ -1,0 +1,20 @@
+# Secrets — monid CLI state includes a live API key
+.monid/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Data & artifacts (regenerable / large)
+data/
+artifacts/
+*.parquet
+*.log
+events/
+models/
+
+# OS
+.DS_Store

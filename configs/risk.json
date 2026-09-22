@@ -1,0 +1,12 @@
+{
+  "max_position_btc": 0.1,
+  "max_leverage": 2.0,
+  "daily_loss_limit_usd": 50.0,
+  "trade_loss_limit_usd": 20.0,
+  "max_spread_bps": 5.0,
+  "min_depth_usd": 0.0,
+  "stale_data_ms": 15000,
+  "max_orders_per_min": 12,
+  "max_open_positions": 1,
+  "risk_per_trade_pct": 1.0
+}
