@@ -9,7 +9,7 @@ __pycache__/
 .pytest_cache/
 
 # Data & artifacts (regenerable / large)
-data/
+/data/
 artifacts/
 *.parquet
 *.log

@@ -22,6 +22,48 @@ BAR_COLUMNS: tuple[str, ...] = (
 
 INSTRUMENT = "BTCUSDT_PERP"  # Binance USDT-denominated BTC futures (BTCUSDT)
 
+PM_SOURCES: tuple[str, ...] = ("polymarket", "kalshi")  # order = fetch priority
+
+# Kalshi / Polymarket binary markets: a YES contract pays $1 at settlement, so its
+# price is the implied P(YES) in [0, 1]. Normalized snapshot consumed by the live
+# feed as sentiment / order-book input alongside BAR_COLUMNS.
+PM_COLUMNS: tuple[str, ...] = (
+    "timestamp",       # int64 epoch ms UTC, quote observation time (server-stamped, never the poll time)
+    "platform",        # "polymarket" | "kalshi"
+    "market_id",       # str, platform-native id (Polymarket condition id / Kalshi ticker)
+    "event_id",        # str, parent event id
+    "question",        # str
+    "yes_bid",         # float64, best YES bid in [0,1]
+    "yes_ask",         # float64, best YES ask in [0,1]
+    "last_price",      # float64, last trade YES price in [0,1]
+    "spread",          # float64, ask - bid
+    "mid_price",       # float64, (bid + ask) / 2
+    "best_bid_size",   # float64, contracts at best bid
+    "best_ask_size",   # float64, contracts at best ask
+    "depth_bids",      # float64, contracts in top 10 bids
+    "depth_asks",      # float64, contracts in top 10 asks
+    "liquidity",       # float64, USD
+    "volume_24h",      # float64, USD
+    "volume_total",    # float64, USD
+    "open_interest",   # float64, USD (null when a platform omits it)
+    "close_date",      # int64 epoch ms UTC, market resolution time
+    "status",          # str, "open" | "closed" | raw platform status
+)
+
+# Normalized YES-probability OHLC history (for replay / training).
+PM_BAR_COLUMNS: tuple[str, ...] = (
+    "timestamp",       # int64 epoch ms UTC, candle end (inclusive)
+    "platform",        # "polymarket" | "kalshi"
+    "market_id",       # str
+    "question",        # str
+    "open",            # float64 YES probability in [0,1]
+    "high",
+    "low",
+    "close",
+    "volume",          # float64 contracts
+    "open_interest",   # float64 contracts
+)
+
 
 class Action(str, Enum):
     """Constrained action space (Conversation 1). Policy engine emits; risk kernel gates."""

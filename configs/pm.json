@@ -1,0 +1,10 @@
+{
+  "interval": "1h",
+  "keywords": ["btc", "bitcoin", "crypto", "ethereum"],
+  "watchlist": {
+    "polymarket": [
+      "559651"
+    ],
+    "kalshi": []
+  }
+}
