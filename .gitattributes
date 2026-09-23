@@ -1,3 +1,2 @@
-experiments/*/*.jsonl filter=lfs diff=lfs merge=lfs -text
-experiments/*/arm_*.jsonl filter=lfs diff=lfs merge=lfs -text
-experiments/EXP-004/arm_*.jsonl filter=lfs diff=lfs merge=lfs -text
+experiments/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
+experiments/**/arm_*.jsonl filter=lfs diff=lfs merge=lfs -text
