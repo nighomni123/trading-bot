@@ -1,3 +1,4 @@
+# Attribution — PM sources: Polymarket/py-builder-relayer-client (MIT) https://github.com/Polymarket/py-builder-relayer-client; Surf /search/prediction-market (monid); BlockRun /polymarket/cohorts/stats (monid).
 """Kalshi + Polymarket prediction-market data: sentiment + order-book input.
 
 These markets trade binary YES/NO contracts on events (e.g. "BTC > $100k by

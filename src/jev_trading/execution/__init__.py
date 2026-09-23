@@ -1,3 +1,4 @@
+# Attribution — execution loop design reference: freqtrade/freqtrade (MIT-like) https://github.com/freqtrade/freqtrade; no source copied — contract interface (PaperTrader/next-open) is original.
 """Paper execution engine for P8 shadow trading — zero real money.
 
 Accepts risk-approved actions, fills at next-open (buffered, lookahead-free per
