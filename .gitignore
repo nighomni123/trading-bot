@@ -19,9 +19,5 @@ artifacts/
 events/
 models/
 
-# Large experiment artifacts
-experiments/*/*.jsonl
-experiments/*/arm_*.jsonl
-
 # OS
 .DS_Store
