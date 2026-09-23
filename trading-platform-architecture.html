@@ -22,11 +22,11 @@ svg{display:block;width:100%;height:auto}
 .note h4{margin:0 0 6px;font-size:14px}
 pre{background:#0c1220;padding:10px 12px;border-radius:8px;overflow-x:auto;font-size:12px;border:1px solid var(--line);color:#dde1ea}
 </style></head><body>
-<header><h1>Platform Architecture — AI inside, not LLM-then-trades</h1><p class="subtitle">BTC perpetual futures primary (5m–1h horizon). NIFTY futures second. NIFTY options deferred (contract-surface complexity). Research/execution platform with six systems.</p></header>
+<header><h1>Platform Architecture — AI inside, not LLM-then-trades</h1><p class="subtitle">BTC perpetual futures primary (5m–1h horizon). NIFTY futures second. NIFTY options deferred (contract-surface complexity). Research/execution platform with six systems. <strong>v1.1 — updated per folder state (EXP-004 real Jev, execution semantics, shadow trader).</strong></p></header>
 <div class="container">
 
 <div class="diagram" aria-label="System diagram">
-<svg viewBox="0 0 1200 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-layer architecture: sources → market state → quant + frontier brain → policy → Jev → risk kernel → execution → observability; storage/bus behind; shadow + adversarial loop on feedback">
+<svg viewBox="0 0 1200 840" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-layer architecture: sources → market state → quant + frontier brain → policy → Jev → risk kernel → execution → observability; storage/bus behind; shadow + adversarial loop on feedback">
 <style>
 .t{font-family:system-ui,sans-serif;font-size:11.5px;fill:#e7edf3;font-weight:600}
 .tl{font-size:9.5px;fill:#9aa5b1}
@@ -137,6 +137,8 @@ Meanwhile, Jev answers continuously — never trying to "reason" the strategy, o
   <div class="card"><h3>Adversarial strategist <span class="badge sec">kill</span></h3><p>Second frontier process: "Why shouldn't we trade?" Tests regime change, cost erosion, overfit, signal degradation — before the live strategy convinces itself.</p></div>
   <div class="card"><h3>Replay <span class="badge">audit</span></h3><p>Replay market-state at 10:37:21 Mar 18 → reproduce decision. More valuable than a fancy dashboard.</p></div>
 </div>
+
+<div class="note"><h4>Folder state update — v1.1 (EXP-004 real Jev + execution semantics)</h4><p>EXP-004: controlled arms A (quant baseline) / B (policy w/o Jev) / C (quant → adapter with 5 MVP questions) / D (full pipeline); adapter blocks future info; no leakage. Execution semantics: next-bar (close[t] → open[t+1] + slippage); intrabar requires book event. Shadow trader + adversarial strategist running. NIFTY options still deferred.</p></div>
 
 <h2>Deployment (v1 — keep it small)</h2>
 <pre>DEV: laptop (Python / Jupyter / Polars / VectorBT / PyTorch / LightGBM / MLflow / Docker)

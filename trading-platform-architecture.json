@@ -4,11 +4,8 @@
     "type": "architecture",
     "subject": "Research-and-execution platform with AI inside (not LLM that trades)",
     "locale": "en",
-    "version": "v1.0",
     "quality_profile": "showcase",
-    "author": "User architecture specification",
-    "description": "Six-layer platform oriented to BTC perpetual futures (5m-1h). Frontier model produces strategy/policy; Jev evaluates bounded state; deterministic risk kernel approves; execution delivers. NIFTY futures / options layered later. No live execution in v1.",
-    "viewBox": "0 0 1200 780"
+    "viewBox": [1200, 840]
   },
   "nodes": [
     {"id":"sources","label":"Market Sources","type":"external","layer":"input","x":60,"y":60,"w":160,"h":72,"detail":"BTC venue (WS/REST); NIFTY broker (Kite/Upstox WS); macro/news"},
@@ -44,6 +41,7 @@
     {"id":"a1","label":"NOTE: BTC perpetual primary (5m-1h). NIFTY futures second. NIFTY options deferred — contract surface (weekly/monthly/quarterly + Tue expiries) = direction/magnitude/timing/IV/skew/expiry/strike/Greeks/liquidity/spread complexity. See NSE contract specs.","x":30,"y":490,"w":1140,"h":60,"badge":"Orientation"},
     {"id":"a2","label":"Interface separation (core idea): Frontier -> Policy -> Jev -> Risk -> Execution. Frontier is NOT on ms/sec critical path. Produces strategy candidates; Jev evaluates bounded states at high volume; Risk hard non-AI rules; Execution deterministic.","x":30,"y":560,"w":1140,"h":60,"badge":"Architecture"},
     {"id":"a3","label":"Stack: NATS/Redpanda (bus) · Redis hot · ClickHouse ticks · Parquet archive · LightGBM/XGBoost quant · PyTorch (where justified) · VectorBT · Jev TypeSafe API · MLflow registry · Prometheus/Grafana · React · Docker Compose (no K8s initially).","x":30,"y":630,"w":1140,"h":60,"badge":"Stack"},
-    {"id":"a4","label":"Shadow trader + adversarial strategist: every live decision -> actual + hypothetical (shadow) + kill-strategy process. MLflow tracks versions (momentum_v7/v8...). Replay by replaying market-state at past timestamp.","x":30,"y":700,"w":1140,"h":60,"badge":"Learning / Audit"}
+    {"id":"a4","label":"Shadow trader + adversarial strategist: every live decision -> actual + hypothetical (shadow) + kill-strategy process. MLflow tracks versions (momentum_v7/v8...). Replay by replaying market-state at past timestamp.","x":30,"y":700,"w":1140,"h":60,"badge":"Learning / Audit"},
+    {"id":"a5","label":"Current folder state (v1.1): EXP-004 real Jev — controlled arms A (quant baseline) / B (policy w/o Jev) / C (quant+Jev adapter, 5 MVP questions) / D (full pipeline); adapter enforces no future info; execution semantics = next-bar (close[t] -> open[t+1] + slippage), intrabar requires book event; NIFTY options still deferred.","x":30,"y":770,"w":1140,"h":60,"badge":"Folder / Experiment"}
   ]
 }
