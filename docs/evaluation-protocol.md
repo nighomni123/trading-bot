@@ -19,6 +19,7 @@ bars at each boundary). No shuffling, ever.
   D quant → mock-Jev → policy → risk. E Jev-disabled policy (same conditions as D).
 - Jev incremental contribution = `Perf(D) − Perf(C)` on: precision, calibration,
   drawdown, cost-adjusted return, regime robustness.
+- Architecture update (audit/replan): Frontier/Laya layer is a strategy allocator (not BUY/SELL). Replay/offline harness (`scripts/replay_laya.py`) produces `LayaDecision` artifacts without real Laya call; real inference deferred until Phase 5 specialist evidence justifies it. See `frontier/laya.py` and `frontier/router.py`.
 - Cost gates: base costs, then hostile 2–3× fee multiplier. Survive hostile before P8.
 - Position context for exits: `PositionState(side, quantity, entry_price, unrealized_pnl,
   realized_pnl, time_in_position)` joins market+quant+Jev state in the policy input.

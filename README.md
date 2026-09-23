@@ -5,8 +5,9 @@ BTC-perp paper-trading MVP. Six-layer fast loop from Conversation 1 of
 swappable post-MVP) and Laya fine-tuning deferred.
 
 ```
-Live feed → State engine → Quant engine → Jev(mock) → Policy → Risk kernel → Paper execution
+Market Data → State/Features → Quant Specialists → Expected Return/Edge/Uncertainty → Frontier/Laya (stub) → StrategyProfile → Deterministic Policy → Risk Kernel → Paper Execution
 ```
+Laya integration deferred (Phase 5); replay/offline harness available: `scripts/replay_laya.py`.
 
 ## Principles (from the conversations)
 
@@ -92,7 +93,17 @@ Results print as JSON to stdout and are written to `experiments/EXP-xxx/experime
 
 Event logs (replayable via `simulator.verify_log`) land in `events/shadow_*.jsonl`.
 
-### 5. Frontier strategist (P9)
+### 6. Replay / offline Laya harness (Phase 5 stub)
+
+```bash
+# Offline replay: historical state → LayaDecision (stub) → JSONL artifacts
+# No real Laya call; deterministic heuristic for incremental-value measurement
+.venv/bin/python scripts/replay_laya.py --input results/state_window.jsonl --output results/laya_decisions.jsonl
+```
+
+Schemas: `frontier/laya.py` (LayaDecision, StrategyProfile, FrontierState); `frontier/router.py` (stub router). Upgrade path: replace stub with real typed-decision inference when specialist layer justifies it.
+
+### 7. Frontier strategist (P9)
 
 ```bash
 # The frontier layer analyzes regime + calibration + PnL and proposes parameter artifacts.
@@ -111,3 +122,5 @@ Event logs (replayable via `simulator.verify_log`) land in `events/shadow_*.json
 Data lands in `data/` (gitignored), models in `models/`, event logs in `events/`
 (both `p7_*.jsonl` backtest logs and `shadow_*.jsonl` live paper-trading logs).
 Experiment artifacts in `experiments/EXP-xxx/`.
+
+> **Clone with LFS (seamless)**: This repo uses Git LFS for large `.jsonl` experiment files (`experiments/EXP-*/arm_*.jsonl`, ~200 MB each). To clone and get full files automatically, install [`git-lfs`](https://git-lfs.com) first (`brew install git-lfs` or download), run `git lfs install` once globally, then clone: `git clone https://github.com/nighomni123/trading-bot.git`. Without LFS configured, clone only downloads small pointer files (3 lines) instead of the real data.

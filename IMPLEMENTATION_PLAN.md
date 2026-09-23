@@ -12,9 +12,9 @@ can technically be constructed.
 ## Research pipeline (backtest and live consume the same decision contracts)
 
 ```text
-Historical Market Data → Point-in-time State/Features → Label Generator
-  → Chronological Split + Purge/Embargo → Quant Model → Policy → Jev → Risk
-  → Simulator → Evaluation / Attribution
+Historical Market Data → Point-in-time State/Features → Quant Specialists
+  → Expected Return / Edge / Uncertainty → Frontier / Laya (stub) → StrategyProfile
+  → Policy → Risk → Simulator → Evaluation / Attribution
 ```
 
 P8 is the live version of exactly this pipeline. No separate "research implementation"
@@ -55,7 +55,7 @@ Baselines A–E scored OOS on 2024 (train 2021–2023, test [2025, 2026) frozen,
 information (dumb rules rank worse than coin-flip; always-long loses after costs).
 Models in `models/`. Caveat: valid is 2024 only — cost survival is P7's gate, not P4's.
 
-## P5 — Jev + Policy 🟡 Mock complete / position-aware pending
+## P5 — Frontier / Laya stub + replay harness 🟡 Schema/types complete (`frontier/laya.py`, `frontier/router.py`); replay harness `scripts/replay_laya.py` produces JSONL artifacts without real Laya call; real inference deferred until Phase 5 specialist evidence justifies it.
 JevClient protocol, MockJev/RandomJev, 5 MVP yesno questions, threshold policy with audit
 `reasons`. Cost edge-check wired to `configs/costs.json` (derives round-trip when the key
 is absent; activates on `expected_return_15`). `exit` thresholds stay unused here —

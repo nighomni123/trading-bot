@@ -15,6 +15,10 @@ features(bar t) → decision at close[t] → execution at open[t+1] + slippage
 - `open[t+1]` is the first price the decision could not have seen.
 - Slippage (bps, `configs/costs.json`) is applied against the side: buys fill higher, sells lower.
 
+## Replay / offline harness (Phase 5 stub)
+- `scripts/replay_laya.py`: historical state window → `LayaDecision` artifacts (stub heuristic). Not a live loop; produces JSONL for measuring incremental value (Quant vs Quant+Policy vs Quant+Policy+Laya). Real Laya inference deferred.
+- See `frontier/laya.py` (typed schemas) and `frontier/router.py` (stub router).
+
 ## Later (not MVP)
 Intrabar execution: decision at `close[t]` → next trade/book event → fill. Requires
 tick/book data we don't store yet; do not model it with 1m bars.

@@ -7,7 +7,7 @@
 - **Name:** jev-trading (BTC-perp paper-trading MVP, P8 shadow promotion)
 - **Objective:** Determine if Jev adds incremental decision value to validated quant process; if yes, promote to tiny-live.
 - **Current Status:** P0–P6 done; P7 gate FAIL (edge below fee floor); P8 shadow pipeline validated live (2026-09-22). Next: iterate P7 (lower turnover / cost-aware sizing) then P8 promotion.
-- **Core Pipeline:** Live feed → State engine → Quant (LightGBM) → Jev(mock) → Policy → Risk kernel → Paper execution → JSONL replay.
+- **Core Pipeline:** Live feed → State engine → Quant specialists → Expected return/edge/uncertainty → Frontier/Laya (stub) → StrategyProfile → Policy → Risk → Paper execution → JSONL replay.
 - **Principle:** Risk kernel absolute; no PnL-driven model updates; chronological splits only; same-bar close fills forbidden.
 
 ---
