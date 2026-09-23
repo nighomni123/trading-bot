@@ -1,0 +1,17 @@
+{
+  "experiment_id": "EXP-LEAN-001",
+  "purpose": "Baseline strategy through both engines; determine consistency.",
+  "date": "2026-09-23T05:53:09.568468+00:00",
+  "local_engine": "local (simulator-v2)",
+  "lean_engine": "lean (stub \u2014 quantconnect-lean 0.1.0 placeholder installed; real LEAN binary not present)",
+  "lean_install_attempted": true,
+  "lean_package_version": "0.1.0 (reserved for future use)",
+  "lean_binary_found": false,
+  "lean_path_checked": "/usr/local/share/lean",
+  "execution_assumption_local": "next-bar open[t+1] + slippage",
+  "execution_assumption_lean": "mapped to same contract; LEAN strategy enforce open[t+1] execution",
+  "point_in_time_preserved": true,
+  "comparison_note": "Agreement increases confidence; disagreement is debugging/research signal. No tuning to force agreement.",
+  "unresolved": "Requires official QuantConnect LEAN binary (not placeholder) to generate real LEAN BacktestResult for comparison.",
+  "next_experiment_recommended": "EXP-LEAN-002 (Jev replay) after real LEAN binary installed."
+}

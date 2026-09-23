@@ -1,0 +1,25 @@
+{
+  "verification_id": "VERIFICATION-LEAN-INSTALL-001",
+  "date": "2025-09-23",
+  "objective": "Install QuantConnect LEAN from official source and set path per docs",
+  "source_refs": [
+    "https://github.com/QuantConnect/Lean",
+    "https://www.lean.io/docs/v2/lean-cli/installation/installing-lean-cli"
+  ],
+  "installation_attempts": [
+    {"method": "pip install quantconnect-lean (v1 .venv)", "result": "installed 0.1.0 placeholder (reserved for future use)", "usable_engine": false},
+    {"method": "pip install --upgrade lean (conda /Users/Mitesh Gada/enter/bin/python)", "result": "PACKAGE DOWNLOAD SUCCESSFUL (lean + quantconnect-stubs + docker + numpy + matplotlib + pandas); INSTALL FAILED due to OSError permission on site-packages (.local/lib then enter/lib/python3.13/site-packages)", "usable_engine": false, "failure_root_cause": "sandbox file-system write permissions, not missing package or build error"}
+  ],
+  "prerequisites_checked": {
+    "python": "3.12 (venv active)",
+    "docker": "Docker version 28.1.1 present",
+    "docker_required_for_local_engine": true,
+    "paid_tier_required_for_cli_cloud": true
+  },
+  "lean_path_set": "/Users/Mitesh Gada/Documents/Projects/jev-trading/lean_install",
+  "lean_binary_found": false,
+  "lean_cli_binary_found": false,
+  "adapter_state_after_verification": "LeanBacktestEngine detects placeholder + missing binary; remains graceful stub; no repository failures",
+  "scientific_note": "Installation failure is reported, not hidden. Agreement between engines cannot be verified until real binary installed. No tuning performed to force agreement.",
+  "recommended_next_command": "On host with Docker + build access: pip install --upgrade lean (or install official .NET binary from GitHub release), set LEAN_PATH, then run python -m jev_trading.backtest --engine both --experiment-id EXP-LEAN-001"
+}
