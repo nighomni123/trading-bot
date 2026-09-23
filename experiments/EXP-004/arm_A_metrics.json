@@ -1,0 +1,18 @@
+{
+  "arm": "A",
+  "n_bars": 524005,
+  "n_candidates": 24077,
+  "n_entries": 1,
+  "n_exits": 0,
+  "win_rate": null,
+  "fees": 0.05,
+  "funding": -4.1468,
+  "net_pnl": -4.8504,
+  "return_pct": -0.0485,
+  "max_dd_pct": 0.4633,
+  "avg_per_exit": null,
+  "exposure": 0.9977,
+  "threshold": 0.4,
+  "candidate_gate_active": true,
+  "risk_authority": true
+}

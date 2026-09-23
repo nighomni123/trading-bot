@@ -1,0 +1,36 @@
+{
+  "experiment_id": "EXP-004",
+  "version": "1.0",
+  "git_sha": "cd50254b7f457fda08c0fa012e98e51fdd1b3d71",
+  "config_hash": "af20e4cac49e1f97",
+  "data_hash": "4f43c50c4f0da045",
+  "feature_version": "FEATURE_COLUMNS frozen",
+  "label_version": "H=15m threshold=0.0014",
+  "model_version": "models/",
+  "jev_version": "MockJev (test double)",
+  "jev_question_set_version": "MVP_5",
+  "candidate_threshold": 0.4,
+  "cost_model": "configs/costs.json",
+  "execution_model": "next-open + slippage + funding",
+  "seed": 7,
+  "train_window": [
+    "2021-01-01",
+    "2024-01-01"
+  ],
+  "validation_window": [
+    "2024-01-01",
+    "2025-01-01"
+  ],
+  "test_window": [
+    "2025-01-01",
+    "2026-01-01"
+  ],
+  "run_timestamp": "2026-09-23T05:06:23.902780+00:00",
+  "locked": true,
+  "arms": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ]
+}

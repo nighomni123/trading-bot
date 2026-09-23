@@ -1,0 +1,15 @@
+{
+  "locked": true,
+  "threshold": 0.4,
+  "arms": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "seed": 7,
+  "fee_mult": 1.0,
+  "start": "2025-01-01",
+  "end": "2026-01-01",
+  "hash": "7e5f06dc82e62c83"
+}

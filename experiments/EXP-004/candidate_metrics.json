@@ -1,0 +1,18 @@
+{
+  "A": {
+    "n_candidates": 24077,
+    "file": "arm_A_candidates.jsonl"
+  },
+  "B": {
+    "n_candidates": 24077,
+    "file": "arm_B_candidates.jsonl"
+  },
+  "C": {
+    "n_candidates": 24077,
+    "file": "arm_C_candidates.jsonl"
+  },
+  "D": {
+    "n_candidates": 24077,
+    "file": "arm_D_candidates.jsonl"
+  }
+}
