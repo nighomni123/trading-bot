@@ -1,0 +1,70 @@
+experiment_id: EXP-004
+phase: EXP-004 — Real Jev Selectivity & Quant Probability Integrity
+git_sha: "captured at run time"
+data_version: btcusdt_1m (freeze from EXP-003 where valid)
+feature_version: FEATURE_COLUMNS frozen; build_features unchanged
+label_version: H=15m, threshold=0.0014 frozen (EXP-001)
+model_version: quant/model fixed to predict_proba (post-EXP-004 fix)
+policy_version: policy/engine default + position-context gap documented
+train_period: [2021-01-01, 2024-01-01)
+validation_period: [2024-01-01, 2025-01-01)
+test_period: [2025-01-01, 2026-01-01) — FROZEN, not used for threshold tuning
+cost_model: configs/costs.json (taker 0.05% + slippage 0.02% per side); hostile fee_mult 2x/3x for sensitivity
+execution: next-open fill + slippage; funding on print change
+random_seed: 7
+
+arms:
+  A_quant_baseline:
+    description: State → Quant (p_up/p_dn) → Policy (threshold only, neutral jev) → Risk → Sim
+    jev_enabled: false
+    jev_context: null
+    notes: No Jev input; establishes quant-only edge after costs.
+  B_quant_policy:
+    description: Full existing policy machinery without Jev-dependent information (baseline decision rule independent of Jev)
+    jev_enabled: false
+    jev_context: null
+    notes: Policy thresholds active; quant probs drive entry; no Jev answers.
+  C_quant_jev:
+    description: Quant → Jev (adapter boundary) → Policy (with jev answers) → Risk → Sim
+    jev_enabled: true
+    jev_question_set: configs/jev_questions.json (5 MVP questions)
+    notes: Controlled difference = Jev only; same candidates/thresholds/costs.
+  D_quant_policy_jev:
+    description: Full intended pipeline (Quant + Policy + Jev)
+    jev_enabled: true
+    jev_question_set: configs/jev_questions.json
+    notes: Complete design; comparison with A/B isolates Jev contribution.
+
+candidate_gating:
+  enabled: true
+  threshold_range: [0.20, 0.25, 0.30, 0.35, 0.40]
+  selection_method: validation-period calibration / cost-adjusted expected edge (NOT optimized on test)
+  note: Sensitivity required (§6); threshold chosen before OOS (§15).
+
+jev:
+  adapter: src/jev_trading/jev/adapter.py (JevClient protocol)
+  backend: MockJev (test double — NOT evidence); real evaluator post-MVP
+  context_fields: market_state, quant_predictions (p_up_15, p_dn_15, expected_return_15), candidate_side, candidate_policy, recent_context, position_context_where_applicable
+  forbidden_context: future_return_15, future_price, future_pnL, execution_result, post_decision_info (enforced by adapter)
+  questions: 5 MVP (breakout, liquidity_ok, vol_risk, failure_regime, trade_ok) — small, measurable (§9)
+  logging: structured JSONL (timestamp, symbol, quant_preds, jev_answers, policy_result, risk_result, execution, outcome, realized_pnl, cost, duration, regime, arm, version_id, git_sha)
+
+metrics:
+  predictive: AUC (if applicable), log_loss, Brier_score, ECE, precision_at_threshold, recall, conditional_hit_rate
+  trading: gross_return, net_return, PnL_after_fees, PnL_after_fees_slippage, trade_count, turnover, avg_trade_return, median_trade_return, win_rate, profit_factor, max_drawdown, Sharpe_like_stat, cost_per_trade, cost_over_edge, avg_holding_period
+  incremental: delta_precision, delta_calibration, delta_conditional_return, delta_net_PnL, delta_drawdown, delta_false_positive_rate — per arm vs appropriate control (§13)
+
+regime_analysis:
+  dimensions: volatility (low/normal/high), trend (flat/trending), funding (normal/extreme)
+  purpose: discover whether Jev information is conditional (§14); not to optimize thresholds per regime.
+
+reproducibility:
+  requires: git commit SHA (captured), config hash, model version, data/feature/label versions, cost/execution models, Jev version, question-set version, seed, train/valid/test periods
+  freeze: test period untouched; thresholds locked after validation; no repeated OOS peeking (§15)
+
+next_decision_criterion: |
+  Experiment passes if result clearly establishes A/B/C/D (§23) with trade-level PnL,
+  probability semantics verified by regression suite, no lookahead, Jev isolated,
+  and results auditable from structured logs. If Jev adds no measurable incremental
+  value (or only exposure reduction without precision gain, per EXP-003 finding),
+  recommend removing/reducing Jev role or narrowing to regime-specific use (§23, §13).
