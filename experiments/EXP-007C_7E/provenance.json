@@ -1,0 +1,61 @@
+{
+  "experiment_id": "EXP-007C_7E",
+  "phase": "Phase 7C (Feature Ablation) + 7E (Edge Localization)",
+  "frozen_oos": "[2025-01-01, 2025-03-01)",
+  "feature_families": {
+    "A_existing": [
+      "ret_1m",
+      "ret_5m",
+      "ret_15m",
+      "ret_60m",
+      "realized_vol_5m",
+      "realized_vol_30m",
+      "atr_14",
+      "ema20",
+      "ema50",
+      "ema200",
+      "trend_score",
+      "funding",
+      "funding_z",
+      "oi_change_1d",
+      "vol_regime",
+      "volume_z"
+    ],
+    "B_trend": [
+      "ret_1m",
+      "ret_5m",
+      "ret_15m",
+      "ret_60m",
+      "ema20",
+      "ema50",
+      "ema200",
+      "trend_score",
+      "funding",
+      "funding_z",
+      "volume_z"
+    ],
+    "C_micro": [
+      "volume_z",
+      "funding_z",
+      "oi_change_1d",
+      "vol_regime",
+      "realized_vol_5m",
+      "realized_vol_30m",
+      "ret_1m",
+      "ret_5m",
+      "ret_15m",
+      "ret_60m",
+      "atr_14"
+    ],
+    "D_regime": [
+      "trend_score",
+      "vol_regime",
+      "funding_z",
+      "volume_z",
+      "ret_5m",
+      "ret_15m"
+    ]
+  },
+  "calibration_note": "Regression predictions uncalibrated (see EXP-007B CONCLUSION.md); binary approximation used for economic measurement.",
+  "no_laya": true
+}

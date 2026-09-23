@@ -1,0 +1,76 @@
+{
+  "comparison": {
+    "A_existing": {
+      "avg_approx_net_edge_1x": -0.0025399480747332974,
+      "avg_p_up": 0.2520103850533405,
+      "n_trades_approx_1x": 0,
+      "columns_reference": [
+        "ret_1m",
+        "ret_5m",
+        "ret_15m",
+        "ret_60m",
+        "realized_vol_5m",
+        "realized_vol_30m",
+        "atr_14",
+        "ema20",
+        "ema50",
+        "ema200",
+        "trend_score",
+        "funding",
+        "funding_z",
+        "oi_change_1d",
+        "vol_regime",
+        "volume_z"
+      ]
+    },
+    "B_trend": {
+      "avg_approx_net_edge_1x": -0.0025399480747332974,
+      "avg_p_up": 0.2520103850533405,
+      "n_trades_approx_1x": 0,
+      "columns_reference": [
+        "ret_1m",
+        "ret_5m",
+        "ret_15m",
+        "ret_60m",
+        "ema20",
+        "ema50",
+        "ema200",
+        "trend_score",
+        "funding",
+        "funding_z",
+        "volume_z"
+      ]
+    },
+    "C_micro": {
+      "avg_approx_net_edge_1x": -0.0025399480747332974,
+      "avg_p_up": 0.2520103850533405,
+      "n_trades_approx_1x": 0,
+      "columns_reference": [
+        "volume_z",
+        "funding_z",
+        "oi_change_1d",
+        "vol_regime",
+        "realized_vol_5m",
+        "realized_vol_30m",
+        "ret_1m",
+        "ret_5m",
+        "ret_15m",
+        "ret_60m",
+        "atr_14"
+      ]
+    },
+    "D_regime": {
+      "avg_approx_net_edge_1x": -0.0025399480747332974,
+      "avg_p_up": 0.2520103850533405,
+      "n_trades_approx_1x": 0,
+      "columns_reference": [
+        "trend_score",
+        "vol_regime",
+        "funding_z",
+        "volume_z",
+        "ret_5m",
+        "ret_15m"
+      ]
+    }
+  }
+}

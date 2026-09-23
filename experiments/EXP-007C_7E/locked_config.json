@@ -1,0 +1,12 @@
+{
+  "locked": true,
+  "start": "2025-01-01",
+  "end": "2025-03-01",
+  "calibration_finding": "Regression predictions uncalibrated; binary approximation safe for measurement.",
+  "feature_families_tested": [
+    "A_existing",
+    "B_trend",
+    "C_micro",
+    "D_regime"
+  ]
+}

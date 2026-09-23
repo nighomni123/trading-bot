@@ -1,0 +1,59 @@
+{
+  "arm": "B_exp15",
+  "label_type": "expected_return_15m",
+  "n_bars": 84960,
+  "n_trades_1x": 84960,
+  "avg_predicted_net_edge_1x": 0.594401,
+  "avg_predicted_gross_return": 0.596201,
+  "trade_rate_1x": 1.0,
+  "prob_continuous_15m": null,
+  "stress_3x_approx_trades_in_500": 500,
+  "note": "Regression heads for 5/15/30m trained quickly on full dataset; measurement-first, not tuned on OOS.",
+  "first_5_decisions": [
+    {
+      "label_type": "expected_return_15m",
+      "pred_raw": 0.48926688187151596,
+      "pred_interpreted": "UP",
+      "expected_return_15": 0.48926688187151596,
+      "expected_net_edge": 0.48746688187151593,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "expected_return_15m",
+      "pred_raw": 0.48926688187151596,
+      "pred_interpreted": "UP",
+      "expected_return_15": 0.48926688187151596,
+      "expected_net_edge": 0.48746688187151593,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "expected_return_15m",
+      "pred_raw": 0.48926688187151596,
+      "pred_interpreted": "UP",
+      "expected_return_15": 0.48926688187151596,
+      "expected_net_edge": 0.48746688187151593,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "expected_return_15m",
+      "pred_raw": 0.48926688187151596,
+      "pred_interpreted": "UP",
+      "expected_return_15": 0.48926688187151596,
+      "expected_net_edge": 0.48746688187151593,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "expected_return_15m",
+      "pred_raw": 0.48926688187151596,
+      "pred_interpreted": "UP",
+      "expected_return_15": 0.48926688187151596,
+      "expected_net_edge": 0.48746688187151593,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    }
+  ]
+}

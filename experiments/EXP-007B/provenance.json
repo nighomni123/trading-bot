@@ -1,0 +1,15 @@
+{
+  "experiment_id": "EXP-007B",
+  "phase": "Phase 7B \u2014 Controlled Target Comparison",
+  "targets_compared": [
+    "binary_15m",
+    "expected_return_15m",
+    "expected_return_5m",
+    "expected_return_30m",
+    "up_flat_down_15m"
+  ],
+  "frozen_oos": "[2025-01-01, 2025-03-01)",
+  "same_split": true,
+  "same_features": "FEATURE_COLUMNS frozen",
+  "note": "Binary target preserved. Regression heads for 5/15/30m trained on full dataset (measurement-first). No Laya, no RL."
+}

@@ -1,0 +1,59 @@
+{
+  "arm": "A_binary15",
+  "label_type": "binary_15m",
+  "n_bars": 84960,
+  "n_trades_1x": 0,
+  "avg_predicted_net_edge_1x": -0.00254,
+  "avg_predicted_gross_return": -0.00074,
+  "trade_rate_1x": 0.0,
+  "prob_continuous_15m": 1.0,
+  "stress_3x_approx_trades_in_500": 0,
+  "note": "Regression heads for 5/15/30m trained quickly on full dataset; measurement-first, not tuned on OOS.",
+  "first_5_decisions": [
+    {
+      "label_type": "binary_15m",
+      "pred_raw": 0.027519327282418814,
+      "pred_interpreted": "UP",
+      "expected_return_15": -0.001862403363587906,
+      "expected_net_edge": -0.003662403363587906,
+      "trade_decision": "NO_TRADE",
+      "reasons_summary": "FINAL: NO_TRADE"
+    },
+    {
+      "label_type": "binary_15m",
+      "pred_raw": 0.027519327282418814,
+      "pred_interpreted": "UP",
+      "expected_return_15": -0.001862403363587906,
+      "expected_net_edge": -0.003662403363587906,
+      "trade_decision": "NO_TRADE",
+      "reasons_summary": "FINAL: NO_TRADE"
+    },
+    {
+      "label_type": "binary_15m",
+      "pred_raw": 0.027519327282418814,
+      "pred_interpreted": "UP",
+      "expected_return_15": -0.001862403363587906,
+      "expected_net_edge": -0.003662403363587906,
+      "trade_decision": "NO_TRADE",
+      "reasons_summary": "FINAL: NO_TRADE"
+    },
+    {
+      "label_type": "binary_15m",
+      "pred_raw": 0.027519327282418814,
+      "pred_interpreted": "UP",
+      "expected_return_15": -0.001862403363587906,
+      "expected_net_edge": -0.003662403363587906,
+      "trade_decision": "NO_TRADE",
+      "reasons_summary": "FINAL: NO_TRADE"
+    },
+    {
+      "label_type": "binary_15m",
+      "pred_raw": 0.030030194932794064,
+      "pred_interpreted": "UP",
+      "expected_return_15": -0.00184984902533603,
+      "expected_net_edge": -0.0036498490253360303,
+      "trade_decision": "NO_TRADE",
+      "reasons_summary": "FINAL: NO_TRADE"
+    }
+  ]
+}

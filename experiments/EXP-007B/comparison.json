@@ -1,0 +1,44 @@
+{
+  "comparison": {
+    "A_binary15": {
+      "label_type": "binary_15m",
+      "avg_predicted_net_edge_1x": -0.00254,
+      "avg_predicted_gross_return": -0.00074,
+      "n_trades_1x": 0,
+      "trade_rate_1x": 0.0,
+      "prob_continuous_15m": 1.0
+    },
+    "B_exp15": {
+      "label_type": "expected_return_15m",
+      "avg_predicted_net_edge_1x": 0.594401,
+      "avg_predicted_gross_return": 0.596201,
+      "n_trades_1x": 84960,
+      "trade_rate_1x": 1.0,
+      "prob_continuous_15m": 1.0
+    },
+    "C_exp5": {
+      "label_type": "expected_return_5m",
+      "avg_predicted_net_edge_1x": 0.620759,
+      "avg_predicted_gross_return": 0.622559,
+      "n_trades_1x": 84960,
+      "trade_rate_1x": 1.0,
+      "prob_continuous_15m": 1.0
+    },
+    "D_exp30": {
+      "label_type": "expected_return_30m",
+      "avg_predicted_net_edge_1x": 0.616562,
+      "avg_predicted_gross_return": 0.618362,
+      "n_trades_1x": 84960,
+      "trade_rate_1x": 1.0,
+      "prob_continuous_15m": 1.0
+    },
+    "E_updown": {
+      "label_type": "up_flat_down_15m",
+      "avg_predicted_net_edge_1x": 0.9982,
+      "avg_predicted_gross_return": 1.0,
+      "n_trades_1x": 84960,
+      "trade_rate_1x": 1.0,
+      "prob_continuous_15m": 1.0
+    }
+  }
+}

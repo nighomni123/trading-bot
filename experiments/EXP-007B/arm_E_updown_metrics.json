@@ -1,0 +1,59 @@
+{
+  "arm": "E_updown",
+  "label_type": "up_flat_down_15m",
+  "n_bars": 84960,
+  "n_trades_1x": 84960,
+  "avg_predicted_net_edge_1x": 0.9982,
+  "avg_predicted_gross_return": 1.0,
+  "trade_rate_1x": 1.0,
+  "prob_continuous_15m": null,
+  "stress_3x_approx_trades_in_500": 500,
+  "note": "Regression heads for 5/15/30m trained quickly on full dataset; measurement-first, not tuned on OOS.",
+  "first_5_decisions": [
+    {
+      "label_type": "up_flat_down_15m",
+      "pred_raw": 1.0,
+      "pred_interpreted": "UP",
+      "expected_return_15": 1.0,
+      "expected_net_edge": 0.9982,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "up_flat_down_15m",
+      "pred_raw": 1.0,
+      "pred_interpreted": "UP",
+      "expected_return_15": 1.0,
+      "expected_net_edge": 0.9982,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "up_flat_down_15m",
+      "pred_raw": 1.0,
+      "pred_interpreted": "UP",
+      "expected_return_15": 1.0,
+      "expected_net_edge": 0.9982,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "up_flat_down_15m",
+      "pred_raw": 1.0,
+      "pred_interpreted": "UP",
+      "expected_return_15": 1.0,
+      "expected_net_edge": 0.9982,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    },
+    {
+      "label_type": "up_flat_down_15m",
+      "pred_raw": 1.0,
+      "pred_interpreted": "UP",
+      "expected_return_15": 1.0,
+      "expected_net_edge": 0.9982,
+      "trade_decision": "TRADE",
+      "reasons_summary": "FINAL: TRADE"
+    }
+  ]
+}

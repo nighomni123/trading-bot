@@ -1,0 +1,44 @@
+{
+  "family": "C_micro",
+  "columns_reference": [
+    "volume_z",
+    "funding_z",
+    "oi_change_1d",
+    "vol_regime",
+    "realized_vol_5m",
+    "realized_vol_30m",
+    "ret_1m",
+    "ret_5m",
+    "ret_15m",
+    "ret_60m",
+    "atr_14"
+  ],
+  "n_bars": 84960,
+  "n_trades_approx_1x": 0,
+  "avg_approx_net_edge_1x": -0.0025399480747332974,
+  "avg_p_up": 0.2520103850533405,
+  "edge_localization_buckets": {
+    "low_vol_C_micro": {
+      "n": 28037,
+      "avg_p_up": 0.1838,
+      "avg_approx_gross_edge": -0.001081,
+      "avg_approx_net_edge": -0.002881,
+      "note": "Binary probability approximation; regression uncalibrated per 7B."
+    },
+    "mid_vol_C_micro": {
+      "n": 28886,
+      "avg_p_up": 0.2412,
+      "avg_approx_gross_edge": -0.000794,
+      "avg_approx_net_edge": -0.002594,
+      "note": "Binary probability approximation; regression uncalibrated per 7B."
+    },
+    "high_vol_C_micro": {
+      "n": 28037,
+      "avg_p_up": 0.3314,
+      "avg_approx_gross_edge": -0.000343,
+      "avg_approx_net_edge": -0.002143,
+      "note": "Binary probability approximation; regression uncalibrated per 7B."
+    }
+  },
+  "calibration_note": "Using full-feature binary predictions (calibration-safe); feature-family ablation requires separate model retraining (see 7C design note)."
+}
