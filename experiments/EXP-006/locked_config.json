@@ -1,0 +1,8 @@
+{
+  "locked": true,
+  "start": "2025-01-01",
+  "end": "2025-03-01",
+  "threshold": 0.4,
+  "probability_continuous_verified": true,
+  "note": "Phase 6 economic redesign comparison; A/B/C/D on frozen OOS window; NO_TRADE first-class; risk kernel not bypassed; Laya stub unchanged."
+}

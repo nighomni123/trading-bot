@@ -1,0 +1,67 @@
+{
+  "arm": "B",
+  "n_bars": 83466,
+  "n_candidates": 83466,
+  "n_entries": 6311,
+  "n_no_trade": 77155,
+  "trade_rate": 0.0756,
+  "avg_predicted_edge": -0.000734,
+  "probability_continuous_verified": 1.0,
+  "min_p_up": 0.016936689587780808,
+  "max_p_up": 0.6656893104284328,
+  "p_up_resolution_bins": 618,
+  "economic_stress": {
+    "1x_base": {
+      "potential_trades_in_sample": 0,
+      "sample_size": 500
+    },
+    "2x_cost": {
+      "potential_trades_in_sample": 0,
+      "sample_size": 500
+    },
+    "3x_cost": {
+      "potential_trades_in_sample": 0,
+      "sample_size": 500
+    },
+    "increased_slippage": {
+      "potential_trades_in_sample": 0,
+      "sample_size": 500
+    },
+    "execution_delay": {
+      "potential_trades_in_sample": 0,
+      "sample_size": 500
+    }
+  },
+  "decision_sample_first_5": [
+    {
+      "action": "NO_ACTION",
+      "reason": "corrected_prob p_up=0.1763 (float in [0,1])",
+      "p_up": 0.176334,
+      "exp_ret": -0.001118
+    },
+    {
+      "action": "NO_ACTION",
+      "reason": "corrected_prob p_up=0.1820 (float in [0,1])",
+      "p_up": 0.182041,
+      "exp_ret": -0.00109
+    },
+    {
+      "action": "NO_ACTION",
+      "reason": "corrected_prob p_up=0.1885 (float in [0,1])",
+      "p_up": 0.188533,
+      "exp_ret": -0.001057
+    },
+    {
+      "action": "NO_ACTION",
+      "reason": "corrected_prob p_up=0.1786 (float in [0,1])",
+      "p_up": 0.178571,
+      "exp_ret": -0.001107
+    },
+    {
+      "action": "NO_ACTION",
+      "reason": "corrected_prob p_up=0.1843 (float in [0,1])",
+      "p_up": 0.184336,
+      "exp_ret": -0.001078
+    }
+  ]
+}

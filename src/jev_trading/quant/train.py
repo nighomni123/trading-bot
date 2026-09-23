@@ -148,7 +148,7 @@ def train_models(
 
     jtr, jva = _split_train_valid(j, train_end, valid_start, valid_end)
 
-    from lightgbm import LGBMClassifier
+    from lightgbm import LGBMClassifier, LGBMRegressor
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -159,6 +159,13 @@ def train_models(
 
     lgbm = LGBMClassifier(**{**DEFAULT_LGBM_PARAMS, **(lgbm_params or {})}).fit(xtr, ytr)
     logreg = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)).fit(xtr, ytr)
+
+    # Phase 6: simple regression head for economic prediction (expected_return_15)
+    # Keeps binary classifier intact; regression is measurement-first, not a replacement.
+    reg_target = jtr[LABEL_COL].to_numpy()  # raw future_return_15m
+    reg_model = LGBMRegressor(
+        **{"num_leaves": 31, "n_estimators": 200, "learning_rate": 0.05, "verbose": -1, **(lgbm_params or {})}
+    ).fit(xtr, reg_target)
 
     ret15 = jva[LABEL_COL].to_numpy()
     yva = (ret15 > THRESHOLD).astype(int)
@@ -191,4 +198,13 @@ def train_models(
         "purge_ms": PURGE_MS,
         "embargo_ms": EMBARGO_MS,
     }
-    return {"lgbm": lgbm, "logreg": logreg, "metrics": metrics, "feature_cols": cols}
+    # Regression predictions for economic-output audit
+    reg_pred = reg_model.predict(xva)
+    reg_metrics = {
+        "reg_mse": float(np.mean((reg_pred - ret15) ** 2)),
+        "reg_mae": float(np.mean(np.abs(reg_pred - ret15))),
+        "reg_corr": float(np.corrcoef(reg_pred, ret15)[0, 1]) if len(ret15) > 1 else None,
+    }
+    metrics.update(reg_metrics)
+
+    return {"lgbm": lgbm, "logreg": logreg, "reg_model": reg_model, "metrics": metrics, "feature_cols": cols}

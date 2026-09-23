@@ -1,0 +1,28 @@
+{
+  "experiment_id": "EXP-006",
+  "phase": "Phase 6 \u2014 Quant Economic Target Redesign",
+  "data_version": "btcusdt_1m.parquet (same freeze as EXP-004)",
+  "feature_version": "FEATURE_COLUMNS frozen",
+  "label_version": "H=15m + raw 5/15/30/60m + excursions retained; binary y_up_15 preserved",
+  "model_version": "models/",
+  "cost_model": "configs/costs.json (base / 2x / 3x stress)",
+  "execution_model": "next-open + slippage + funding; economic evaluation layer active for C/D",
+  "seed": 7,
+  "train_window": [
+    "2021-01-01",
+    "2024-01-01"
+  ],
+  "test_window": [
+    "2025-01-01",
+    "2025-03-01"
+  ],
+  "run_timestamp": "2026-09-23T13:45:20.790157+00:00",
+  "locked": true,
+  "arms": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "economic_layer_version": "quant/economic.py (deterministic, exposed assumptions, NO_TRADE first-class)"
+}

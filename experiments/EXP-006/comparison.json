@@ -1,0 +1,32 @@
+{
+  "comparison": {
+    "A": {
+      "trade_rate": 0.0756,
+      "avg_predicted_edge": -0.000734,
+      "n_entries": 6311,
+      "probability_continuous_verified": 1.0,
+      "economic_stress_3x_cost_trades": 0
+    },
+    "B": {
+      "trade_rate": 0.0756,
+      "avg_predicted_edge": -0.000734,
+      "n_entries": 6311,
+      "probability_continuous_verified": 1.0,
+      "economic_stress_3x_cost_trades": 0
+    },
+    "C": {
+      "trade_rate": 0.0756,
+      "avg_predicted_edge": -0.000734,
+      "n_entries": 6311,
+      "probability_continuous_verified": 1.0,
+      "economic_stress_3x_cost_trades": 0
+    },
+    "D": {
+      "trade_rate": 0.0,
+      "avg_predicted_edge": -0.000734,
+      "n_entries": 0,
+      "probability_continuous_verified": 1.0,
+      "economic_stress_3x_cost_trades": 0
+    }
+  }
+}

@@ -64,11 +64,14 @@ def _check(reasons: list[str], side: str, label: str, passed: bool) -> bool:
 
 def _edge(reasons: list[str], side: str, quant: dict, thr: dict, cost: float | None) -> bool:
     exp_ret = quant.get("expected_return_15")
+    # Phase 6: economic edge is mandatory, not optional. Positive direction
+    # (p_up_15) alone is not sufficient to generate a trade.
     if exp_ret is None or cost is None:
-        return True  # edge check skipped: need both expected return and costs.json
+        return _check(reasons, side, f"expected_return_15 and cost must be present for economic trade (got exp_ret={exp_ret}, cost={cost})", False)
     exp_ret = float(exp_ret)
     needed = thr["min_edge_over_cost"] * cost
-    return _check(reasons, side, f"expected_return_15 {exp_ret} >= min_edge {needed}", exp_ret >= needed)
+    ok = exp_ret >= needed
+    return _check(reasons, side, f"expected_return_15 {exp_ret:.6f} >= min_edge {needed:.6f}", ok)
 
 
 def decide(quant: dict, jev_answers: dict, cfg: dict | None = None) -> PolicyProposal:

@@ -9,7 +9,7 @@ EPS = 1e-9
 
 
 def quant(**over) -> dict:
-    base = {"p_up_15": 0.5, "p_dn_15": 0.5}
+    base = {"p_up_15": 0.5, "p_dn_15": 0.5, "expected_return_15": 0.003}
     base.update(over)
     return base
 
@@ -53,7 +53,7 @@ def test_enter_long_all_pass():
     assert d.reasons
     assert d.reasons[-1] == "ENTER_LONG"
     assert any("p_up_15" in r and "pass" in r for r in d.reasons)
-    assert not any("edge" in r for r in d.reasons)  # no expected_return_15 -> skipped
+    assert any("edge" in r and ("pass" in r or "fail" in r) for r in d.reasons)  # economic gate always active
 
 
 def test_edge_gate_activates_on_expected_return():
