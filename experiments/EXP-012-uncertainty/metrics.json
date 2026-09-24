@@ -1,0 +1,53 @@
+{
+  "decision": "NO_EDGE",
+  "experiment_id": "EXP-012",
+  "oos_used": false,
+  "question": "Does normalized ensemble dispersion predict absolute return error?",
+  "reason": "uncertainty is not a reliable error signal",
+  "result": {
+    "buckets": [
+      {
+        "bucket": 0,
+        "mean_absolute_error": 0.0018067165169330592,
+        "mean_uncertainty": 5.7726104943704e-05,
+        "n": 105079,
+        "uncertainty_high": 5.772667519396552e-05,
+        "uncertainty_low": 5.106874994594454e-05
+      },
+      {
+        "bucket": 1,
+        "mean_absolute_error": 0.0018437596303542106,
+        "mean_uncertainty": 5.772667519396554e-05,
+        "n": 105079,
+        "uncertainty_high": 5.772667519396552e-05,
+        "uncertainty_low": 5.772667519396552e-05
+      },
+      {
+        "bucket": 2,
+        "mean_absolute_error": 0.0017026781106292245,
+        "mean_uncertainty": 5.772667519396554e-05,
+        "n": 105079,
+        "uncertainty_high": 5.772667519396552e-05,
+        "uncertainty_low": 5.772667519396552e-05
+      },
+      {
+        "bucket": 3,
+        "mean_absolute_error": 0.0015005116514984912,
+        "mean_uncertainty": 5.772667519396554e-05,
+        "n": 105079,
+        "uncertainty_high": 5.772667519396552e-05,
+        "uncertainty_low": 5.772667519396552e-05
+      },
+      {
+        "bucket": 4,
+        "mean_absolute_error": 0.002356924610171461,
+        "mean_uncertainty": 0.0021177836417998453,
+        "n": 105079,
+        "uncertainty_high": 1.0,
+        "uncertainty_low": 5.772667519396552e-05
+      }
+    ],
+    "errors_monotonic": false,
+    "spearman_error_vs_uncertainty": 0.09999999999999999
+  }
+}

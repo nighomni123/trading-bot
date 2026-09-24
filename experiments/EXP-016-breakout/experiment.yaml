@@ -1,0 +1,8 @@
+experiment_id: EXP-016
+phase: Phase 2 breakout specialist
+hypothesis: A breakout-specific feature set has independent positive economic value.
+baseline: EXP-010 base engine
+intervention: range, volatility expansion, volume, and OI feature contract
+frozen_oos_used: false
+decision: DEFER
+reason: EXP-010/011 failed the base economic gate; specialist fitting is not evidence-based.

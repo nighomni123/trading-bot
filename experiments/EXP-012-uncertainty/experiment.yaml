@@ -1,0 +1,10 @@
+experiment_id: EXP-012
+phase: Phase 2 uncertainty
+hypothesis: Normalized ensemble dispersion predicts absolute return error.
+baseline: monotonic error across uncertainty buckets
+intervention: three-seed LightGBM return ensemble
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos_used: false
+decision: NO_EDGE
+reason: Error is not monotonic and rank correlation is only 0.1; uncertainty cannot gate trades.

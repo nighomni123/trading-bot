@@ -1,4 +1,4 @@
-# Label spec (Phase 1 contract)
+# Label spec (Phase 2 Economic Quant Engine v2)
 
 All labels at row `t` are point-in-time outcomes. The forward window is exactly
 `t+1..t+H`; row `t` never uses its own high/low for an excursion, and a partial
@@ -38,9 +38,25 @@ Both barriers touching in the same bar is conservatively classified as SL-first
 `compute_labels(..., path_pairs=...)` materializes only the pairs an experiment
 has locked, avoiding an accidental 16× wide frame on millions of rows.
 
-## Validity and causality
+## Execution-aligned targets
+
+`compute_execution_labels()` adds targets that match the simulator's earliest
+possible fill:
+
+- `execution_return_Hm = open[t+H+1] / open[t+1] - 1`;
+- `execution_mfe_Hm` and `execution_mae_Hm` use the entry-bar high/low and
+  subsequent bars through `t+H`, relative to `open[t+1]`;
+- `direction_class_exec_15` is `0=down`, `1=flat`, `2=up`, with the cost hurdle
+  applied to `execution_return_15m`.
+
+Raw close-anchored labels remain available for diagnosis, but Phase 2 economic
+heads train and evaluate on the execution-aligned family so the label price and
+simulated fill price cannot be confused.
+
 
 - Rows with fewer than `H` future bars are null for every derived label.
+- Bar timestamps must be contiguous one-minute UTC timestamps; gaps are rejected
+  rather than silently shortening a horizon.
 - Label code reads only `close`, `high`, `low`, horizon, and thresholds; never
   features, quant output, execution results, or future PnL.
 - Any model using a 30m/60m target must purge/embargo at least that target's

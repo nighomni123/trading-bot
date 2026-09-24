@@ -1,0 +1,10 @@
+experiment_id: EXP-013
+phase: Phase 2 feature ablation
+hypothesis: Causal interpretable derived features improve economic metrics over the frozen base.
+baseline: current 16-feature set
+intervention: EMA gaps, trend acceleration/duration, volatility-normalized returns, funding/OI interaction
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos_used: false
+decision: NO_EDGE
+reason: Derived features reduce eligible bars from 35 to 16 and do not create positive mean adjusted edge.

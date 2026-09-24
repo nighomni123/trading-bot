@@ -1,0 +1,495 @@
+{
+  "decision": "NO_EDGE",
+  "experiment_id": "EXP-018",
+  "folds": [
+    {
+      "direction": {
+        "accuracy": 0.5487021213766563,
+        "brier": 0.5997988680648189,
+        "class_counts": [
+          123631,
+          278718,
+          122546
+        ],
+        "log_loss": 1.0047316482066229,
+        "macro_auc_ovr": 0.6405043395372623,
+        "n": 524895
+      },
+      "economic_gate": {
+        "eligible_bars": 21,
+        "fraction_eligible": 4.000800160032006e-05,
+        "mean_predicted_gross": 2.2120925739642196e-05,
+        "mean_predicted_net_edge": -0.0013778517576309602,
+        "mean_required_edge": 0.002800796388597957,
+        "mean_uncertainty_adjusted_edge": -0.0013795408877512788
+      },
+      "fold": "2021->2022",
+      "return": {
+        "historical_mean": {
+          "corr": -7.523275494290891e-16,
+          "mae": 0.0020947239150352404,
+          "n": 524895,
+          "prediction_mean": 2.5636061440498126e-05,
+          "prediction_std": 6.776263578034403e-21,
+          "rmse": 0.0034403668057803828,
+          "target_mean": -2.4185695162590415e-05,
+          "target_std": 0.0034400060393674453
+        },
+        "lightgbm_ensemble": {
+          "corr": 0.010123173911083885,
+          "mae": 0.002124901026156648,
+          "n": 524895,
+          "prediction_mean": 0.0001236081856057637,
+          "prediction_std": 0.0004057012526840718,
+          "rmse": 0.0034629210194085693,
+          "target_mean": -2.4185695162590415e-05,
+          "target_std": 0.0034400060393674453
+        }
+      },
+      "rows": {
+        "train": 525540,
+        "validation": 524895
+      },
+      "simulation_1x": {
+        "candidate_bars": 524895,
+        "cost_sum": 0.01682929,
+        "expectancy": 0.011782171006321914,
+        "gross_return_sum": 0.15821534207586296,
+        "hit_rate": 0.75,
+        "max_drawdown": 0.004604473712090544,
+        "net_return_sum": 0.14138605207586297,
+        "profit_factor": 16.23178728915303,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 1.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 3,
+        "selection_rate": 2.2861715200182894e-05,
+        "sharpe": 0.6300076046743109,
+        "sortino": 6.050622305480562,
+        "trade_count": 12,
+        "trades": [
+          {
+            "actual_execution_return": 0.0005067518970349738,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.003244029142970881,
+            "predicted_return": 0.004647154142970881,
+            "realized_net": -0.0008963731029650262,
+            "side": 1,
+            "timestamp": 1641413100000,
+            "uncertainty_adjusted_edge": 0.0029713033920087287
+          },
+          {
+            "actual_execution_return": 0.005553257400435774,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.0038955559365086326,
+            "predicted_return": 0.005298680936508633,
+            "realized_net": 0.004150132400435774,
+            "side": 1,
+            "timestamp": 1642735980000,
+            "uncertainty_adjusted_edge": 0.003574223508803587
+          },
+          {
+            "actual_execution_return": 0.005834503112434275,
+            "cost": 0.001402570625,
+            "predicted_net_edge": 0.003258043720945812,
+            "predicted_return": 0.004660614345945812,
+            "realized_net": 0.004431932487434275,
+            "side": 1,
+            "timestamp": 1642801620000,
+            "uncertainty_adjusted_edge": 0.003059675926276019
+          },
+          {
+            "actual_execution_return": 0.02343211820443969,
+            "cost": 0.001401288125,
+            "predicted_net_edge": 0.0036970754162036095,
+            "predicted_return": 0.0050983635412036096,
+            "realized_net": 0.022030830079439692,
+            "side": 1,
+            "timestamp": 1642846320000,
+            "uncertainty_adjusted_edge": 0.0032468573309710636
+          },
+          {
+            "actual_execution_return": 0.015528490648107685,
+            "cost": 0.0013989146875,
+            "predicted_net_edge": 0.003271727590817151,
+            "predicted_return": 0.0046706422783171515,
+            "realized_net": 0.014129575960607684,
+            "side": 1,
+            "timestamp": 1645480800000,
+            "uncertainty_adjusted_edge": 0.0030561755361053077
+          },
+          {
+            "actual_execution_return": 0.004242601119830436,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.003609509382506037,
+            "predicted_return": 0.0050126343825060374,
+            "realized_net": 0.0028394761198304356,
+            "side": 1,
+            "timestamp": 1651763280000,
+            "uncertainty_adjusted_edge": 0.0029420280446869696
+          },
+          {
+            "actual_execution_return": 0.019513733973275604,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.0038955559365086326,
+            "predicted_return": 0.005298680936508633,
+            "realized_net": 0.018110608973275606,
+            "side": 1,
+            "timestamp": 1652115900000,
+            "uncertainty_adjusted_edge": 0.003574223508803587
+          },
+          {
+            "actual_execution_return": -0.003201348712090546,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.003624106301363978,
+            "predicted_return": 0.005027231301363978,
+            "realized_net": -0.004604473712090546,
+            "side": 1,
+            "timestamp": 1663072320000,
+            "uncertainty_adjusted_edge": 0.0034672194725877304
+          },
+          {
+            "actual_execution_return": 0.003135464231354579,
+            "cost": 0.0014020359375,
+            "predicted_net_edge": 0.0032911509109033615,
+            "predicted_return": 0.004693186848403362,
+            "realized_net": 0.0017334282938545789,
+            "side": 1,
+            "timestamp": 1667880780000,
+            "uncertainty_adjusted_edge": 0.0029741680633585815
+          },
+          {
+            "actual_execution_return": 0.021215689239843405,
+            "cost": 0.001402951875,
+            "predicted_net_edge": 0.005543935457704712,
+            "predicted_return": 0.0069468873327047116,
+            "realized_net": 0.019812737364843406,
+            "side": 1,
+            "timestamp": 1667931600000,
+            "uncertainty_adjusted_edge": 0.0030866126024714424
+          },
+          {
+            "actual_execution_return": -0.0023785034713295072,
+            "cost": 0.001402951875,
+            "predicted_net_edge": 0.004571335598071365,
+            "predicted_return": 0.005974287473071365,
+            "realized_net": -0.0037814553463295076,
+            "side": 1,
+            "timestamp": 1667932980000,
+            "uncertainty_adjusted_edge": 0.0031972193926131745
+          },
+          {
+            "actual_execution_return": 0.0648325844325266,
+            "cost": 0.001402951875,
+            "predicted_net_edge": 0.010623534334285508,
+            "predicted_return": 0.012026486209285508,
+            "realized_net": 0.0634296325575266,
+            "side": 1,
+            "timestamp": 1667935980000,
+            "uncertainty_adjusted_edge": 0.0057875722897139555
+          }
+        ]
+      },
+      "train": "train:[2021-01-01,2022-01-01)",
+      "validation": "valid:[2022-01-01,2023-01-01)"
+    },
+    {
+      "direction": {
+        "accuracy": 0.6961876665397793,
+        "brier": 0.4471873498485802,
+        "class_counts": [
+          78200,
+          364909,
+          82291
+        ],
+        "log_loss": 0.7920687410309832,
+        "macro_auc_ovr": 0.7125518275131829,
+        "n": 525400
+      },
+      "economic_gate": {
+        "eligible_bars": 25,
+        "fraction_eligible": 4.7582794061667303e-05,
+        "mean_predicted_gross": 9.52518573685712e-07,
+        "mean_predicted_net_edge": -0.0013990558456523795,
+        "mean_required_edge": 0.002800137254732108,
+        "mean_uncertainty_adjusted_edge": -0.00139918436818429
+      },
+      "fold": "2021-2022->2023",
+      "return": {
+        "historical_mean": {
+          "corr": -5.743411710066455e-17,
+          "mae": 0.0013380314874941672,
+          "n": 525400,
+          "prediction_mean": 7.819646116683054e-07,
+          "prediction_std": 3.1763735522036263e-22,
+          "rmse": 0.002288011983304424,
+          "target_mean": 2.9446139405825912e-05,
+          "target_std": 0.0022878324241141466
+        },
+        "lightgbm_ensemble": {
+          "corr": 0.03371288359103883,
+          "mae": 0.0013376224957011515,
+          "n": 525400,
+          "prediction_mean": -5.836467089486776e-06,
+          "prediction_std": 7.07620145691672e-05,
+          "rmse": 0.0022868129915698016,
+          "target_mean": 2.9446139405825912e-05,
+          "target_std": 0.0022878324241141466
+        }
+      },
+      "rows": {
+        "train": 1051140,
+        "validation": 525400
+      },
+      "simulation_1x": {
+        "candidate_bars": 525400,
+        "cost_sum": 0.007017120312500001,
+        "expectancy": 0.014028632359467299,
+        "gross_return_sum": 0.0771602821098365,
+        "hit_rate": 1.0,
+        "max_drawdown": 0.0,
+        "net_return_sum": 0.0701431617973365,
+        "profit_factor": null,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 1.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 7,
+        "selection_rate": 9.51655881233346e-06,
+        "sharpe": 1.701840242558681,
+        "sortino": null,
+        "trade_count": 5,
+        "trades": [
+          {
+            "actual_execution_return": 0.007594698204955286,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.004179805081481769,
+            "predicted_return": 0.005582930081481769,
+            "realized_net": 0.006191573204955286,
+            "side": 1,
+            "timestamp": 1682539200000,
+            "uncertainty_adjusted_edge": 0.0039440959581507175
+          },
+          {
+            "actual_execution_return": 0.016403550612515527,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.009735424922574032,
+            "predicted_return": 0.011138549922574032,
+            "realized_net": 0.015000425612515527,
+            "side": 1,
+            "timestamp": 1692308700000,
+            "uncertainty_adjusted_edge": 0.009221646771444443
+          },
+          {
+            "actual_execution_return": 0.007195562018635249,
+            "cost": 0.00140000875,
+            "predicted_net_edge": 0.0033968195863928415,
+            "predicted_return": 0.004796828336392842,
+            "realized_net": 0.005795553268635249,
+            "side": 1,
+            "timestamp": 1697464140000,
+            "uncertainty_adjusted_edge": 0.0030052367021437317
+          },
+          {
+            "actual_execution_return": 0.019264198318791337,
+            "cost": 0.0014062584375,
+            "predicted_net_edge": 0.004349086451083288,
+            "predicted_return": 0.0057553448885832885,
+            "realized_net": 0.01785793988129134,
+            "side": 1,
+            "timestamp": 1699547760000,
+            "uncertainty_adjusted_edge": 0.002844875965375161
+          },
+          {
+            "actual_execution_return": 0.0267022729549391,
+            "cost": 0.001404603125,
+            "predicted_net_edge": 0.006551873480160426,
+            "predicted_return": 0.007956476605160426,
+            "realized_net": 0.025297669829939102,
+            "side": 1,
+            "timestamp": 1702260720000,
+            "uncertainty_adjusted_edge": 0.005921819541756255
+          }
+        ]
+      },
+      "train": "train:[2021-01-01,2023-01-01)",
+      "validation": "valid:[2023-01-01,2024-01-01)"
+    },
+    {
+      "direction": {
+        "accuracy": 0.5561073097383873,
+        "brier": 0.5600038016684719,
+        "class_counts": [
+          115471,
+          289357,
+          120567
+        ],
+        "log_loss": 0.9502389175413928,
+        "macro_auc_ovr": 0.6592662701634001,
+        "n": 525395
+      },
+      "economic_gate": {
+        "eligible_bars": 36,
+        "fraction_eligible": 6.851987552222613e-05,
+        "mean_predicted_gross": -6.074300117101704e-07,
+        "mean_predicted_net_edge": -0.001400687534706154,
+        "mean_required_edge": 0.0028003385775761565,
+        "mean_uncertainty_adjusted_edge": -0.0014013688019187975
+      },
+      "fold": "2021-2023->2024",
+      "return": {
+        "historical_mean": {
+          "corr": 0.0,
+          "mae": 0.0018421356266712697,
+          "n": 525395,
+          "prediction_mean": 1.0367090753089345e-05,
+          "prediction_std": 0.0,
+          "rmse": 0.002824035067266009,
+          "target_mean": 2.630568504346174e-05,
+          "target_std": 0.002823990088927399
+        },
+        "lightgbm_ensemble": {
+          "corr": 0.01652493095072207,
+          "mae": 0.001842502478003715,
+          "n": 525395,
+          "prediction_mean": 4.034283579367682e-06,
+          "prediction_std": 0.00014831821963689112,
+          "rmse": 0.002825521442907189,
+          "target_mean": 2.630568504346174e-05,
+          "target_std": 0.002823990088927399
+        }
+      },
+      "rows": {
+        "train": 1576740,
+        "validation": 525395
+      },
+      "simulation_1x": {
+        "candidate_bars": 525395,
+        "cost_sum": 0.0126719828125,
+        "expectancy": 0.009668743948688939,
+        "gross_return_sum": 0.09969067835070045,
+        "hit_rate": 0.7777777777777778,
+        "max_drawdown": 0.020511578321772205,
+        "net_return_sum": 0.08701869553820045,
+        "profit_factor": 5.242418314822397,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 1.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 247,
+        "selection_rate": 1.7129968880556532e-05,
+        "sharpe": 0.6883516528315581,
+        "sortino": 0.6758130348840323,
+        "trade_count": 9,
+        "trades": [
+          {
+            "actual_execution_return": -0.01896689656137529,
+            "cost": 0.0014053509375,
+            "predicted_net_edge": 0.006580108043146596,
+            "predicted_return": 0.007985458980646596,
+            "realized_net": -0.020372247498875288,
+            "side": 1,
+            "timestamp": 1704283500000,
+            "uncertainty_adjusted_edge": 0.004895428209675926
+          },
+          {
+            "actual_execution_return": 0.0012660201146030836,
+            "cost": 0.0014053509375,
+            "predicted_net_edge": 0.00479422012346532,
+            "predicted_return": 0.00619957106096532,
+            "realized_net": -0.00013933082289691636,
+            "side": 1,
+            "timestamp": 1704284460000,
+            "uncertainty_adjusted_edge": 0.0046666191871118775
+          },
+          {
+            "actual_execution_return": 0.010174636798825798,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.00410110704713432,
+            "predicted_return": 0.00550423204713432,
+            "realized_net": 0.008771511798825798,
+            "side": 1,
+            "timestamp": 1705098120000,
+            "uncertainty_adjusted_edge": 0.0035432687536176657
+          },
+          {
+            "actual_execution_return": 0.01623726382843893,
+            "cost": 0.001416730625,
+            "predicted_net_edge": 0.008774621198893185,
+            "predicted_return": 0.010191351823893184,
+            "realized_net": 0.014820533203438931,
+            "side": 1,
+            "timestamp": 1709141460000,
+            "uncertainty_adjusted_edge": 0.0035763706273796306
+          },
+          {
+            "actual_execution_return": 0.013829756532490523,
+            "cost": 0.0014153,
+            "predicted_net_edge": 0.0031488777990113298,
+            "predicted_return": 0.00456417779901133,
+            "realized_net": 0.012414456532490523,
+            "side": 1,
+            "timestamp": 1709614980000,
+            "uncertainty_adjusted_edge": 0.0030624451984312905
+          },
+          {
+            "actual_execution_return": 0.013095878325709798,
+            "cost": 0.0014044775,
+            "predicted_net_edge": 0.0029529125159132802,
+            "predicted_return": 0.00435739001591328,
+            "realized_net": 0.011691400825709797,
+            "side": 1,
+            "timestamp": 1710493740000,
+            "uncertainty_adjusted_edge": 0.002873357491713684
+          },
+          {
+            "actual_execution_return": 0.013167363965700396,
+            "cost": 0.001403816875,
+            "predicted_net_edge": 0.0032939981040814663,
+            "predicted_return": 0.004697814979081467,
+            "realized_net": 0.011763547090700396,
+            "side": 1,
+            "timestamp": 1712946900000,
+            "uncertainty_adjusted_edge": 0.0031068419332304304
+          },
+          {
+            "actual_execution_return": 0.0175761288320333,
+            "cost": 0.001403125,
+            "predicted_net_edge": 0.003965305291376432,
+            "predicted_return": 0.005368430291376432,
+            "realized_net": 0.0161730038320333,
+            "side": 1,
+            "timestamp": 1713039780000,
+            "uncertainty_adjusted_edge": 0.0033944658076372303
+          },
+          {
+            "actual_execution_return": 0.03331052651427391,
+            "cost": 0.0014147059375,
+            "predicted_net_edge": 0.00406079083887039,
+            "predicted_return": 0.00547549677637039,
+            "realized_net": 0.03189582057677391,
+            "side": 1,
+            "timestamp": 1733437680000,
+            "uncertainty_adjusted_edge": 0.003738303569258795
+          }
+        ]
+      },
+      "train": "train:[2021-01-01,2024-01-01)",
+      "validation": "valid:[2024-01-01,2025-01-01)"
+    }
+  ],
+  "oos_used": false,
+  "purge_minutes": 60,
+  "question": "Is the Phase 2 return/direction economic edge stable across chronological folds?",
+  "reason": "at least one chronological fold has non-positive adjusted edge or no selected trade"
+}

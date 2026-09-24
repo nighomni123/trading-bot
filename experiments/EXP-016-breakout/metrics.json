@@ -1,0 +1,70 @@
+{
+  "decision": "DEFER",
+  "experiment_id": "EXP-016",
+  "oos_used": false,
+  "question": "Breakout specialist economic value",
+  "reason": "EXP-010/011 base economic gate failed; independent specialists are not promoted or trained",
+  "result": {
+    "decision": "DEFER",
+    "feature_sets": {
+      "breakout": [
+        "ret_15m",
+        "ret_60m",
+        "realized_vol_5m",
+        "realized_vol_30m",
+        "atr_14",
+        "ema20",
+        "ema50",
+        "ema200",
+        "oi_change_1d",
+        "volume_z",
+        "ema20_ema50_gap",
+        "ema50_ema200_gap",
+        "ema20_ema200_gap",
+        "trend_accel_15",
+        "trend_duration_60",
+        "ret_15_rv"
+      ],
+      "mean_reversion": [
+        "ret_1m",
+        "ret_5m",
+        "ret_15m",
+        "realized_vol_5m",
+        "realized_vol_30m",
+        "atr_14",
+        "ema20",
+        "ema50",
+        "funding",
+        "funding_z",
+        "volume_z",
+        "ema20_ema50_gap",
+        "ema50_ema200_gap",
+        "ret_15_atr",
+        "ret_15_rv"
+      ],
+      "momentum": [
+        "ret_1m",
+        "ret_5m",
+        "ret_15m",
+        "ret_60m",
+        "atr_14",
+        "ema20",
+        "ema50",
+        "ema200",
+        "funding",
+        "funding_z",
+        "oi_change_1d",
+        "volume_z",
+        "ema20_ema50_gap",
+        "ema50_ema200_gap",
+        "ema20_ema200_gap",
+        "trend_accel_15",
+        "trend_duration_60",
+        "ret_15_atr",
+        "ret_15_rv",
+        "funding_oi_interaction"
+      ]
+    },
+    "reason": "EXP-010/011 base economic gate failed; independent specialists are not promoted or trained"
+  }
+}

@@ -1,0 +1,8 @@
+experiment_id: EXP-014
+phase: Phase 2 momentum specialist
+hypothesis: A momentum-specific feature set has independent positive economic value.
+baseline: EXP-010 base engine
+intervention: momentum feature contract
+frozen_oos_used: false
+decision: DEFER
+reason: EXP-010/011 failed the base economic gate; specialist fitting is not evidence-based.

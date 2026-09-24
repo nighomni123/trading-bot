@@ -1,0 +1,12 @@
+{
+  "EXP-010": {
+    "economic_bundle.pkl": "5e3091fab2f917af60a48028b645c6d71c8faf129bf33521b860b49c04f60a53",
+    "economic_metadata.json": "60b354d34a06265f28b335f29be4ce1609c4748fcd6c9245aa739a6a40ab78ec",
+    "metrics.json": "04f70a7f7eff548e8afef396c16ebbcc86743abd8d6601d92854d2b85c9975d8"
+  },
+  "EXP-011": {
+    "economic_bundle.pkl": "8cfe8c15ef39ffacc361fb472e65d7ddcce041b21aee881ca27133254136c22c",
+    "economic_metadata.json": "6d5579843ac3b7e60c5e787c57860df93c729d18380e6641fe3894241b1866e3",
+    "metrics.json": "57d84b953653b999337577da59dfadca58a762676ff4ce5f60c4f7d570a3cb56"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "decision": "NO_EDGE",
+  "experiment_id": "EXP-019",
+  "oos_used": false,
+  "question": "Does the base economic edge survive adverse costs?",
+  "reason": "base predicted edge is negative and the base gate produces too few trades",
+  "result": {
+    "2x_fees": {
+      "candidate_bars": 525395,
+      "cost_sum": 0.0,
+      "expectancy": null,
+      "gross_return_sum": 0.0,
+      "hit_rate": null,
+      "max_drawdown": 0.0,
+      "net_return_sum": 0.0,
+      "profit_factor": null,
+      "scenario": {
+        "delay_penalty_pct": 0.0,
+        "fee_mult": 2.0,
+        "horizon_minutes": 15,
+        "min_edge_mult": 2.0,
+        "slippage_extra_pct": 0.0
+      },
+      "segment_count": 247,
+      "selection_rate": 0.0,
+      "sharpe": null,
+      "sortino": null,
+      "trade_count": 0,
+      "trades": []
+    },
+    "3x_fees": {
+      "candidate_bars": 525395,
+      "cost_sum": 0.0,
+      "expectancy": null,
+      "gross_return_sum": 0.0,
+      "hit_rate": null,
+      "max_drawdown": 0.0,
+      "net_return_sum": 0.0,
+      "profit_factor": null,
+      "scenario": {
+        "delay_penalty_pct": 0.0,
+        "fee_mult": 3.0,
+        "horizon_minutes": 15,
+        "min_edge_mult": 2.0,
+        "slippage_extra_pct": 0.0
+      },
+      "segment_count": 247,
+      "selection_rate": 0.0,
+      "sharpe": null,
+      "sortino": null,
+      "trade_count": 0,
+      "trades": []
+    },
+    "execution_delay": {
+      "candidate_bars": 525395,
+      "cost_sum": 0.0064421384375,
+      "expectancy": 0.006351193864610159,
+      "gross_return_sum": 0.03184691389594063,
+      "hit_rate": 0.5,
+      "max_drawdown": 0.020911578321772206,
+      "net_return_sum": 0.025404775458440637,
+      "profit_factor": 2.214866475764305,
+      "scenario": {
+        "delay_penalty_pct": 0.02,
+        "fee_mult": 1.0,
+        "horizon_minutes": 15,
+        "min_edge_mult": 2.0,
+        "slippage_extra_pct": 0.0
+      },
+      "segment_count": 247,
+      "selection_rate": 7.613319502469571e-06,
+      "sharpe": 0.2859112965524181,
+      "sortino": 0.4439273212278057,
+      "trade_count": 4,
+      "trades": [
+        {
+          "actual_execution_return": -0.01896689656137529,
+          "cost": 0.0016053509375000001,
+          "predicted_net_edge": 0.005923343347869513,
+          "predicted_return": 0.007528694285369513,
+          "realized_net": -0.02057224749887529,
+          "side": 1,
+          "timestamp": 1704283500000,
+          "uncertainty_adjusted_edge": 0.004077478418743287
+        },
+        {
+          "actual_execution_return": 0.0012660201146030836,
+          "cost": 0.0016053509375000001,
+          "predicted_net_edge": 0.004840629360798441,
+          "predicted_return": 0.006445980298298441,
+          "realized_net": -0.00033933082289691645,
+          "side": 1,
+          "timestamp": 1704284460000,
+          "uncertainty_adjusted_edge": 0.004224330741411609
+        },
+        {
+          "actual_execution_return": 0.01623726382843893,
+          "cost": 0.0016167306250000001,
+          "predicted_net_edge": 0.009339285219898096,
+          "predicted_return": 0.010956015844898095,
+          "realized_net": 0.01462053320343893,
+          "side": 1,
+          "timestamp": 1709141460000,
+          "uncertainty_adjusted_edge": 0.0037661866554310405
+        },
+        {
+          "actual_execution_return": 0.03331052651427391,
+          "cost": 0.0016147059375,
+          "predicted_net_edge": 0.004025785817224965,
+          "predicted_return": 0.005640491754724965,
+          "realized_net": 0.03169582057677391,
+          "side": 1,
+          "timestamp": 1733437680000,
+          "uncertainty_adjusted_edge": 0.0035786378935952386
+        }
+      ]
+    },
+    "extra_slippage": {
+      "candidate_bars": 525395,
+      "cost_sum": 0.0,
+      "expectancy": null,
+      "gross_return_sum": 0.0,
+      "hit_rate": null,
+      "max_drawdown": 0.0,
+      "net_return_sum": 0.0,
+      "profit_factor": null,
+      "scenario": {
+        "delay_penalty_pct": 0.0,
+        "fee_mult": 1.0,
+        "horizon_minutes": 15,
+        "min_edge_mult": 2.0,
+        "slippage_extra_pct": 0.05
+      },
+      "segment_count": 247,
+      "selection_rate": 0.0,
+      "sharpe": null,
+      "sortino": null,
+      "trade_count": 0,
+      "trades": []
+    }
+  }
+}

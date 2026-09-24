@@ -27,9 +27,23 @@ dependency were intentionally removed; the supported research engine is
 - no model artifact was promoted and no specialist, Frontier, Jev, RL, or live
   change was introduced.
 
-The next valid action is feature/target research or acquisition of a fresh
-untouched holdout. Adding an allocator or reasoning layer is blocked by the
-Phase 1 gate.
+## Phase 2 Economic Quant Engine v2
+
+`EXP-010` through `EXP-019` are complete or explicitly deferred. Final decision:
+**NO EDGE**.
+
+- execution-aligned up/flat/down, return, MFE/MAE, holding, and ensemble
+  uncertainty heads are implemented and serialized;
+- base validation mean uncertainty-adjusted edge is `-0.001402`;
+- all three chronological folds have negative mean adjusted edge and only 5–12
+  selected trades;
+- uncertainty error is non-monotonic;
+- derived features reduce eligibility; specialist and ensemble experiments are
+  deferred because the prerequisite failed;
+- base 2×/3× fee and extra-slippage scenarios select zero trades.
+
+Frontier, Laya, Jev, RL, and live integration remain blocked. Full report:
+`docs/phase2-economic-engine-v2.md`.
 
 ## Supported commands
 
@@ -37,4 +51,6 @@ Phase 1 gate.
 .venv/bin/python -m pytest -q
 .venv/bin/python scripts/reproduce_phase0.py --out artifacts/phase0-baseline-final-a
 .venv/bin/python scripts/run_phase1_economic.py --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet --out artifacts/phase1-economic-run1
+.venv/bin/python scripts/run_phase2_experiments.py --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet --out artifacts/phase2-experiments-final --trees 20 --leaves 15
+.venv/bin/python scripts/run_phase2_walkforward.py
 ```

@@ -1,0 +1,8 @@
+experiment_id: EXP-017
+phase: Phase 2 specialist ensemble
+hypothesis: Specialist arbitration improves economic expectancy over the base engine.
+baseline: deterministic max-edge selection
+intervention: momentum, mean-reversion, and breakout arbitration
+frozen_oos_used: false
+decision: DEFER
+reason: Specialist experiments were not trained because their base economic prerequisite failed.

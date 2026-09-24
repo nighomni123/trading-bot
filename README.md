@@ -28,11 +28,13 @@ reasoning layer is active after the Phase 1 economic gate.
 ## Status
 
 Phase 0 current-code baseline: **PASS** (reproducible validation-only freeze).
-Historical EXP-002/EXP-003 artifacts are reference-only. Phase 1 economic-target
-validation: **STOP** — real excursion heads are measurable, but no return head
-clears the cost hurdle. Frontier/Jev/specialists remain blocked. The consumed
-2025+ period is not a fresh OOS set; promotion requires a new untouched holdout.
-See `docs/phase0-baseline.md` and `experiments/EXP-009-economic-targets/`.
+Phase 2 Economic Quant Engine v2: **NO EDGE**. Explicit down/flat/up, return,
+MFE/MAE, holding, and ensemble-uncertainty heads are implemented, but mean
+uncertainty-adjusted edge is negative in the base run and all three walk-forward
+folds; selected-trade counts are only 5–12. Specialists, Frontier, and Jev remain
+blocked. The consumed 2025+ period is not fresh OOS, so promotion also requires a
+new untouched holdout. See `docs/phase2-economic-engine-v2.md` and
+`experiments/EXP-010-economic-return-baseline/`.
 
 ## Dev
 
@@ -61,7 +63,11 @@ python3 -m venv .venv
 ### 2. Train the quant model
 
 ```bash
-.venv/bin/python scripts/train_quant.py       # LightGBM on 2021–2023, validate 2024 → models/
+.venv/bin/python scripts/train_quant.py       # legacy binary baseline
+.venv/bin/python scripts/train_economic_v2.py --out artifacts/phase2-model
+.venv/bin/python scripts/run_phase2_experiments.py \
+  --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet \
+  --out artifacts/phase2-experiments-final --trees 20 --leaves 15
 ```
 
 ### 3. Run an experiment (ablation)

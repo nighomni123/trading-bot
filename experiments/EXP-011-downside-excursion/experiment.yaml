@@ -1,0 +1,11 @@
+experiment_id: EXP-011
+phase: Phase 2 downside and excursion heads
+hypothesis: Explicit up/flat/down and MFE/MAE heads add economic information beyond returns.
+baseline: EXP-010 base return engine
+intervention: multiclass direction plus execution MFE/MAE and holding-time heads
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos_used: false
+purge_minutes: 60
+decision: NO_EDGE
+reason: Direction and excursion predictions are measurable, but return economics remain negative and selected-trade counts are not meaningful.

@@ -33,14 +33,16 @@ class EconomicQuantOutput(BaseModel):
 
     # --- Prediction targets ---
     p_up_15: float = Field(..., ge=0.0, le=1.0, description="Probability that 15m forward return exceeds cost hurdle")
+    p_flat_15: float = Field(..., ge=0.0, le=1.0, description="Probability that 15m forward return stays between hurdles")
     p_dn_15: float = Field(..., ge=0.0, le=1.0, description="Probability that 15m forward return falls below negative cost hurdle")
-    expected_return_15: float = Field(..., description="Expected gross return over 15m (fraction of price)")
+    expected_return_15: float = Field(..., description="Expected signed market return over 15m (fraction of price)")
     expected_downside_15: float | None = Field(default=None, description="Expected adverse return if downside realized")
     expected_favorable_excursion_15: float | None = Field(default=None, description="Real predicted favorable excursion (fraction)")
     expected_adverse_excursion_15: float | None = Field(default=None, description="Real predicted adverse excursion (fraction)")
     uncertainty: float | None = Field(default=None, ge=0.0, le=1.0, description="Calibrated prediction uncertainty")
     holding_time_minutes: float | None = Field(default=None, ge=0.0, description="Predicted holding time")
     horizon_min: int = Field(default=15, ge=1, description="Prediction horizon in minutes")
+    side: str = Field(default="LONG", pattern="^(LONG|SHORT)$", description="Candidate trading side")
 
     # --- Economic evaluation (computed deterministically) ---
     expected_gross_return: float = Field(default=0.0, description="Predicted gross return (same as expected_return_15 unless overridden)")
@@ -50,6 +52,8 @@ class EconomicQuantOutput(BaseModel):
     cost_delay_penalty: float = Field(default=0.0, description="Estimated cost from execution delay")
     cost_other: float = Field(default=0.0, description="Other applicable trading costs (e.g. spread, borrow)")
     expected_net_edge: float = Field(default=0.0, description="Expected gross return minus all applicable costs")
+    uncertainty_penalty: float = Field(default=0.0, description="Conservative edge penalty from normalized prediction uncertainty")
+    uncertainty_adjusted_edge: float = Field(default=0.0, description="Expected net edge after uncertainty penalty")
     min_edge_over_cost_mult: float = Field(default=2.0, description="Minimum required net edge as multiple of total cost (economic gate)")
     trade_decision: str = Field(default="NO_TRADE", description="TRADE or NO_TRADE — positive direction alone is insufficient")
     decision_reasons: list[str] = Field(default_factory=list, description="Audit trail of conditions checked")
@@ -138,9 +142,12 @@ def evaluate_economic_opportunity(
     delay_penalty = delay_penalty_pct / 100.0
     other = quant.cost_other
 
-    gross = quant.expected_return_15
+    gross = quant.expected_return_15 if quant.side == "LONG" else -quant.expected_return_15
     total_cost = fees + slippage + funding + delay_penalty + other
     net_edge = gross - total_cost
+    uncertainty = quant.uncertainty
+    uncertainty_penalty = 0.0 if uncertainty is None else uncertainty * abs(gross)
+    uncertainty_adjusted_edge = net_edge - uncertainty_penalty
 
     if min_edge_mult is None:
         min_edge_mult = _default_min_edge_mult()
@@ -148,15 +155,22 @@ def evaluate_economic_opportunity(
     # Build audit trail
     reasons: list[str] = []
 
-    # Condition 1: probability-based direction check (positive direction is NOT sufficient)
-    ok_direction = quant.p_up_15 >= 0.5
-    reasons.append(f"direction: p_up_15={quant.p_up_15:.4f} {'pass' if ok_direction else 'fail'}")
+    # Condition 1: explicit three-class direction, not p_down = 1 - p_up.
+    if quant.side == "LONG":
+        ok_direction = quant.p_up_15 >= quant.p_dn_15 and quant.p_up_15 >= quant.p_flat_15
+    else:
+        ok_direction = quant.p_dn_15 >= quant.p_up_15 and quant.p_dn_15 >= quant.p_flat_15
+    reasons.append(
+        f"direction: side={quant.side} p_up={quant.p_up_15:.4f} p_flat={quant.p_flat_15:.4f} "
+        f"p_dn={quant.p_dn_15:.4f} -> {'pass' if ok_direction else 'fail'}"
+    )
 
-    # Condition 2: economic edge gate (explicit, documented, not hidden)
+    # Condition 2: conservative edge gate using documented ensemble uncertainty.
     needed = min_edge_mult * total_cost
-    ok_edge = net_edge >= needed
+    ok_edge = uncertainty is not None and uncertainty_adjusted_edge >= needed
     reasons.append(
         f"edge: gross={gross:.6f} cost={total_cost:.6f} net={net_edge:.6f} "
+        f"uncertainty_penalty={uncertainty_penalty:.6f} adjusted={uncertainty_adjusted_edge:.6f} "
         f">= min_edge={needed:.6f} -> {'pass' if ok_edge else 'fail'}"
     )
 
@@ -193,6 +207,8 @@ def evaluate_economic_opportunity(
         "cost_funding": funding,
         "cost_delay_penalty": delay_penalty,
         "expected_net_edge": net_edge,
+        "uncertainty_penalty": uncertainty_penalty,
+        "uncertainty_adjusted_edge": uncertainty_adjusted_edge,
         "min_edge_over_cost_mult": min_edge_mult,
         "trade_decision": trade_decision,
         "decision_reasons": reasons,

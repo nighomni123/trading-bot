@@ -1,0 +1,58 @@
+{
+  "code_hashes": {
+    "scripts/run_phase2_experiments.py": "1cffb6757b5a942129213512e926f559cd569a65e8705684ef2c3d3edd4d3782",
+    "scripts/run_phase2_walkforward.py": "fd5d7c54a6a6e7fcf8ebbc31479e63b5241ae0ff8cbf412fcd0195812046b4a8",
+    "scripts/summarize_phase2_regimes.py": "7bf85240820225baeeba07be2006758686496c03b87db6e6dab98f1fd84f58e8",
+    "scripts/train_economic_v2.py": "e023fed67fc1a173b5b1ac441c724507185c9edd1e815b6a4973cd51eef20641",
+    "src/jev_trading/labels/engine.py": "19ce5848afd71dcbcfdbfffd6273945dd4af7d4774619db19c97dda573e7373c",
+    "src/jev_trading/quant/economic.py": "1141344a308a9a0eb250305255abf51de940b1be7806ca40b0963ada2eacc155",
+    "src/jev_trading/quant/engine.py": "4ef2585330c55814920ca7373fa03237371f693681035483354fca407c654708",
+    "src/jev_trading/quant/evaluation.py": "62d41086620bb768fbf7b013c46978ad0dfc0fa2ea5361d68a4b3ae49bacaa06",
+    "src/jev_trading/quant/model.py": "ab02ce0a9a65a233c87970159155e03ccdbbbced0f5ffdc0c25424988ba59401",
+    "src/jev_trading/state/features.py": "d702f43e9a6b45be2c45786f77b5c0fa539af83a2b6884ea74a475903b4e528e"
+  },
+  "costs": {
+    "funding_quote": "per_8h_fraction",
+    "min_edge_over_cost": 2.0,
+    "slippage_pct_per_side": 0.02,
+    "taker_fee_pct_per_side": 0.05
+  },
+  "dataset": {
+    "path": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+    "sha256": "bcd43b1e7a35cd1db11be3c074415051f64edaefa6c93b69c1eb1f4546d08a96"
+  },
+  "experiment_scope": "Phase 2 Economic Quant Engine v2",
+  "final_decision": "NO EDGE",
+  "git_commit": "67be35484c963c1745d2f08ab1f6317865ccebd2",
+  "model_config": {
+    "feature_sets": [
+      "base",
+      "base_plus_derived"
+    ],
+    "n_estimators": 20,
+    "num_leaves": 15,
+    "purge_minutes": 60,
+    "seeds": [
+      7,
+      17,
+      27
+    ]
+  },
+  "periods": {
+    "frozen_oos_used": false,
+    "train": [
+      "2021-01-01",
+      "2024-01-01"
+    ],
+    "validation": [
+      "2024-01-01",
+      "2025-01-01"
+    ]
+  },
+  "runtime": {
+    "numpy": "2.5.3",
+    "polars": "1.44.2",
+    "python": "3.12.10"
+  },
+  "working_tree_dirty": true
+}

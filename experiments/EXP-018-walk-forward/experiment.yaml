@@ -1,0 +1,9 @@
+experiment_id: EXP-018
+phase: Phase 2 walk-forward robustness
+hypothesis: Return/direction economic edge is stable across chronological folds.
+folds: ["2021->2022", "2021-2022->2023", "2021-2023->2024"]
+purge_minutes: 60
+frozen_oos_used: false
+decision: NO_EDGE
+reason: All three folds have negative mean uncertainty-adjusted edge; selected-trade counts are 12, 5, and 9.
+reproduction: .venv/bin/python scripts/run_phase2_walkforward.py

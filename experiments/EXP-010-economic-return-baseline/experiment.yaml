@@ -1,0 +1,14 @@
+experiment_id: EXP-010
+phase: Phase 2 economic return-head baseline
+hypothesis: Explicit raw and execution-aligned return heads produce positive uncertainty-adjusted net edge.
+baseline: zero, historical mean, and linear regression
+intervention: 5m/15m/30m/60m return heads plus execution-aligned 15m ensemble
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos_used: false
+purge_minutes: 60
+seeds: [7, 17, 27]
+cost_model: 0.05% taker fee per side, 0.02% slippage per side, per-8h funding
+decision: NO_EDGE
+reason: Mean uncertainty-adjusted predicted edge is negative and only 9 fixed-horizon trades are selected.
+reproduction: .venv/bin/python scripts/run_phase2_experiments.py --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet --out artifacts/phase2-experiments-final --trees 20 --leaves 15

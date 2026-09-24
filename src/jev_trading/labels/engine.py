@@ -62,6 +62,61 @@ def _direction_labels(fr: pl.Expr, threshold: float, horizon: int) -> list[pl.Ex
     ]
 
 
+def _require_contiguous_bars(bars: pl.DataFrame) -> None:
+    """Reject timestamp gaps so row offsets cannot silently become shorter horizons."""
+    if bars.height < 2:
+        return
+    timestamps = bars["timestamp"].to_numpy()
+    if not bool((timestamps[1:] - timestamps[:-1] == 60_000).all()):
+        raise ValueError("bar timestamps must be contiguous one-minute UTC bars")
+
+
+def compute_execution_labels(
+    bars: pl.DataFrame,
+    threshold: float = DEFAULT_THRESHOLD,
+    horizons: tuple[int, ...] = HORIZONS,
+) -> pl.DataFrame:
+    """Labels matching next-open entry and fixed-horizon open-to-open exits.
+
+    A decision at close[t] enters at open[t+1]. After ``H`` one-minute holding
+    intervals, the exit is open[t+H+1]. Excursions include the entry bar and run
+    through t+H. A complete timestamp path is required; gaps are rejected rather
+    than compressed into a shorter apparent horizon.
+    """
+    _require_contiguous_bars(bars)
+    horizons = tuple(sorted(set((*horizons, 15))))
+    out: list[pl.Expr] = [pl.col("timestamp")]
+    entry = pl.col("open").shift(-1)
+    returns: dict[int, pl.Expr] = {}
+    for horizon in horizons:
+        fr = pl.col("open").shift(-(horizon + 1)) / entry - 1.0
+        returns[horizon] = fr
+        out.append(fr.alias(f"execution_return_{horizon}m"))
+        out.append((_fwd_extremum("high", horizon, "max") / entry - 1.0).alias(f"execution_mfe_{horizon}m"))
+        out.append((_fwd_extremum("low", horizon, "min") / entry - 1.0).alias(f"execution_mae_{horizon}m"))
+    fr15 = returns[15]
+    out.extend([
+        pl.when(fr15.is_null()).then(pl.lit(None, dtype=pl.Int8))
+        .when(fr15 <= -threshold).then(pl.lit(0, dtype=pl.Int8))
+        .when(fr15 >= threshold).then(pl.lit(2, dtype=pl.Int8))
+        .otherwise(pl.lit(1, dtype=pl.Int8))
+        .alias("direction_class_exec_15"),
+        pl.when(fr15.is_null()).then(pl.lit(None, dtype=pl.Int8))
+        .when(fr15 <= -threshold).then(pl.lit(1, dtype=pl.Int8))
+        .otherwise(pl.lit(0, dtype=pl.Int8))
+        .alias("y_dn_exec_15"),
+        pl.when(fr15.is_null()).then(pl.lit(None, dtype=pl.Int8))
+        .when(fr15 >= threshold).then(pl.lit(1, dtype=pl.Int8))
+        .otherwise(pl.lit(0, dtype=pl.Int8))
+        .alias("y_up_exec_15"),
+        pl.when(fr15.is_null()).then(pl.lit(None, dtype=pl.Int8))
+        .when((fr15 > -threshold) & (fr15 < threshold)).then(pl.lit(1, dtype=pl.Int8))
+        .otherwise(pl.lit(0, dtype=pl.Int8))
+        .alias("y_flat_exec_15"),
+    ])
+    return bars.select(out)
+
+
 def compute_path_labels(
     bars: pl.DataFrame,
     tp_threshold: float,
@@ -75,28 +130,24 @@ def compute_path_labels(
     If both barriers touch in the same bar, the conservative result is SL-first
     (``tp_before_sl = 0``). If neither touches, the race is null and ``timeout=1``.
     """
+    _require_contiguous_bars(bars)
     if horizon < 1:
         raise ValueError("horizon must be positive")
     if not 0 < tp_threshold < 1 or not 0 < sl_threshold < 1:
         raise ValueError("TP and SL thresholds must be fractions between zero and one")
 
     ref = pl.col("close")
-    valid_parts = [pl.col("timestamp").shift(-offset).is_not_null() for offset in range(1, horizon + 1)]
-    valid = pl.all_horizontal(valid_parts)
-    tp_seen = pl.lit(False)
-    sl_seen = pl.lit(False)
+    # Contiguity is checked above, so the final timestamp is a sufficient and
+    # much cheaper full-window validity test.
+    valid = pl.col("timestamp").shift(-horizon).is_not_null()
     tp_terms: list[pl.Expr] = []
     sl_terms: list[pl.Expr] = []
-    tp_event_terms: list[pl.Expr] = []
-    sl_event_terms: list[pl.Expr] = []
 
     for offset in range(1, horizon + 1):
         high = pl.col("high").shift(-offset)
         low = pl.col("low").shift(-offset)
         tp_hit = high >= ref * (1.0 + tp_threshold)
         sl_hit = low <= ref * (1.0 - sl_threshold)
-        tp_first = tp_hit & ~sl_seen
-        sl_first = sl_hit & ~tp_seen
         tp_terms.append(
             pl.when(tp_hit)
             .then(pl.lit(offset, dtype=pl.Int16))
@@ -107,31 +158,17 @@ def compute_path_labels(
             .then(pl.lit(offset, dtype=pl.Int16))
             .otherwise(pl.lit(None, dtype=pl.Int16))
         )
-        tp_event_terms.append(
-            pl.when(tp_first)
-            .then(pl.lit(offset, dtype=pl.Int16))
-            .otherwise(pl.lit(None, dtype=pl.Int16))
-        )
-        sl_event_terms.append(
-            pl.when(sl_first)
-            .then(pl.lit(offset, dtype=pl.Int16))
-            .otherwise(pl.lit(None, dtype=pl.Int16))
-        )
-        tp_seen = tp_seen | tp_hit
-        sl_seen = sl_seen | sl_hit
 
     tp_time = pl.concat_list(tp_terms).list.min().cast(pl.Int16)
     sl_time = pl.concat_list(sl_terms).list.min().cast(pl.Int16)
-    tp_event_time = pl.concat_list(tp_event_terms).list.min().cast(pl.Int16)
-    sl_event_time = pl.concat_list(sl_event_terms).list.min().cast(pl.Int16)
     race = (
         pl.when(~valid)
         .then(pl.lit(None, dtype=pl.Int8))
-        .when(tp_event_time.is_null() & sl_event_time.is_null())
+        .when(tp_time.is_null() & sl_time.is_null())
         .then(pl.lit(None, dtype=pl.Int8))
-        .when(tp_event_time.is_not_null() & sl_event_time.is_null())
+        .when(tp_time.is_not_null() & sl_time.is_null())
         .then(pl.lit(1, dtype=pl.Int8))
-        .when(tp_event_time.is_not_null() & sl_event_time.is_not_null() & (tp_event_time < sl_event_time))
+        .when(tp_time.is_not_null() & sl_time.is_not_null() & (tp_time < sl_time))
         .then(pl.lit(1, dtype=pl.Int8))
         .otherwise(pl.lit(0, dtype=pl.Int8))
     )
@@ -161,6 +198,7 @@ def compute_labels(
     ``path_pairs`` is intentionally explicit: the full 4x4 barrier grid can be
     large on millions of rows, so experiments select and lock the pairs they need.
     """
+    _require_contiguous_bars(bars)
     close = pl.col("close")
     out: list[pl.Expr] = [pl.col("timestamp")]
     returns: dict[int, pl.Expr] = {}

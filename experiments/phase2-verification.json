@@ -1,0 +1,21 @@
+{
+  "phase2_decision": "NO EDGE",
+  "pytest": {
+    "command": ".venv/bin/python -m pytest -q",
+    "passed": 192,
+    "failed": 0
+  },
+  "chronological_walk_forward": {
+    "folds": 3,
+    "decision": "NO_EDGE",
+    "selected_trades": [12, 5, 9],
+    "mean_adjusted_edges": [-0.0013795408877512788, -0.00139918436818429, -0.0014013688019187975]
+  },
+  "regime_analysis": {
+    "selected_trades": 9,
+    "decision": "INSUFFICIENT_EVIDENCE"
+  },
+  "specialists": "DEFER",
+  "frontier_laya_jev_promoted": false,
+  "frozen_oos_used": false
+}

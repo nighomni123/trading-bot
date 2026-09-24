@@ -36,6 +36,17 @@ FEATURE_COLUMNS: tuple[str, ...] = (
 )
 
 # clean name -> feature-frame column; decision-relevant subset for mock-Jev/live/policy.
+PHASE2_DERIVED_COLUMNS: tuple[str, ...] = (
+    "ema20_ema50_gap",
+    "ema50_ema200_gap",
+    "ema20_ema200_gap",
+    "trend_accel_15",
+    "trend_duration_60",
+    "ret_15_atr",
+    "ret_15_rv",
+    "funding_oi_interaction",
+)
+
 STATE_FIELDS: dict[str, str] = {
     "ts": "timestamp",
     "close": "close",
@@ -115,6 +126,25 @@ def build_features(bars: pl.DataFrame) -> pl.DataFrame:
             / pl.col("realized_vol_30m").rolling_mean(DAY, min_samples=DAY)
             - 1
         ),
+    )
+
+
+def build_phase2_features(bars: pl.DataFrame) -> pl.DataFrame:
+    """Append causal, interpretable trend/risk features for controlled ablations."""
+    df = build_features(bars)
+    atr = pl.col("atr_14").clip(lower_bound=1e-12)
+    rv = pl.col("realized_vol_30m").clip(lower_bound=1e-12)
+    return df.with_columns(
+        ema20_ema50_gap=pl.col("ema20") / pl.col("ema50") - 1.0,
+        ema50_ema200_gap=pl.col("ema50") / pl.col("ema200") - 1.0,
+        ema20_ema200_gap=pl.col("ema20") / pl.col("ema200") - 1.0,
+        trend_accel_15=(pl.col("ema20") / pl.col("ema20").shift(15) - 1.0) / atr,
+        trend_duration_60=(pl.col("ema20") > pl.col("ema50"))
+        .cast(pl.Int16)
+        .rolling_sum(60, min_samples=60),
+        ret_15_atr=pl.col("ret_15m") / atr,
+        ret_15_rv=pl.col("ret_15m") / rv,
+        funding_oi_interaction=pl.col("funding_z") * pl.col("oi_change_1d"),
     )
 
 

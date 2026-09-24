@@ -1,0 +1,233 @@
+{
+  "dimensions": {
+    "funding": [
+      {
+        "eligible_bars": 18,
+        "fraction_eligible": 0.00019743553181454223,
+        "mean_predicted_gross": 3.4254464460036346e-06,
+        "mean_predicted_net_edge": -0.001396617820046033,
+        "mean_required_edge": 0.00280029136616476,
+        "mean_uncertainty_adjusted_edge": -0.0013974237359771005,
+        "regime": "negative_extreme"
+      },
+      {
+        "eligible_bars": 13,
+        "fraction_eligible": 3.837253235099651e-05,
+        "mean_predicted_gross": -8.69194937825493e-07,
+        "mean_predicted_net_edge": -0.001400938056779921,
+        "mean_required_edge": 0.002800275728146474,
+        "mean_uncertainty_adjusted_edge": -0.0014020173212743578,
+        "regime": "normal"
+      },
+      {
+        "eligible_bars": 4,
+        "fraction_eligible": 4.191027011169087e-05,
+        "mean_predicted_gross": -3.821905621527746e-06,
+        "mean_predicted_net_edge": -0.0014039771072393954,
+        "mean_required_edge": 0.002800606767663869,
+        "mean_uncertainty_adjusted_edge": -0.0014060490299225943,
+        "regime": "positive_extreme"
+      }
+    ],
+    "trend": [
+      {
+        "eligible_bars": 0,
+        "fraction_eligible": 0.0,
+        "mean_predicted_gross": 5.046180030450312e-07,
+        "mean_predicted_net_edge": -0.0013995441313952044,
+        "mean_required_edge": 0.0028002248524070022,
+        "mean_uncertainty_adjusted_edge": -0.0013996674154203486,
+        "regime": "flat"
+      },
+      {
+        "eligible_bars": 35,
+        "fraction_eligible": 6.809735976807985e-05,
+        "mean_predicted_gross": -6.862470334751194e-07,
+        "mean_predicted_net_edge": -0.001400767048722411,
+        "mean_required_edge": 0.0028003411055642835,
+        "mean_uncertainty_adjusted_edge": -0.0014020034088538297,
+        "regime": "trending"
+      }
+    ],
+    "volatility": [
+      {
+        "eligible_bars": 35,
+        "fraction_eligible": 0.0001998492565607656,
+        "mean_predicted_gross": -1.9810493062970664e-06,
+        "mean_predicted_net_edge": -0.0014022213629322335,
+        "mean_required_edge": 0.0028010157307952004,
+        "mean_uncertainty_adjusted_edge": -0.0014058578230693453,
+        "regime": "high"
+      },
+      {
+        "eligible_bars": 0,
+        "fraction_eligible": 0.0,
+        "mean_predicted_gross": 0.0,
+        "mean_predicted_net_edge": -0.0014,
+        "mean_required_edge": 0.0028,
+        "mean_uncertainty_adjusted_edge": -0.0014,
+        "regime": "low"
+      },
+      {
+        "eligible_bars": 0,
+        "fraction_eligible": 0.0,
+        "mean_predicted_gross": 0.0,
+        "mean_predicted_net_edge": -0.0014,
+        "mean_required_edge": 0.0028,
+        "mean_uncertainty_adjusted_edge": -0.0014,
+        "regime": "normal"
+      }
+    ],
+    "volume": [
+      {
+        "eligible_bars": 35,
+        "fraction_eligible": 0.0001998492565607656,
+        "mean_predicted_gross": -2.1551766726293067e-06,
+        "mean_predicted_net_edge": -0.0014023613220890152,
+        "mean_required_edge": 0.002800796461065796,
+        "mean_uncertainty_adjusted_edge": -0.0014059957823567752,
+        "regime": "high"
+      },
+      {
+        "eligible_bars": 0,
+        "fraction_eligible": 0.0,
+        "mean_predicted_gross": 3.94847215502978e-08,
+        "mean_predicted_net_edge": -0.0013999678481669995,
+        "mean_required_edge": 0.002800056067319936,
+        "mean_uncertainty_adjusted_edge": -0.0013999682184419055,
+        "regime": "low"
+      },
+      {
+        "eligible_bars": 0,
+        "fraction_eligible": 0.0,
+        "mean_predicted_gross": 1.346434135929747e-07,
+        "mean_predicted_net_edge": -0.0013998921920606378,
+        "mean_required_edge": 0.002800163203341356,
+        "mean_uncertainty_adjusted_edge": -0.0013998938216643881,
+        "regime": "normal"
+      }
+    ]
+  },
+  "interpretation": "Selected-trade counts are too small for regime-specific promotion; no regime is optimized independently.",
+  "oos_used": false,
+  "selected_trade_count": 9,
+  "selected_trades": [
+    {
+      "actual_execution_return": -0.01896689656137529,
+      "cost": 0.0014053509375,
+      "funding_regime": "negative_extreme",
+      "predicted_net_edge": 0.0061233433478695126,
+      "predicted_return": 0.007528694285369513,
+      "realized_net": -0.020372247498875288,
+      "side": 1,
+      "timestamp": 1704283500000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.004277478418743286,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.0012660201146030836,
+      "cost": 0.0014053509375,
+      "funding_regime": "negative_extreme",
+      "predicted_net_edge": 0.005040629360798441,
+      "predicted_return": 0.006445980298298441,
+      "realized_net": -0.00013933082289691636,
+      "side": 1,
+      "timestamp": 1704284460000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.004424330741411609,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.004544439004216416,
+      "cost": 0.001403125,
+      "funding_regime": "normal",
+      "predicted_net_edge": 0.0038327481510422473,
+      "predicted_return": 0.0052358731510422475,
+      "realized_net": 0.003141314004216416,
+      "side": 1,
+      "timestamp": 1705098180000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0031837677482370527,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.01623726382843893,
+      "cost": 0.001416730625,
+      "funding_regime": "positive_extreme",
+      "predicted_net_edge": 0.009539285219898096,
+      "predicted_return": 0.010956015844898095,
+      "realized_net": 0.014820533203438931,
+      "side": 1,
+      "timestamp": 1709141460000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.003966186655431041,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.013829756532490523,
+      "cost": 0.0014153,
+      "funding_regime": "normal",
+      "predicted_net_edge": 0.003325300987525726,
+      "predicted_return": 0.004740600987525726,
+      "realized_net": 0.012414456532490523,
+      "side": 1,
+      "timestamp": 1709614980000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0029975372474888963,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.013095878325709798,
+      "cost": 0.0014044775,
+      "funding_regime": "negative_extreme",
+      "predicted_net_edge": 0.002978055648123883,
+      "predicted_return": 0.004382533148123883,
+      "realized_net": 0.011691400825709797,
+      "side": 1,
+      "timestamp": 1710493740000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0029003401021225356,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.013167363965700396,
+      "cost": 0.001403816875,
+      "funding_regime": "normal",
+      "predicted_net_edge": 0.0034258755659058175,
+      "predicted_return": 0.004829692440905818,
+      "realized_net": 0.011763547090700396,
+      "side": 1,
+      "timestamp": 1712946900000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0031362721556018013,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.0175761288320333,
+      "cost": 0.001403125,
+      "funding_regime": "normal",
+      "predicted_net_edge": 0.003870147575788944,
+      "predicted_return": 0.005273272575788944,
+      "realized_net": 0.0161730038320333,
+      "side": 1,
+      "timestamp": 1713039780000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0033738180934854093,
+      "volatility_regime": "high"
+    },
+    {
+      "actual_execution_return": 0.03331052651427391,
+      "cost": 0.0014147059375,
+      "funding_regime": "normal",
+      "predicted_net_edge": 0.004225785817224965,
+      "predicted_return": 0.005640491754724965,
+      "realized_net": 0.03189582057677391,
+      "side": 1,
+      "timestamp": 1733437680000,
+      "trend_regime": "trending",
+      "uncertainty_adjusted_edge": 0.0037786378935952382,
+      "volatility_regime": "high"
+    }
+  ]
+}

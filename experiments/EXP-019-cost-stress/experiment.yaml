@@ -1,0 +1,8 @@
+experiment_id: EXP-019
+phase: Phase 2 cost stress
+hypothesis: Base economic selections survive adverse fees, slippage, and delay.
+baseline: EXP-010 base engine
+intervention: 2x fees, 3x fees, +0.05% per-side slippage, +0.02% delay
+frozen_oos_used: false
+decision: NO_EDGE
+reason: Base mean adjusted edge is already negative; 2x/3x and extra-slippage scenarios select zero base trades.

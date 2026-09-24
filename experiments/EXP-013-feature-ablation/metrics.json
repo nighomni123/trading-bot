@@ -1,0 +1,46 @@
+{
+  "decision": "NO_EDGE",
+  "experiment_id": "EXP-013",
+  "oos_used": false,
+  "question": "Do interpretable derived features improve economic metrics over the frozen base?",
+  "reason": "controlled base_plus_derived comparison",
+  "result": {
+    "base": {
+      "eligible_bars": 35,
+      "fraction_eligible": 6.661654564660875e-05,
+      "mean_predicted_gross": -6.603510256291318e-07,
+      "mean_predicted_net_edge": -0.0014007404557200727,
+      "mean_required_edge": 0.0028003385775761565,
+      "mean_uncertainty_adjusted_edge": -0.0014019526114062379
+    },
+    "base_plus_derived": {
+      "eligible_bars": 16,
+      "fraction_eligible": 3.0453278009878283e-05,
+      "mean_predicted_gross": 1.3023887683683119e-06,
+      "mean_predicted_net_edge": -0.0013987730805642285,
+      "mean_required_edge": 0.002800335866381483,
+      "mean_uncertainty_adjusted_edge": -0.001399481616341588
+    },
+    "base_return_15": {
+      "corr": 0.01890235977455542,
+      "mae": 0.001842592973499011,
+      "n": 525395,
+      "prediction_mean": 4.192032716897176e-06,
+      "prediction_std": 0.00015336710478690047,
+      "rmse": 0.002825428571631414,
+      "target_mean": 2.6305577797350163e-05,
+      "target_std": 0.002824076864114797
+    },
+    "decision": "NO_EDGE",
+    "derived_return_15": {
+      "corr": 0.014680124253393132,
+      "mae": 0.0018422940919001866,
+      "n": 525395,
+      "prediction_mean": 5.866652477686205e-06,
+      "prediction_std": 0.00010735471696893809,
+      "rmse": 0.002824615290396089,
+      "target_mean": 2.6305577797350163e-05,
+      "target_std": 0.002824076864114797
+    }
+  }
+}

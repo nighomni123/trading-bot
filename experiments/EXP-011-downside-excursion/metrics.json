@@ -1,0 +1,579 @@
+{
+  "decision": "NO_EDGE",
+  "experiment_id": "EXP-011",
+  "oos_used": false,
+  "question": "Do explicit down/flat/up, execution-return, and MFE/MAE heads add economic information?",
+  "reason": "excursion/direction heads are measured but cannot override return economics",
+  "result": {
+    "cost_stress": {
+      "2x_fees": {
+        "candidate_bars": 525395,
+        "cost_sum": 0.004832897187500001,
+        "expectancy": 0.026945051052824194,
+        "gross_return_sum": 0.05872299929314839,
+        "hit_rate": 1.0,
+        "max_drawdown": 0.0,
+        "net_return_sum": 0.05389010210564839,
+        "profit_factor": null,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 2.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 247,
+        "selection_rate": 3.8066597512347854e-06,
+        "sharpe": 1.1503070905428445,
+        "sortino": null,
+        "trade_count": 2,
+        "trades": [
+          {
+            "actual_execution_return": 0.012786974297395393,
+            "cost": 0.0024053509375,
+            "predicted_net_edge": 0.009844924005970175,
+            "predicted_return": 0.012250274943470175,
+            "realized_net": 0.010381623359895393,
+            "side": 1,
+            "timestamp": 1704283680000,
+            "uncertainty_adjusted_edge": 0.008460503455856612
+          },
+          {
+            "actual_execution_return": 0.045936024995753,
+            "cost": 0.0024275462500000003,
+            "predicted_net_edge": 0.00898170980910782,
+            "predicted_return": 0.01140925605910782,
+            "realized_net": 0.043508478745753,
+            "side": 1,
+            "timestamp": 1709668560000,
+            "uncertainty_adjusted_edge": 0.005077115585777358
+          }
+        ]
+      },
+      "3x_fees": {
+        "candidate_bars": 525395,
+        "cost_sum": 0.0034053509375,
+        "expectancy": 0.009381623359895392,
+        "gross_return_sum": 0.012786974297395393,
+        "hit_rate": 1.0,
+        "max_drawdown": 0.0,
+        "net_return_sum": 0.009381623359895392,
+        "profit_factor": null,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 3.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 247,
+        "selection_rate": 1.9033298756173927e-06,
+        "sharpe": null,
+        "sortino": null,
+        "trade_count": 1,
+        "trades": [
+          {
+            "actual_execution_return": 0.012786974297395393,
+            "cost": 0.0034053509375,
+            "predicted_net_edge": 0.008844924005970175,
+            "predicted_return": 0.012250274943470175,
+            "realized_net": 0.009381623359895392,
+            "side": 1,
+            "timestamp": 1704283680000,
+            "uncertainty_adjusted_edge": 0.007460503455856612
+          }
+        ]
+      },
+      "execution_delay": {
+        "candidate_bars": 525395,
+        "cost_sum": 0.006448058125,
+        "expectancy": 0.014490840892641865,
+        "gross_return_sum": 0.06441142169556746,
+        "hit_rate": 0.75,
+        "max_drawdown": 0.02057224749887529,
+        "net_return_sum": 0.05796336357056746,
+        "profit_factor": 3.817551343076948,
+        "scenario": {
+          "delay_penalty_pct": 0.02,
+          "fee_mult": 1.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.0
+        },
+        "segment_count": 247,
+        "selection_rate": 7.613319502469571e-06,
+        "sharpe": 0.542722064085693,
+        "sortino": null,
+        "trade_count": 4,
+        "trades": [
+          {
+            "actual_execution_return": -0.01896689656137529,
+            "cost": 0.0016053509375000001,
+            "predicted_net_edge": 0.0059900336110361415,
+            "predicted_return": 0.007595384548536141,
+            "realized_net": -0.02057224749887529,
+            "side": 1,
+            "timestamp": 1704283500000,
+            "uncertainty_adjusted_edge": 0.004562449009504354
+          },
+          {
+            "actual_execution_return": 0.045936024995753,
+            "cost": 0.00162754625,
+            "predicted_net_edge": 0.00978170980910782,
+            "predicted_return": 0.01140925605910782,
+            "realized_net": 0.044308478745753,
+            "side": 1,
+            "timestamp": 1709668560000,
+            "uncertainty_adjusted_edge": 0.0058771155857773585
+          },
+          {
+            "actual_execution_return": 0.02052124743894468,
+            "cost": 0.0016120359375,
+            "predicted_net_edge": 0.004143345882807388,
+            "predicted_return": 0.0057553818203073875,
+            "realized_net": 0.01890921150144468,
+            "side": 1,
+            "timestamp": 1710473280000,
+            "uncertainty_adjusted_edge": 0.00405566748165729
+          },
+          {
+            "actual_execution_return": 0.016921045822245073,
+            "cost": 0.0016031250000000002,
+            "predicted_net_edge": 0.006958045502790747,
+            "predicted_return": 0.008561170502790746,
+            "realized_net": 0.015317920822245073,
+            "side": 1,
+            "timestamp": 1722820200000,
+            "uncertainty_adjusted_edge": 0.00369720405006998
+          }
+        ]
+      },
+      "extra_slippage": {
+        "candidate_bars": 525395,
+        "cost_sum": 0.004832897187500001,
+        "expectancy": 0.026945051052824194,
+        "gross_return_sum": 0.05872299929314839,
+        "hit_rate": 1.0,
+        "max_drawdown": 0.0,
+        "net_return_sum": 0.05389010210564839,
+        "profit_factor": null,
+        "scenario": {
+          "delay_penalty_pct": 0.0,
+          "fee_mult": 1.0,
+          "horizon_minutes": 15,
+          "min_edge_mult": 2.0,
+          "slippage_extra_pct": 0.05
+        },
+        "segment_count": 247,
+        "selection_rate": 3.8066597512347854e-06,
+        "sharpe": 1.1503070905428445,
+        "sortino": null,
+        "trade_count": 2,
+        "trades": [
+          {
+            "actual_execution_return": 0.012786974297395393,
+            "cost": 0.0024053509375,
+            "predicted_net_edge": 0.009844924005970175,
+            "predicted_return": 0.012250274943470175,
+            "realized_net": 0.010381623359895393,
+            "side": 1,
+            "timestamp": 1704283680000,
+            "uncertainty_adjusted_edge": 0.008460503455856612
+          },
+          {
+            "actual_execution_return": 0.045936024995753,
+            "cost": 0.0024275462500000003,
+            "predicted_net_edge": 0.00898170980910782,
+            "predicted_return": 0.01140925605910782,
+            "realized_net": 0.043508478745753,
+            "side": 1,
+            "timestamp": 1709668560000,
+            "uncertainty_adjusted_edge": 0.005077115585777358
+          }
+        ]
+      }
+    },
+    "direction": {
+      "accuracy": 0.5558922334624425,
+      "brier": 0.5602248179203075,
+      "class_counts": [
+        115471,
+        289357,
+        120567
+      ],
+      "log_loss": 0.9505728200528462,
+      "macro_auc_ovr": 0.6588518106586033,
+      "n": 525395
+    },
+    "economic_gate": {
+      "eligible_bars": 16,
+      "fraction_eligible": 3.0453278009878283e-05,
+      "mean_predicted_gross": 1.3023887683683119e-06,
+      "mean_predicted_net_edge": -0.0013987730805642285,
+      "mean_required_edge": 0.002800335866381483,
+      "mean_uncertainty_adjusted_edge": -0.001399481616341588
+    },
+    "excursions": {
+      "execution_mae_15m": {
+        "corr": 0.39957942323588347,
+        "mae": 0.0014728877438412505,
+        "n": 525395,
+        "prediction_mean": -0.002251254024720837,
+        "prediction_std": 0.0008435958147258981,
+        "rmse": 0.0023481420090708856,
+        "target_mean": -0.0018998516162389224,
+        "target_std": 0.002526206332646097
+      },
+      "execution_mae_60m": {
+        "corr": 0.3648847856243317,
+        "mae": 0.003099873342233532,
+        "n": 525395,
+        "prediction_mean": -0.004682384632164892,
+        "prediction_std": 0.0013169653333599681,
+        "rmse": 0.004833647833218165,
+        "target_mean": -0.003937750261760827,
+        "target_std": 0.005096403763581967
+      },
+      "execution_mfe_15m": {
+        "corr": 0.4320021551238742,
+        "mae": 0.0014020824288843905,
+        "n": 525395,
+        "prediction_mean": 0.002174783497643021,
+        "prediction_std": 0.000619403557656074,
+        "rmse": 0.002035674572487786,
+        "target_mean": 0.001860558034236156,
+        "target_std": 0.0021997258967389
+      },
+      "execution_mfe_60m": {
+        "corr": 0.38062852821719007,
+        "mae": 0.0028817597028415413,
+        "n": 525395,
+        "prediction_mean": 0.004467032181069413,
+        "prediction_std": 0.001020276871118364,
+        "rmse": 0.0041369678430408455,
+        "target_mean": 0.0038364691855347754,
+        "target_std": 0.004366630201812094
+      }
+    },
+    "feature_cols": [
+      "ret_1m",
+      "ret_5m",
+      "ret_15m",
+      "ret_60m",
+      "realized_vol_5m",
+      "realized_vol_30m",
+      "atr_14",
+      "ema20",
+      "ema50",
+      "ema200",
+      "trend_score",
+      "funding",
+      "funding_z",
+      "oi_change_1d",
+      "vol_regime",
+      "volume_z",
+      "ema20_ema50_gap",
+      "ema50_ema200_gap",
+      "ema20_ema200_gap",
+      "trend_accel_15",
+      "trend_duration_60",
+      "ret_15_atr",
+      "ret_15_rv",
+      "funding_oi_interaction"
+    ],
+    "returns": {
+      "future_return_15m": {
+        "historical_mean": {
+          "corr": 2.588483637330215e-16,
+          "mae": 0.0018421567366343553,
+          "n": 525395,
+          "prediction_mean": 1.0369548160538038e-05,
+          "prediction_std": 1.6940658945086007e-21,
+          "rmse": 0.0028241218265983234,
+          "target_mean": 2.6305577797350163e-05,
+          "target_std": 0.002824076864114797
+        },
+        "lightgbm": {
+          "corr": 0.014680124253393132,
+          "mae": 0.0018422940919001866,
+          "n": 525395,
+          "prediction_mean": 5.866652477686205e-06,
+          "prediction_std": 0.00010735471696893809,
+          "rmse": 0.002824615290396089,
+          "target_mean": 2.6305577797350163e-05,
+          "target_std": 0.002824076864114797
+        },
+        "linear": {
+          "corr": 0.012993708598853347,
+          "mae": 0.0018479981397631086,
+          "n": 525395,
+          "prediction_mean": -0.0001198763130484232,
+          "prediction_std": 0.00018310814659337402,
+          "rmse": 0.0028314076854471237,
+          "target_mean": 2.6305577797350163e-05,
+          "target_std": 0.002824076864114797
+        },
+        "zero": {
+          "corr": 0.0,
+          "mae": 0.0018422202154913898,
+          "n": 525395,
+          "prediction_mean": 0.0,
+          "prediction_std": 0.0,
+          "rmse": 0.00282419937643427,
+          "target_mean": 2.6305577797350163e-05,
+          "target_std": 0.002824076864114797
+        }
+      },
+      "future_return_30m": {
+        "historical_mean": {
+          "corr": -1.6208851254488651e-16,
+          "mae": 0.0025674640194531533,
+          "n": 525395,
+          "prediction_mean": 2.0345479512205122e-05,
+          "prediction_std": 1.0164395367051604e-20,
+          "rmse": 0.003962892423736785,
+          "target_mean": 5.24642407822279e-05,
+          "target_std": 0.003962762262271722
+        },
+        "lightgbm": {
+          "corr": 0.014387410783354667,
+          "mae": 0.002567416645014717,
+          "n": 525395,
+          "prediction_mean": 1.1186511548910503e-05,
+          "prediction_std": 0.00014897125301065628,
+          "rmse": 0.003963633960347523,
+          "target_mean": 5.24642407822279e-05,
+          "target_std": 0.003962762262271722
+        },
+        "linear": {
+          "corr": 0.01849286834139716,
+          "mae": 0.0025875099998443614,
+          "n": 525395,
+          "prediction_mean": -0.0002388565848056971,
+          "prediction_std": 0.000288717340894953,
+          "rmse": 0.003978617124050836,
+          "target_mean": 5.24642407822279e-05,
+          "target_std": 0.003962762262271722
+        },
+        "zero": {
+          "corr": 0.0,
+          "mae": 0.0025676157465356576,
+          "n": 525395,
+          "prediction_mean": 0.0,
+          "prediction_std": 0.0,
+          "rmse": 0.003963109542246561,
+          "target_mean": 5.24642407822279e-05,
+          "target_std": 0.003962762262271722
+        }
+      },
+      "future_return_5m": {
+        "historical_mean": {
+          "corr": -3.3181173030946273e-16,
+          "mae": 0.0010769395221793658,
+          "n": 525395,
+          "prediction_mean": 3.6068907855041075e-06,
+          "prediction_std": 8.470329472543003e-22,
+          "rmse": 0.0016617108130722387,
+          "target_mean": 8.641510059917719e-06,
+          "target_std": 0.0016617031861586961
+        },
+        "lightgbm": {
+          "corr": 0.025688920362930266,
+          "mae": 0.0010767674359387393,
+          "n": 525395,
+          "prediction_mean": 1.5099107656765145e-06,
+          "prediction_std": 7.410866666817317e-05,
+          "rmse": 0.0016614672510424236,
+          "target_mean": 8.641510059917719e-06,
+          "target_std": 0.0016617031861586961
+        },
+        "linear": {
+          "corr": 0.010374005250387574,
+          "mae": 0.0010778752808745023,
+          "n": 525395,
+          "prediction_mean": -4.2596563843060936e-05,
+          "prediction_std": 7.617314050775775e-05,
+          "rmse": 0.001663447907930653,
+          "target_mean": 8.641510059917719e-06,
+          "target_std": 0.0016617031861586961
+        },
+        "zero": {
+          "corr": 0.0,
+          "mae": 0.001076948395196661,
+          "n": 525395,
+          "prediction_mean": 0.0,
+          "prediction_std": 0.0,
+          "rmse": 0.0016617256556321438,
+          "target_mean": 8.641510059917719e-06,
+          "target_std": 0.0016617031861586961
+        }
+      },
+      "future_return_60m": {
+        "historical_mean": {
+          "corr": 0.0,
+          "mae": 0.003617288163496205,
+          "n": 525395,
+          "prediction_mean": 3.961160043402644e-05,
+          "prediction_std": 0.0,
+          "rmse": 0.005607249061642858,
+          "target_mean": 0.0001036051997742833,
+          "target_std": 0.00560688388131395
+        },
+        "lightgbm": {
+          "corr": 0.022570009692258124,
+          "mae": 0.0036179176748034414,
+          "n": 525395,
+          "prediction_mean": 1.7637675708922278e-05,
+          "prediction_std": 0.00018096987550063825,
+          "rmse": 0.00560637894068919,
+          "target_mean": 0.0001036051997742833,
+          "target_std": 0.00560688388131395
+        },
+        "linear": {
+          "corr": 0.02857108590154729,
+          "mae": 0.0036570006256128468,
+          "n": 525395,
+          "prediction_mean": -0.00038715715044791645,
+          "prediction_std": 0.0003872906156011958,
+          "rmse": 0.005630622053436806,
+          "target_mean": 0.0001036051997742833,
+          "target_std": 0.00560688388131395
+        },
+        "zero": {
+          "corr": 0.0,
+          "mae": 0.0036178730630632336,
+          "n": 525395,
+          "prediction_mean": 0.0,
+          "prediction_std": 0.0,
+          "rmse": 0.005607841019140829,
+          "target_mean": 0.0001036051997742833,
+          "target_std": 0.00560688388131395
+        }
+      }
+    },
+    "rows": {
+      "train": 1576740,
+      "validation": 525395
+    },
+    "simulation_1x": {
+      "candidate_bars": 525395,
+      "cost_sum": 0.0070534090625,
+      "expectancy": 0.01246015500334398,
+      "gross_return_sum": 0.0693541840792199,
+      "hit_rate": 0.8,
+      "max_drawdown": 0.020372247498875288,
+      "net_return_sum": 0.0623007750167199,
+      "profit_factor": 4.058119877061154,
+      "scenario": {
+        "delay_penalty_pct": 0.0,
+        "fee_mult": 1.0,
+        "horizon_minutes": 15,
+        "min_edge_mult": 2.0,
+        "slippage_extra_pct": 0.0
+      },
+      "segment_count": 247,
+      "selection_rate": 9.516649378086963e-06,
+      "sharpe": 0.5267449862605974,
+      "sortino": null,
+      "trade_count": 5,
+      "trades": [
+        {
+          "actual_execution_return": -0.01896689656137529,
+          "cost": 0.0014053509375,
+          "predicted_net_edge": 0.006190033611036141,
+          "predicted_return": 0.007595384548536141,
+          "realized_net": -0.020372247498875288,
+          "side": 1,
+          "timestamp": 1704283500000,
+          "uncertainty_adjusted_edge": 0.004762449009504353
+        },
+        {
+          "actual_execution_return": 0.004942762383652433,
+          "cost": 0.0014053509375,
+          "predicted_net_edge": 0.004084730696145147,
+          "predicted_return": 0.005490081633645147,
+          "realized_net": 0.0035374114461524326,
+          "side": 1,
+          "timestamp": 1704284400000,
+          "uncertainty_adjusted_edge": 0.00296105483799089
+        },
+        {
+          "actual_execution_return": 0.045936024995753,
+          "cost": 0.00142754625,
+          "predicted_net_edge": 0.00998170980910782,
+          "predicted_return": 0.01140925605910782,
+          "realized_net": 0.044508478745753,
+          "side": 1,
+          "timestamp": 1709668560000,
+          "uncertainty_adjusted_edge": 0.006077115585777359
+        },
+        {
+          "actual_execution_return": 0.02052124743894468,
+          "cost": 0.0014120359375,
+          "predicted_net_edge": 0.004343345882807387,
+          "predicted_return": 0.0057553818203073875,
+          "realized_net": 0.019109211501444682,
+          "side": 1,
+          "timestamp": 1710473280000,
+          "uncertainty_adjusted_edge": 0.00425566748165729
+        },
+        {
+          "actual_execution_return": 0.016921045822245073,
+          "cost": 0.001403125,
+          "predicted_net_edge": 0.007158045502790747,
+          "predicted_return": 0.008561170502790746,
+          "realized_net": 0.015517920822245073,
+          "side": 1,
+          "timestamp": 1722820200000,
+          "uncertainty_adjusted_edge": 0.0038972040500699794
+        }
+      ]
+    },
+    "uncertainty": {
+      "buckets": [
+        {
+          "bucket": 0,
+          "mean_absolute_error": 0.0018067165169330592,
+          "mean_uncertainty": 5.7726104943704e-05,
+          "n": 105079,
+          "uncertainty_high": 5.772667519396552e-05,
+          "uncertainty_low": 5.106874994594454e-05
+        },
+        {
+          "bucket": 1,
+          "mean_absolute_error": 0.0018437596303542106,
+          "mean_uncertainty": 5.772667519396554e-05,
+          "n": 105079,
+          "uncertainty_high": 5.772667519396552e-05,
+          "uncertainty_low": 5.772667519396552e-05
+        },
+        {
+          "bucket": 2,
+          "mean_absolute_error": 0.0017026781106292245,
+          "mean_uncertainty": 5.772667519396554e-05,
+          "n": 105079,
+          "uncertainty_high": 5.772667519396552e-05,
+          "uncertainty_low": 5.772667519396552e-05
+        },
+        {
+          "bucket": 3,
+          "mean_absolute_error": 0.0015005116514984912,
+          "mean_uncertainty": 5.772667519396554e-05,
+          "n": 105079,
+          "uncertainty_high": 5.772667519396552e-05,
+          "uncertainty_low": 5.772667519396552e-05
+        },
+        {
+          "bucket": 4,
+          "mean_absolute_error": 0.002356924610171461,
+          "mean_uncertainty": 0.0021177836417998453,
+          "n": 105079,
+          "uncertainty_high": 1.0,
+          "uncertainty_low": 5.772667519396552e-05
+        }
+      ],
+      "errors_monotonic": false,
+      "spearman_error_vs_uncertainty": 0.09999999999999999
+    }
+  }
+}

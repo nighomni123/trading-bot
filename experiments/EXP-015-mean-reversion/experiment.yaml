@@ -1,0 +1,8 @@
+experiment_id: EXP-015
+phase: Phase 2 mean-reversion specialist
+hypothesis: A mean-reversion-specific feature set has independent positive economic value.
+baseline: EXP-010 base engine
+intervention: overshoot, volatility, funding, and volume feature contract
+frozen_oos_used: false
+decision: DEFER
+reason: EXP-010/011 failed the base economic gate; specialist fitting is not evidence-based.
