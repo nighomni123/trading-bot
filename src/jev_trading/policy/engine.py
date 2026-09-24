@@ -6,15 +6,9 @@ suggested_size_btc stays 0.0 — sizing is risk's job. confidence =
 min(p_up_15, trade_ok) for ENTER_LONG, min(p_dn_15, trade_ok) for ENTER_SHORT,
 0.0 for NO_ACTION.
 
-Edge check runs only when quant provides expected_return_15 AND a round-trip
-cost is known (explicit `round_trip_cost` in configs/costs.json, else derived
-as 2 * (taker_fee_pct + slippage_pct)); otherwise it is skipped. Missing quant
-probs default to 0.0 and missing jev answers to neutral 0.5 — both fail the
-entry gates (safe).
+Edge check runs only when quant provides expected_return_15 AND a round-trip cost is known; otherwise the entry fails closed. Missing quant probabilities default to 0.0 and missing Jev answers to neutral 0.5. When ``position_side`` is supplied, deterministic exit thresholds are evaluated before entries and an open position cannot be replaced by a new entry.
 
-ponytail: cfg["exit"] thresholds are unused here — decide() has no position
-context, so EXIT/REDUCE belong to the position-aware loop; upgrade path: pass
-open position into decide().
+ponytail: position context is the only extra input; policy remains a threshold/audit layer, not a sizing or execution authority.
 """
 from __future__ import annotations
 
@@ -74,12 +68,21 @@ def _edge(reasons: list[str], side: str, quant: dict, thr: dict, cost: float | N
     return _check(reasons, side, f"expected_return_15 {exp_ret:.6f} >= min_edge {needed:.6f}", ok)
 
 
-def decide(quant: dict, jev_answers: dict, cfg: dict | None = None) -> PolicyProposal:
-    """ENTER_LONG iff p_up_15 >= thr AND trade_ok >= thr AND failure_regime <= max
-    (AND edge check when applicable); ENTER_SHORT mirrors with p_dn_15; else
-    NO_ACTION. Both sides are always evaluated so `reasons` is a full audit trail;
-    long wins on ties. cfg=None loads configs/policy.json.
+def decide(
+    quant: dict,
+    jev_answers: dict,
+    cfg: dict | None = None,
+    *,
+    position_side: int = 0,
+) -> PolicyProposal:
+    """Return a deterministic entry/exit proposal for a flat or open position.
+
+    With no open position, entries require probability, Jev, and economic-edge
+    gates. With an open position, only the configured deterministic exit threshold
+    can produce a proposal; an entry cannot replace it.
     """
+    if position_side not in (-1, 0, 1):
+        raise ValueError("position_side must be -1, 0, or 1")
     if cfg is None:
         cfg = load_config()
     t_long, t_short = cfg["enter_long"], cfg["enter_short"]
@@ -89,6 +92,19 @@ def decide(quant: dict, jev_answers: dict, cfg: dict | None = None) -> PolicyPro
     trade_ok = float(jev_answers.get("trade_ok", 0.5))
     failure = float(jev_answers.get("failure_regime", 0.5))
     cost = _round_trip_cost()
+
+    if position_side > 0:
+        threshold = float(cfg["exit"]["p_up_below"])
+        passed = _check(reasons, "exit_long", f"p_up_15 {p_up} < {threshold}", p_up < threshold)
+        if passed:
+            return PolicyProposal(action=Action.EXIT, confidence=1.0, reasons=reasons + ["EXIT"])
+        return PolicyProposal(action=Action.NO_ACTION, confidence=0.0, reasons=reasons + ["NO_ACTION"])
+    if position_side < 0:
+        threshold = float(cfg["exit"]["p_dn_below"])
+        passed = _check(reasons, "exit_short", f"p_dn_15 {p_dn} < {threshold}", p_dn < threshold)
+        if passed:
+            return PolicyProposal(action=Action.EXIT, confidence=1.0, reasons=reasons + ["EXIT"])
+        return PolicyProposal(action=Action.NO_ACTION, confidence=0.0, reasons=reasons + ["NO_ACTION"])
 
     ok_long = _check(reasons, "enter_long", f"p_up_15 {p_up} >= {t_long['p_up_15']}", p_up >= t_long["p_up_15"])
     ok_long &= _check(reasons, "enter_long", f"trade_ok {trade_ok} >= {t_long['jev_trade_ok']}", trade_ok >= t_long["jev_trade_ok"])

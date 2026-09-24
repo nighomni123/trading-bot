@@ -149,6 +149,8 @@ class RiskKernel:
             return self._decide(False, "stale_data_ms", 0.0)
         if p.action == Action.NO_ACTION:
             return self._decide(True, "ok", 0.0)
+        if p.action in (Action.ENTER_LONG, Action.ENTER_SHORT) and port.open_orders > 0:
+            return self._decide(False, "open_orders", 0.0)
         if mkt.spread_bps > self.cfg.max_spread_bps:
             return self._decide(False, "max_spread_bps", 0.0)
         if port.daily_pnl_usd <= -self.cfg.daily_loss_limit_usd:

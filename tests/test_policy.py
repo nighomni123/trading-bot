@@ -127,3 +127,14 @@ def test_proposal_feeds_risk_kernel():
     assert decision.allowed
     assert decision.reason == "ok"
     assert decision.approved_size_btc == 0.0  # policy suggests 0; risk owns sizing
+
+
+def test_open_long_exits_only_through_deterministic_exit_gate():
+    exit_decision = decide(quant(p_up_15=0.4), jev(), position_side=1)
+    assert exit_decision.action == Action.EXIT
+    hold_decision = decide(quant(p_up_15=0.8), jev(), position_side=1)
+    assert hold_decision.action == Action.NO_ACTION
+
+
+def test_open_position_cannot_be_replaced_by_entry():
+    assert decide(quant(p_up_15=0.8), jev(trade_ok=0.9, failure_regime=0.1), position_side=1).action == Action.NO_ACTION

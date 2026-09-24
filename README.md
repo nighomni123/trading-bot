@@ -5,9 +5,10 @@ BTC-perp paper-trading MVP. Six-layer fast loop from Conversation 1 of
 swappable post-MVP) and Laya fine-tuning deferred.
 
 ```
-Market Data → State/Features → Quant Specialists → Expected Return/Edge/Uncertainty → Frontier/Laya (stub) → StrategyProfile → Deterministic Policy → Risk Kernel → Paper Execution
+Market Data → State/Features → Quant Predictions → Economic Opportunity Gate → Deterministic Policy → Risk Kernel → Execution / Shadow
 ```
-Laya integration deferred (Phase 5); replay/offline harness available: `scripts/replay_laya.py`.
+Frontier and Jev remain optional, unpromoted research components; no allocator or
+reasoning layer is active after the Phase 1 economic gate.
 
 ## Principles (from the conversations)
 
@@ -16,24 +17,22 @@ Laya integration deferred (Phase 5); replay/offline harness available: `scripts/
 - Every live decision is logged to a replayable JSONL event log.
 - Gates: baselines must survive hostile costs before live paper; edge verdict may be "no edge".
 
-## Backtest engines (pluggable)
+## Backtest engine
 
-`BacktestEngine` abstraction (`backtest/base.py`) allows the same strategy to run through multiple implementations:
-- `LocalBacktestEngine`: existing simulator (`simulator.py`), primary research engine.
-- `LeanBacktestEngine`: optional QuantConnect LEAN adapter; graceful stub if LEAN not installed.
-- `both` mode compares results to investigate differences (not to hide them).
+`LocalBacktestEngine` is the only supported research engine. It wraps the deterministic event simulator in `backtest/simulator.py`. The generic `BacktestEngine` contract remains, but the previously attempted LEAN integration was removed rather than left as a broken optional dependency.
 
 ```bash
 .venv/bin/python -m jev_trading.backtest --engine local --strategy threshold
-.venv/bin/python -m jev_trading.backtest --engine lean --strategy threshold
-.venv/bin/python -m jev_trading.backtest --engine both --experiment-id EXP-LEAN-001
 ```
-
-Installation for LEAN (optional): `pip install -r requirements-lean.txt`; see official LEAN docs for binary setup.
 
 ## Status
 
-Phases tracked in the implementation plan: P0 bootstrap → P9 frontier + P8 shadow live-verified.
+Phase 0 current-code baseline: **PASS** (reproducible validation-only freeze).
+Historical EXP-002/EXP-003 artifacts are reference-only. Phase 1 economic-target
+validation: **STOP** — real excursion heads are measurable, but no return head
+clears the cost hurdle. Frontier/Jev/specialists remain blocked. The consumed
+2025+ period is not a fresh OOS set; promotion requires a new untouched holdout.
+See `docs/phase0-baseline.md` and `experiments/EXP-009-economic-targets/`.
 
 ## Dev
 

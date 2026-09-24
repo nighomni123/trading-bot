@@ -1,0 +1,19 @@
+experiment_id: EXP-009-economic-targets
+phase: Phase 1 economic targets and real-head validation
+hypothesis: At least one explicit return or excursion target contains cost-adjusted information beyond simple baselines.
+baseline: zero predictor, historical train mean, and linear regression
+intervention: multi-horizon return/MFE/MAE labels plus deterministic LightGBM regressors
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos: ["2025-01-01", "2026-01-01"]
+oos_used: false
+purge_minutes_for_60m_targets: 60
+path_pair: {tp: 0.0020, sl: 0.0020, horizon_bars: 60}
+reproduction_command: .venv/bin/python scripts/run_phase1_economic.py --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet --out artifacts/phase1-economic-run1
+metrics_file: metrics.json
+provenance_file: provenance.json
+summary_file: summary.json
+decision: STOP
+reason: No return target produced positive mean predicted net edge after the 0.0014 round-trip hurdle; excursion predictability alone is not a tradable opportunity.
+promotion: BLOCKED
+next: revisit features/targets or acquire a fresh untouched holdout; do not add specialists, Frontier, or Jev.

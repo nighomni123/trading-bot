@@ -1,0 +1,12 @@
+{
+  "phase1_gate": "STOP",
+  "tests_after_phase1": {
+    "command": ".venv/bin/python -m pytest -q",
+    "passed": 176,
+    "failed": 0
+  },
+  "experiment": "artifacts/phase1-economic-run1",
+  "oos_used": false,
+  "specialists_promoted": false,
+  "frontier_or_jev_added": false
+}

@@ -30,6 +30,7 @@ import polars as pl
 
 from jev_trading.contracts import Action, BAR_COLUMNS
 from jev_trading.data.fetch import fetch_bars, fetch_klines
+from jev_trading.events import verify_log
 from jev_trading.execution import PaperTrader, PaperCosts
 from jev_trading.jev.mock import MockJev
 from jev_trading.jev.questions import MVP_QUESTIONS
@@ -152,7 +153,6 @@ async def main(argv: list[str] | None = None) -> int:
                 await asyncio.sleep(args.poll_interval)
                 continue
 
-            last_bar_ts = latest_ts
             fetch_ms = int((time.time() - t_fetch) * 1000)
 
             # forward-fill last known funding/OI into the new bar (funding/OI
@@ -191,15 +191,22 @@ async def main(argv: list[str] | None = None) -> int:
             answers = jev.ask(state, MVP_QUESTIONS)
             jev_dict = {a.name: a.value for a in answers}
 
-            # policy
-            proposal = decide({"p_up_15": p_up, **state}, jev_dict, policy_cfg)
+            # policy — position context makes exits deterministic; size remains an
+            # explicit input to the risk kernel, never a model/Jev output.
+            proposal = decide(
+                {"p_up_15": p_up, **state},
+                jev_dict,
+                policy_cfg,
+                position_side=trader.position.side,
+            )
+            proposal = proposal.model_copy(update={"suggested_size_btc": args.size_btc})
 
             # risk
             port = {
                 "position_btc": trader.position.side * trader.position.quantity,
                 "capital_usd": trader.capital,
                 "daily_pnl_usd": trader.daily_pnl,
-                "open_orders": 0,
+                "open_orders": 1 if trader.pending is not None else 0,
             }
             mkt = {
                 "spread_bps": 1.0,
@@ -215,6 +222,7 @@ async def main(argv: list[str] | None = None) -> int:
                 risk_decision=rd, state_hash=state_hash, latency_ms=latency,
             )
             bar_count += 1
+            last_bar_ts = latest_ts
 
             # -- diagnostics -------------------------------------------------
             m = trader.metrics
@@ -247,9 +255,10 @@ async def main(argv: list[str] | None = None) -> int:
         await asyncio.sleep(sleep_for)
 
     trader.close_log()
+    verify_log(log_path)
     print(f"\n=== Stopped after {bar_count} bars ({time.time() - start_time:.0f}s) ===")
     print(json.dumps(trader.metrics, indent=2, default=str))
-    print(f"Log: {log_path}")
+    print(f"Log: {log_path} (verified)")
     return 0
 
 

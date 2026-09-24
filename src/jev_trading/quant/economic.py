@@ -24,21 +24,22 @@ from pydantic import BaseModel, Field
 class EconomicQuantOutput(BaseModel):
     """Common quant output capable of economic evaluation.
 
-    This schema replaces the narrow binary-threshold output with a
-    measurement-oriented representation. The exact values come from
-    the underlying model (currently a light LGBM regression head or
-    the existing classifier's probability); the economic layer evaluates
-    them deterministically.
+    This schema represents economic opportunity explicitly. Probability and
+    expected-return fields come from trained models; optional excursion,
+    uncertainty, and holding fields remain null until real heads provide them.
+    The economic layer evaluates them deterministically and fails closed on
+    missing predictions.
     """
 
     # --- Prediction targets ---
     p_up_15: float = Field(..., ge=0.0, le=1.0, description="Probability that 15m forward return exceeds cost hurdle")
     p_dn_15: float = Field(..., ge=0.0, le=1.0, description="Probability that 15m forward return falls below negative cost hurdle")
     expected_return_15: float = Field(..., description="Expected gross return over 15m (fraction of price)")
-    expected_downside_15: float = Field(..., description="Expected adverse return if downside realized")
-    expected_favorable_excursion_15: float = Field(default=0.0, description="Max favorable excursion (fraction) over horizon")
-    expected_adverse_excursion_15: float = Field(default=0.0, description="Max adverse excursion (fraction) over horizon")
-    uncertainty: float = Field(default=0.0, ge=0.0, description="Prediction uncertainty proxy (e.g. variance of residuals or entropy)")
+    expected_downside_15: float | None = Field(default=None, description="Expected adverse return if downside realized")
+    expected_favorable_excursion_15: float | None = Field(default=None, description="Real predicted favorable excursion (fraction)")
+    expected_adverse_excursion_15: float | None = Field(default=None, description="Real predicted adverse excursion (fraction)")
+    uncertainty: float | None = Field(default=None, ge=0.0, le=1.0, description="Calibrated prediction uncertainty")
+    holding_time_minutes: float | None = Field(default=None, ge=0.0, description="Predicted holding time")
     horizon_min: int = Field(default=15, ge=1, description="Prediction horizon in minutes")
 
     # --- Economic evaluation (computed deterministically) ---
@@ -66,14 +67,23 @@ def _load_cost_config() -> dict:
 
 
 def _derive_round_trip_cost(fee_mult: float = 1.0) -> float:
-    """Derive base round-trip cost from configs. Does NOT hard-code a universal
-    threshold; the economic gate uses this value as input, not as output."""
+    """Return base fee-plus-slippage cost for a round trip."""
     cfg = _load_cost_config()
     try:
         base = 2.0 * (float(cfg["taker_fee_pct"]) + float(cfg["slippage_pct"])) / 100.0
     except (KeyError, ValueError):
-        base = 0.0014  # documented fallback matching label-spec / EXP-001
+        base = 0.0014
     return base * fee_mult
+
+
+def _default_min_edge_mult() -> float:
+    """Read the economic hurdle from policy config, not the cost config."""
+    path = Path(__file__).resolve().parents[3] / "configs" / "policy.json"
+    try:
+        cfg = json.loads(path.read_text())
+        return float(cfg["enter_long"]["min_edge_over_cost"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return 2.0
 
 
 def evaluate_economic_opportunity(
@@ -106,33 +116,26 @@ def evaluate_economic_opportunity(
         fee_mult: Multiplier on taker fees (1x, 2x, 3x for stress tests).
         slippage_extra_pct: Additional slippage % for hostile execution conditions.
         delay_penalty_pct: Estimated cost from execution delay (fraction of price).
-        funding_rate: Funding rate per bar (fraction); cost = rate * notional * hold.
-        hold_bars_estimate: Expected hold duration in bars for funding cost.
-        min_edge_mult: Override the minimum net-edge multiplier (default 2.0 from policy config).
+        funding_rate: Per-8h funding rate as a fraction (for example 0.0001).
+        hold_bars_estimate: Expected hold duration in one-minute bars.
+        min_edge_mult: Override the minimum net-edge multiplier (default from policy config).
 
     Returns:
         EconomicQuantOutput with computed economic fields and the final
         `trade_decision` (`TRADE` or `NO_TRADE`) plus audit `decision_reasons`.
     """
-    base_cost = _derive_round_trip_cost(fee_mult)
-    # Slippage includes base + any extra hostile slippage
     cfg = _load_cost_config()
+    base_fee_pct = float(cfg.get("taker_fee_pct", 0.05))
     base_slip_pct = float(cfg.get("slippage_pct", 0.02))
     total_slippage_pct = base_slip_pct + slippage_extra_pct
 
-    # Fees: base round-trip fee (per side * 2) scaled by fee_mult
-    fees = base_cost
-    # Slippage: base + extra; expressed as fraction of price for simplicity
-    # (in practice slippage is applied to fill price; here we approximate as % of notional)
-    slippage = (2.0 * total_slippage_pct) / 100.0 * fee_mult
-
-    # Funding: approximate cost over hold period (fraction of notional)
-    funding = funding_rate * hold_bars_estimate / 100.0  # funding_rate is already % in data
-
-    # Delay penalty: applied as fraction of expected gross return
+    # Fees and slippage are separate components; the round-trip hurdle includes
+    # both exactly once. ``fee_mult`` scales venue fees, not market slippage.
+    fees = 2.0 * base_fee_pct / 100.0 * fee_mult
+    slippage = 2.0 * total_slippage_pct / 100.0
+    # Binance funding is quoted per 8h and stored as a fraction, while bars are 1m.
+    funding = funding_rate * max(0, hold_bars_estimate) / (8.0 * 60.0)
     delay_penalty = delay_penalty_pct / 100.0
-
-    # Other costs (spread, borrow, etc.) — currently zero unless explicitly passed
     other = quant.cost_other
 
     gross = quant.expected_return_15
@@ -140,10 +143,7 @@ def evaluate_economic_opportunity(
     net_edge = gross - total_cost
 
     if min_edge_mult is None:
-        try:
-            min_edge_mult = float(cfg.get("min_edge_over_cost", 2.0))
-        except (TypeError, ValueError):
-            min_edge_mult = 2.0
+        min_edge_mult = _default_min_edge_mult()
 
     # Build audit trail
     reasons: list[str] = []
@@ -160,10 +160,19 @@ def evaluate_economic_opportunity(
         f">= min_edge={needed:.6f} -> {'pass' if ok_edge else 'fail'}"
     )
 
-    # Condition 3: downside / risk awareness
-    ok_risk = True  # currently no hard cap; upgrade path: cap adverse excursion vs position size
+    # Condition 3: all risk/holding predictions must be real and present.
+    risk_fields = (
+        quant.expected_downside_15,
+        quant.expected_favorable_excursion_15,
+        quant.expected_adverse_excursion_15,
+        quant.uncertainty,
+        quant.holding_time_minutes,
+    )
+    ok_risk = all(value is not None for value in risk_fields)
     reasons.append(
-        f"risk: p_dn_15={quant.p_dn_15:.4f} adverse_excursion={quant.expected_adverse_excursion_15:.6f} -> pass (no hard cap in MVP)"
+        f"risk: p_dn_15={quant.p_dn_15:.4f} excursions=({quant.expected_favorable_excursion_15}, "
+        f"{quant.expected_adverse_excursion_15}) uncertainty={quant.uncertainty} "
+        f"holding={quant.holding_time_minutes} -> {'pass' if ok_risk else 'fail (missing real prediction)'}"
     )
 
     # Condition 4: execution constraints

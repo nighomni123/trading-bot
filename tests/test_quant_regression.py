@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import numpy as np
 import polars as pl
+import pytest
 
 from jev_trading.quant.model import QuantPredictor, load_models, save_models
 from jev_trading.quant.train import train_models
@@ -37,6 +38,23 @@ def _make_quant(tmp_path):
     result = {"lgbm": model, "logreg": None, "metrics": {}, "feature_cols": FEATURE_COLUMNS}
     save_models(result, str(out))
     return load_models(str(out)), feats
+
+
+def test_purge_scales_with_target_horizon():
+    from jev_trading.quant.train import purge_ms_for_horizon
+    assert purge_ms_for_horizon(15) == 900_000
+    assert purge_ms_for_horizon(60) == 3_600_000
+    with pytest.raises(ValueError):
+        purge_ms_for_horizon(0)
+
+
+def test_missing_economic_heads_fail_closed():
+    predictor = QuantPredictor(object(), None, ["x"], {})
+    frame = pl.DataFrame({"x": [1.0]})
+    with pytest.raises(RuntimeError, match="regression head"):
+        predictor.predict_expected_return_15(frame)
+    with pytest.raises(RuntimeError, match="no synthetic fallback"):
+        predictor.predict_economic_output(frame)
 
 
 def test_predict_returns_floating_probabilities(tmp_path):

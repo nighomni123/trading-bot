@@ -1,0 +1,28 @@
+experiment_id: EXP-008-phase0-baseline
+phase: Phase 0 current-code baseline freeze
+question: Can the current repository reproduce a validation-only economic baseline without using frozen OOS rows?
+baseline: deterministic LightGBM binary 15m threshold arm at p=0.40
+intervention: repair stale tests, canonical next-bar event accounting, deterministic paper risk path, and explicit cost units
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+frozen_oos: ["2025-01-01", "2026-01-01"]
+oos_used_by_new_run: false
+historical_oos_status: already_consumed; not valid for selection
+reproduction_command: .venv/bin/python scripts/reproduce_phase0.py --out artifacts/phase0-baseline-final-a
+verification_command: .venv/bin/python -m pytest -q
+expected_current_validation:
+  n_train: 1574601
+  n_valid: 525485
+  lgbm_auc: 0.6439145219431023
+  lgbm_logloss: 0.5158275115228106
+  threshold_entries: 4199
+  threshold_exits: 4199
+  net_pnl: -523.3135
+  max_drawdown_pct: 5.2344
+  replay_records: 4880
+historical_reference_only:
+  EXP-002_lgbm_auc: 0.6372191006946994
+  EXP-002_lgbm_logloss: 0.5170694467023773
+  exact_reproduction: false
+  reason: historical source contained uncommitted drift and older execution/economic semantics
+decision: PASS_CURRENT_BASELINE_ONLY

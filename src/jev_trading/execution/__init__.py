@@ -11,12 +11,11 @@ Upgrade path: PositionState-aware policy exits, partial fills, short arm.
 """
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from jev_trading.contracts import Action
+from jev_trading.events import entry_hash, write_footer, write_header, write_record
 from jev_trading.risk.kernel import RiskDecision, RiskKernel
 
 DAY_MS = 86_400_000
@@ -53,15 +52,6 @@ def _fee(notional: float, costs: PaperCosts) -> float:
     return abs(notional) * costs.taker_fee_pct / 100 * costs.fee_mult
 
 
-def _canonical_json(value: dict) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
-
-
-def _entry_hash(entry: dict) -> str:
-    content = {k: v for k, v in entry.items() if k != "entry_hash"}
-    return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
-
-
 class PaperTrader:
     """Live paper trading engine: execution state + JSONL logging.
 
@@ -87,15 +77,19 @@ class PaperTrader:
         self._pos = PositionState(0, 0.0, 0.0, 0.0, 0.0, 0)
         self._cum_fee = 0.0
         self._cum_fund = 0.0
+        self._cum_slippage = 0.0
+        self._turnover = 0.0
         self._prev_fund_rate: float | None = None
         self._daily_pnl = 0.0  # realized (gross - fee) per UTC calendar day; feeds risk daily loss limit
         self._prev_ts: int | None = None  # for day-change detection
-        self._pending: tuple[Action, float] | None = None
+        self._pending: tuple[Action, float, int] | None = None
         self._entries = 0
         self._exits = 0
         self._wins = 0
         self._seq = 0
         self._log_handle = None
+        self._log_count = 0
+        self._last_entry_hash: str | None = None
 
     # -- log management -------------------------------------------------
 
@@ -103,22 +97,24 @@ class PaperTrader:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         self._log_path = p
-        self._log_handle = open(p, "a")
-        if p.stat().st_size == 0:
-            self._write_header()
-
-    def _write_header(self) -> None:
-        self._log_handle.write(json.dumps({
-            "type": "header",
-            "schema_version": 2,
-            "arm": "shadow_paper",
-            "capital_usd": self._capital,
-            "size_btc": self._size_btc,
-        }) + "\n")
+        # One immutable session per file; a crashed/incomplete log must not be
+        # silently appended to and pass a replay check.
+        self._log_handle = open(p, "x")
+        write_header(
+            self._log_handle,
+            arm="shadow_paper",
+            metadata={"capital_usd": self._capital, "size_btc": self._size_btc},
+        )
         self._log_handle.flush()
 
     def close_log(self) -> None:
         if self._log_handle:
+            write_footer(
+                self._log_handle,
+                record_count=self._log_count,
+                last_entry_hash=self._last_entry_hash,
+            )
+            self._log_handle.flush()
             self._log_handle.close()
             self._log_handle = None
 
@@ -145,6 +141,10 @@ class PaperTrader:
         return self._daily_pnl
 
     @property
+    def pending(self) -> Action | None:
+        return self._pending[0] if self._pending else None
+
+    @property
     def risk(self) -> RiskKernel:
         return self._risk
 
@@ -158,13 +158,18 @@ class PaperTrader:
         return {
             "capital_usd": self._capital,
             "equity": round(self.equity(self._pos.entry_price if self._pos.side else 0.0), 4),
+            "gross_pnl": round(net + self._cum_fee + self._cum_fund, 4),
             "net_pnl": round(net, 4),
             "return_pct": round(100 * net / self._capital, 4),
             "n_entries": self._entries,
             "n_exits": self._exits,
+            "n_wins": self._wins,
+            "trade_count": self._entries,
             "win_rate": self._wins / self._exits if self._exits else None,
             "cum_fee": round(self._cum_fee, 4),
+            "cum_slippage": round(self._cum_slippage, 4),
             "cum_fund": round(self._cum_fund, 4),
+            "turnover": round(self._turnover, 4),
             "position": asdict(self._pos),
             "pending": self._pending[0].value if self._pending else None,
             "halted": self._risk.halted,
@@ -183,91 +188,84 @@ class PaperTrader:
         state_hash: str | None = None,
         latency_ms: float = 0.0,
     ) -> dict:
-        """Process one bar.
-
-        1. Execute any buffered decision at this bar's open (next-open fill).
-        2. Update funding + unrealized PnL.
-        3. Buffer the new decision for the NEXT bar's open.
-        4. Write JSONL record.
-
-        ``proposal`` and ``risk_decision`` come from the caller's policy+risk
-        evaluation. If both are absent the bar is logged as a no-op pass-through.
-        """
+        """Process one bar with explicit decision and next-open fill records."""
         ts = int(bar["timestamp"])
+        if self._prev_ts is not None and ts <= self._prev_ts:
+            raise ValueError("bar timestamps must be strictly increasing")
         open_px = float(bar["open"])
         close_px = float(bar["close"])
         fund = float(bar.get("funding_rate", 0.0) or 0.0)
         jev = jev or {}
+        if proposal is not None and proposal.action != Action.NO_ACTION and risk_decision is None:
+            raise ValueError("a non-NO_ACTION proposal requires a RiskDecision")
 
-        # --- day-change: reset daily PnL + risk kernel ----
         if self._prev_ts is not None and ts // DAY_MS != self._prev_ts // DAY_MS:
             self._daily_pnl = 0.0
             self._risk.reset_daily()
         self._prev_ts = ts
+        held_before = self._pos.side != 0
+        if held_before and self._prev_fund_rate is not None and fund != self._prev_fund_rate:
+            self._cum_fund += -self._pos.side * self._pos.quantity * close_px * fund
+        self._prev_fund_rate = fund
 
-        # --- Step 1: execute pending decision at this bar's open ----------
-        exec_action = Action.NO_ACTION
-        exec_ts: int | None = None
-        fill_px = 0.0
-        fill_qty = 0.0
-        fee = 0.0
-
+        executed = Action.NO_ACTION
+        fill_decision_ts: int | None = None
+        fill_px = fill_qty = fee = 0.0
         if self._pending is not None:
-            action, size_btc = self._pending
-            exec_ts = ts  # fills at this bar's open
-            exec_action = action
-            costs = self._costs
-
-            if action == Action.ENTER_LONG:
-                fill_px, _ = _fill_price(open_px, 1, costs)
+            action, size_btc, origin = self._pending
+            self._pending = None
+            if action == Action.ENTER_LONG and self._pos.side == 0 and size_btc > 0:
+                executed = action
+                fill_decision_ts = origin
+                fill_px, slip = _fill_price(open_px, 1, self._costs)
                 fill_qty = size_btc
-                fee = _fee(fill_qty * fill_px, costs)
+                fee = _fee(fill_qty * fill_px, self._costs)
                 self._pos = PositionState(1, fill_qty, fill_px, 0.0, self._pos.realized_pnl, 0)
                 self._entries += 1
                 self._cum_fee += fee
+                self._cum_slippage += slip * fill_qty
+                self._turnover += fill_qty * fill_px
             elif action == Action.EXIT and self._pos.side != 0:
+                executed = action
+                fill_decision_ts = origin
                 side = self._pos.side
-                fill_px, _ = _fill_price(open_px, -side, costs)
+                fill_px, slip = _fill_price(open_px, -side, self._costs)
                 fill_qty = self._pos.quantity
+                fee = _fee(fill_qty * fill_px, self._costs)
                 gross = side * fill_qty * (fill_px - self._pos.entry_price)
-                fee = _fee(fill_qty * fill_px, costs)
                 self._wins += int(gross > 0)
                 self._pos = PositionState(0, 0.0, 0.0, 0.0, self._pos.realized_pnl + gross, 0)
                 self._cum_fee += fee
+                self._cum_slippage += slip * fill_qty
+                self._turnover += fill_qty * fill_px
                 self._daily_pnl += gross - fee
                 self._exits += 1
                 self._risk.register_fill(gross - fee, ts)
 
-            self._pending = None
-
-        # --- Step 2: funding accrual while holding -----------------------
-        if self._prev_fund_rate is not None and fund != self._prev_fund_rate and self._pos.side:
-            delta_rate = fund - self._prev_fund_rate
-            self._cum_fund += -self._pos.side * self._pos.quantity * close_px * delta_rate
-        if fund != 0.0 or self._pos.side:
-            self._prev_fund_rate = fund
-
-        # --- Step 3: unrealized PnL -------------------------------------
         if self._pos.side:
             self._pos.time_in_position += 1
             self._pos.unrealized_pnl = self._pos.side * self._pos.quantity * (close_px - self._pos.entry_price)
 
-        # --- Step 4: buffer new decision for next bar -------------------
-        decision_proposal = proposal
-        decision_action = decision_proposal.action if decision_proposal else Action.NO_ACTION
-        risk_allowed = risk_decision.allowed if risk_decision else True
-        risk_reason = risk_decision.reason if risk_decision else "skipped"
-        approved_size = risk_decision.approved_size_btc if risk_decision else 0.0
-
-        if risk_allowed and decision_proposal is not None:
-            if decision_action == Action.ENTER_LONG and self._pos.side == 0:
-                self._pending = (Action.ENTER_LONG, approved_size)
-            elif decision_action == Action.EXIT and self._pos.side != 0:
-                self._pending = (Action.EXIT, 0.0)
-            # ENTER_SHORT / REDUCE not yet wired (no p_dn producer — see P5 gap)
+        decision = proposal.action if proposal is not None else Action.NO_ACTION
+        risk_allowed = risk_decision.allowed if risk_decision is not None else True
+        risk_reason = risk_decision.reason if risk_decision is not None else "no_proposal"
+        approved_size = risk_decision.approved_size_btc if risk_decision is not None else 0.0
+        exec_ts: int | None = None
+        if proposal is not None and risk_allowed:
+            if decision == Action.ENTER_LONG and self._pos.side == 0:
+                if approved_size <= 0:
+                    raise ValueError("risk-approved entry has zero size")
+                self._pending = (Action.ENTER_LONG, approved_size, ts)
+                exec_ts = ts + 60_000
+            elif decision == Action.EXIT and self._pos.side != 0:
+                self._pending = (Action.EXIT, 0.0, ts)
+                exec_ts = ts + 60_000
+            else:
+                decision = Action.NO_ACTION
+        elif decision != Action.NO_ACTION:
+            decision = Action.NO_ACTION
 
         eq = self.equity(close_px)
-
         record = {
             "seq": self._seq + 1,
             "ts": ts,
@@ -276,8 +274,9 @@ class PaperTrader:
             "state_hash": state_hash,
             "p_up": round(float(p_up), 6),
             **{k: round(float(v), 6) for k, v in jev.items()},
-            "decision": decision_action.value,
-            "executed": exec_action.value,
+            "decision": decision.value,
+            "executed": executed.value,
+            "fill_decision_ts": fill_decision_ts,
             "fill_px": round(fill_px, 4),
             "fill_qty": fill_qty,
             "fee": round(fee, 6),
@@ -290,12 +289,13 @@ class PaperTrader:
             "risk_reason": risk_reason,
             "pending": self._pending[0].value if self._pending else None,
         }
-        record["entry_hash"] = _entry_hash(record)
-        self._seq += 1
-        self._write_record(record)
-        return record
-
-    def _write_record(self, record: dict) -> None:
         if self._log_handle:
-            self._log_handle.write(json.dumps(record) + "\n")
+            record = write_record(self._log_handle, record)
+        else:
+            record["entry_hash"] = entry_hash(record)
+        self._seq += 1
+        self._log_count += 1
+        self._last_entry_hash = record["entry_hash"]
+        if self._log_handle:
             self._log_handle.flush()
+        return record

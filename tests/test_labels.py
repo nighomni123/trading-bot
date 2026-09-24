@@ -14,8 +14,22 @@ RAW = (
     "future_return_15m",
     "future_return_30m",
     "future_return_60m",
+    "future_max_return_5m",
+    "future_min_return_5m",
     "future_max_return_15m",
     "future_min_return_15m",
+    "future_max_return_30m",
+    "future_min_return_30m",
+    "future_max_return_60m",
+    "future_min_return_60m",
+    "mfe_5m",
+    "mae_5m",
+    "mfe_15m",
+    "mae_15m",
+    "mfe_30m",
+    "mae_30m",
+    "mfe_60m",
+    "mae_60m",
     "mfe_30",
     "mae_30",
 )
@@ -44,7 +58,11 @@ def ramp(n=300) -> tuple[pl.DataFrame, list[float]]:
 
 def test_columns_dtypes_order():
     lab = compute_labels(ramp()[0])
-    assert lab.columns == ["timestamp", *RAW, "y_up_15", "y_dn_15"]
+    assert lab.columns == [
+        "timestamp", *RAW,
+        "y_up_5m", "y_dn_5m", "y_up_15", "y_dn_15",
+        "y_up_30m", "y_dn_30m", "y_up_60m", "y_dn_60m",
+    ]
     assert lab.schema["timestamp"] == pl.Int64
     for c in RAW:
         assert lab.schema[c] == pl.Float64, c

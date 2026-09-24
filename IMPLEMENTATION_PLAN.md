@@ -9,7 +9,12 @@ Central engineering principle: the real question is whether the system produces 
 that survives costs, regime changes and out-of-sample testing — not whether an AI trader
 can technically be constructed.
 
-## Research pipeline (backtest and live consume the same decision contracts)
+## Current evidence override
+
+The current repository is governed by the Phase 0/1 gates, not the older status claims below. The current-code baseline is reproducible on validation-only pre-2025 data (`EXP-008-phase0-baseline`), with 170 tests green at that freeze. The real economic-target experiment (`EXP-009-economic-targets`) is **STOP**: excursion heads have conditional predictability, but no return head produces a positive mean predicted net edge after the 0.0014 round-trip hurdle. Therefore specialists, abstention, Frontier, and Jev are not promoted or added.
+
+Historical 2025+ OOS was already consumed by earlier experiments and must not be used for selection. A fresh untouched holdout is required before any promotion. The historical sections below are retained for audit context only.
+
 
 ```text
 Historical Market Data → Point-in-time State/Features → Quant Specialists

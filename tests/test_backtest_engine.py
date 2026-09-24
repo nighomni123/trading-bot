@@ -1,17 +1,12 @@
 """Adapter tests for pluggable backtest engine."""
 from jev_trading.backtest.base import BacktestEngine, BacktestResult, Trade, DecisionEvent
 from jev_trading.backtest.local import LocalBacktestEngine
-from jev_trading.backtest.lean import LeanBacktestEngine
 from jev_trading.backtest.data_adapter import to_lean_csv
 from jev_trading.backtest.comparison import compare_backtests, reconcile_trades
 
 
 def test_local_implements_engine():
     assert issubclass(LocalBacktestEngine, BacktestEngine)
-
-
-def test_lean_implements_engine():
-    assert issubclass(LeanBacktestEngine, BacktestEngine)
 
 
 def test_result_normalization():

@@ -70,25 +70,32 @@ BIG = SimConfig(p_thr=0.5, capital_usd=100_000)  # risk-cap >> 0.01 so approved 
 def test_fill_at_next_open_plus_slippage():
     bars = make_bars()
     recs = sim(bars, spike_quant({10}, hi=0.9), None, "threshold", BIG)["records"]
-    fills = [r for r in recs if r["decision"] == "ENTER_LONG"]
-    assert len(fills) == 1
-    f = fills[0]
-    assert f["exec_ts"] == f["ts"] + MIN  # next bar, never same bar
-    assert f["fill_px"] == pytest.approx((100.0 + 0.5) * 1.0002)  # open[t+1] + slippage
-    assert f["fill_px"] != pytest.approx(100.0)  # not the signal-bar close
-    assert f["fill_qty"] == pytest.approx(0.01)  # suggested size, risk-clamped room allows
+    decisions = [r for r in recs if r["decision"] == "ENTER_LONG"]
+    assert len(decisions) == 1
+    decision = decisions[0]
+    fill = recs[decision["seq"]]
+    assert decision["exec_ts"] == decision["ts"] + MIN
+    assert fill["ts"] == decision["exec_ts"]
+    assert fill["executed"] == "ENTER_LONG"
+    assert fill["fill_decision_ts"] == decision["ts"]
+    assert fill["fill_px"] == pytest.approx((100.0 + 0.5) * 1.0002)
+    assert fill["fill_px"] != pytest.approx(100.0)
+    assert fill["fill_qty"] == pytest.approx(0.01)
 
 
 def test_shifted_signal_changes_fill():
     bars = make_bars()
     probe = sim(bars, spike_quant({10}), None, "threshold", BIG)["records"]
-    fill_bar = (next(r for r in probe if r["decision"] == "ENTER_LONG")["exec_ts"] - T0) // MIN
-    gapped = make_bars(gap_at=fill_bar + 1)  # jump lands on the delayed signal's fill bar
+    decision = next(r for r in probe if r["decision"] == "ENTER_LONG")
+    fill_bar = (decision["exec_ts"] - T0) // MIN
+    gapped = make_bars(gap_at=fill_bar + 1)  # jump lands on the delayed entry fill bar
     early = sim(bars, spike_quant({10}), None, "threshold", BIG)["records"]
     late = sim(gapped, spike_quant({11}), None, "threshold", BIG)["records"]
-    fe = next(r for r in early if r["decision"] == "ENTER_LONG")
-    fl = next(r for r in late if r["decision"] == "ENTER_LONG")
-    assert fe["fill_px"] != fl["fill_px"]  # one-bar delay lands on the gapped open
+    early_decision = next(r for r in early if r["decision"] == "ENTER_LONG")
+    late_decision = next(r for r in late if r["decision"] == "ENTER_LONG")
+    early_fill = early[early_decision["seq"]]
+    late_fill = late[late_decision["seq"]]
+    assert early_fill["fill_px"] != late_fill["fill_px"]
 
 
 def test_last_bar_signal_never_fills_same_bar():
@@ -103,11 +110,14 @@ def test_exit_realizes_pnl_net_of_fees():
     out = sim(bars, spike_quant({10}, hi=0.9), None, "threshold", BIG)
     m = out["metrics"]
     assert (m["n_entries"], m["n_exits"]) == (1, 1)
-    entry = next(r for r in out["records"] if r["decision"] == "ENTER_LONG")
-    exitr = next(r for r in out["records"] if r["decision"] == "EXIT")
+    entry_decision = next(r for r in out["records"] if r["decision"] == "ENTER_LONG")
+    exit_decision = next(r for r in out["records"] if r["decision"] == "EXIT")
+    entry = out["records"][entry_decision["seq"]]
+    exitr = out["records"][exit_decision["seq"]]
     gross = 0.01 * (exitr["fill_px"] - entry["fill_px"])
     assert m["fees"] == pytest.approx(2 * 0.01 * 100.5 * 1.0002 * 0.0005, abs=1e-4)
-    assert m["net_pnl"] == pytest.approx(gross - m["fees"], abs=0.05)
+    assert m["gross_pnl"] == pytest.approx(gross, abs=1e-4)
+    assert m["net_pnl"] == pytest.approx(gross - m["fees"] - m["funding"], abs=0.05)
 
 
 def test_funding_charged_on_print_change_while_holding():
@@ -127,17 +137,20 @@ def test_jsonl_log_replayable(tmp_path):
     out = sim(make_bars(), spike_quant({10, 30}, hi=0.9), None, "threshold",
               SimConfig(p_thr=0.5), log_path=p, versions={"data": "test"})
     lines = p.read_text().splitlines()
-    header = json.loads(lines[0])
-    assert header["type"] == "header" and header["schema_version"] == 2 and header["arm"] == "threshold"
+    header, footer = json.loads(lines[0]), json.loads(lines[-1])
+    assert header["type"] == "header" and header["schema_version"] == 3 and header["arm"] == "threshold"
     assert header["versions"] == {"data": "test"}
-    assert len(lines) - 1 == len(out["records"]) == out["metrics"]["n_bars"]
-    body = [json.loads(line) for line in lines[1:]]
+    assert footer["type"] == "footer" and footer["record_count"] == len(out["records"])
+    assert len(lines) - 2 == len(out["records"]) == out["metrics"]["n_bars"]
+    body = [json.loads(line) for line in lines[1:-1]]
     assert [record["seq"] for record in body] == list(range(1, len(body) + 1))
     assert all(len(record["entry_hash"]) == 64 for record in body)
     assert verify_log(p) == body
     for record in body:
-        assert {"ts", "exec_ts", "state_hash", "p_up", "decision", "pos", "equity"} <= set(record)
+        assert {"ts", "exec_ts", "state_hash", "p_up", "decision", "executed", "pos", "equity"} <= set(record)
         assert record["state_hash"] is None  # threshold arm consumes p_up only, no market state
+        if record["exec_ts"] is not None:
+            assert record["exec_ts"] > record["ts"]
     assert body[-1]["equity"] == pytest.approx(out["metrics"]["net_pnl"] + 10_000.0, abs=0.01)
 
 
@@ -196,13 +209,10 @@ def test_nojev_arm_stays_flat_by_design():
     assert out["metrics"]["n_entries"] == 0  # neutral Jev never clears 0.75/0.35 gates
 
 
-def test_full_arm_enters_on_passing_mock_answers():
+def test_full_arm_fails_closed_without_economic_forecast():
     jev = StubJev({"trade_ok": 0.9, "failure_regime": 0.1})
     out = sim(make_bars(), spike_quant({10}, hi=0.9), jev, "full", SimConfig(p_thr=0.5))
-    assert out["metrics"]["n_entries"] == 1
-    rec = next(r for r in out["records"] if r["decision"] == "ENTER_LONG")
-    assert rec["trade_ok"] == 0.9 and rec["failure_regime"] == 0.1
-    assert len(rec["state_hash"]) == 16  # full arm logs the state behind its Jev call
+    assert out["metrics"]["n_entries"] == 0
 
 
 def test_summarize_by_year_splits():

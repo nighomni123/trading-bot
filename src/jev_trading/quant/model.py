@@ -48,44 +48,18 @@ class QuantPredictor:
         return pl.Series("p_dn15", 1.0 - up)
 
     def predict_expected_return_15(self, X: pl.DataFrame) -> pl.Series:
-        """Phase 6: regression prediction for economic evaluation."""
+        """Return a real regression prediction; never synthesize an economic edge."""
         if self.reg_model is None:
-            # Fallback: use probability-weighted approximate return magnitude.
-            # This preserves backward compatibility for models without regression.
-            p_up = self.predict_up15(X).to_numpy()
-            # Approximate gross return magnitude from historical average (0.0014 threshold context)
-            # Not a replacement for a real regression head, but avoids None crashes.
-            return pl.Series("expected_return_15", p_up * 0.003 - (1.0 - p_up) * 0.002)
+            raise RuntimeError("no regression head loaded; train an economic target before inference")
         mat = X.select(self.feature_cols).to_numpy()
         return pl.Series("expected_return_15", np.asarray(self.reg_model.predict(mat), dtype=float))
 
     def predict_economic_output(self, X: pl.DataFrame) -> dict:
-        """Return a dict with all Phase 6 economic predictions for a given X."""
-        from jev_trading.quant.economic import EconomicQuantOutput
-        p_up = self.predict_up15(X).to_numpy()
-        p_dn = 1.0 - p_up
-        exp_ret = self.predict_expected_return_15(X).to_numpy()
-        # Simple excursion estimates derived from label-engine patterns (approximate)
-        # For measurement-first design, we use fixed estimates based on feature-based patterns.
-        # A real upgrade path would train separate excursion models.
-        expected_downside_15 = -np.clip(np.abs(exp_ret) + 0.0005, 0.0, 0.05)
-        # Uncertainty proxy: variance of predictions across nearby rows (simplified to constant)
-        uncertainty = float(np.var(p_up) if len(p_up) > 1 else 0.01)
-        # If we have raw label info, we could compute exact excursions; here we approximate.
-        out_list = []
-        for i in range(len(X)):
-            out_list.append(EconomicQuantOutput(
-                p_up_15=float(p_up[i]),
-                p_dn_15=float(p_dn[i]),
-                expected_return_15=float(exp_ret[i]),
-                expected_downside_15=float(-abs(exp_ret[i]) - 0.0005),
-                expected_favorable_excursion_15=float(abs(exp_ret[i]) + 0.001),
-                expected_adverse_excursion_15=float(-abs(exp_ret[i]) - 0.0005),
-                uncertainty=uncertainty,
-                horizon_min=15,
-            ))
-        # Note: this is a per-row approximation; full economic evaluation uses evaluate_economic_opportunity.
-        return {"rows": out_list, "p_up_15": pl.Series("p_up15", p_up), "expected_return_15": pl.Series("expected_return_15", exp_ret)}
+        """Fail closed until dedicated excursion/uncertainty heads are trained."""
+        raise RuntimeError(
+            "economic output requires trained return, excursion, and uncertainty heads; "
+            "no synthetic fallback is permitted"
+        )
 
 
 def save_models(result: dict, out_dir: str | Path = "models/") -> Path:

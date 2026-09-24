@@ -1,0 +1,49 @@
+{
+  "code_hashes": {
+    "scripts/run_phase1_economic.py": "f32174788adc645d8f09b2c14d1f56ccbd95a061d09296d07d37f83675e38d25",
+    "src/jev_trading/labels/engine.py": "67c841a682345c6a0eb423abf21a8aa6c0c7916dfc989f0c25122e0fa80fc005",
+    "src/jev_trading/quant/train.py": "39f4f7a463bb0c4da1a7e2d516f7b200320d362b4ef2aefbb98d9b6fc7924e4e",
+    "src/jev_trading/state/features.py": "069b649659ae04111e1f3bfa4caa75fa98f9b011d58b7164ce9144d2bbad5aba"
+  },
+  "experiment_id": "PHASE1-ECONOMIC-TARGETS",
+  "git_commit": "9f424c283295b17c714bb31e67d327cd5cee60a7",
+  "oos_contamination": "2025+ was historically consumed; no fresh OOS is claimed",
+  "path_pair": {
+    "horizon": 60,
+    "sl": 0.002,
+    "tp": 0.002
+  },
+  "periods": {
+    "oos_used": false,
+    "train": [
+      "2021-01-01",
+      "2024-01-01"
+    ],
+    "validation": [
+      "2024-01-01",
+      "2025-01-01"
+    ]
+  },
+  "purge_ms": 3600000,
+  "runtime": {
+    "lightgbm": "4.7.0",
+    "numpy": "2.5.3",
+    "polars": "1.44.2",
+    "python": "3.12.10",
+    "scikit-learn": "1.9.1"
+  },
+  "source": {
+    "path": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+    "sha256": "bcd43b1e7a35cd1db11be3c074415051f64edaefa6c93b69c1eb1f4546d08a96"
+  },
+  "targets": [
+    "future_return_5m",
+    "future_return_15m",
+    "future_return_30m",
+    "future_return_60m",
+    "mfe_15m",
+    "mae_15m",
+    "mfe_60m",
+    "mae_60m"
+  ]
+}

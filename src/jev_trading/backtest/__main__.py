@@ -3,46 +3,47 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
+import polars as pl
+
 from jev_trading.backtest.local import LocalBacktestEngine
-from jev_trading.backtest.lean import LeanBacktestEngine
-from jev_trading.backtest.comparison import compare_backtests, reconcile_trades
+
+
+def _utc_ms(value: str) -> int:
+    d = date.fromisoformat(value)
+    return int(datetime.combine(d, time(), tzinfo=timezone.utc).timestamp() * 1000)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Jev pluggable backtest runner")
-    parser.add_argument("--engine", choices=["local", "lean", "both"], default="local")
+    parser = argparse.ArgumentParser(description="Local deterministic backtest runner")
+    parser.add_argument("--engine", choices=["local"], default="local")
     parser.add_argument("--strategy", default="threshold")
-    parser.add_argument("--start", default=None)
-    parser.add_argument("--end", default=None)
-    parser.add_argument("--experiment-id", default="EXP-LEAN-001")
-    parser.add_argument("--output-dir", default="results/experiments")
+    parser.add_argument("--start", default=None, help="UTC inclusive date")
+    parser.add_argument("--end", default=None, help="UTC exclusive date")
+    parser.add_argument("--experiment-id", default="EXP-LOCAL-001")
+    parser.add_argument("--bars", default="data/btcusdt_1m.parquet")
     args = parser.parse_args(argv)
-    # Load canonical data from data/ (simplified)
-    data = None
-    try:
-        from jev_trading.data.fetch import load_btc_bars
-        data = load_btc_bars()
-    except Exception:
-        pass
-    # Minimal run
-    results = {}
-    if args.engine in ("local", "both"):
-        engine = LocalBacktestEngine()
-        results["local"] = engine.run(strategy=None, data=data, config={"experiment_id": args.experiment_id, "arm": args.strategy})
-    if args.engine in ("lean", "both"):
-        engine = LeanBacktestEngine()
-        results["lean"] = engine.run(strategy=None, data=data, config={"experiment_id": args.experiment_id, "arm": args.strategy})
-    if args.engine == "both":
-        comp = compare_backtests(results["local"], results["lean"])
-        rec = reconcile_trades(results["local"].trades, results["lean"].trades)
-        out_dir = Path(args.output_dir) / args.experiment_id
-        out_dir.mkdir(parents=True, exist_ok=True)
-        import json
-        (out_dir / "comparison.json").write_text(json.dumps(comp, indent=2, default=str))
-        (out_dir / "reconciliation.json").write_text(json.dumps(rec, indent=2, default=str))
-    print(f"Backtest complete: engine={args.engine} experiment={args.experiment_id}")
+
+    bars_path = Path(args.bars)
+    if not bars_path.is_file():
+        parser.error(f"bars file not found: {bars_path}")
+    data = pl.read_parquet(bars_path)
+    if args.start:
+        data = data.filter(pl.col("timestamp") >= _utc_ms(args.start))
+    if args.end:
+        data = data.filter(pl.col("timestamp") < _utc_ms(args.end))
+    if data.is_empty():
+        parser.error("selected date window is empty")
+
+    result = LocalBacktestEngine().run(
+        strategy=None,
+        data=data,
+        config={"experiment_id": args.experiment_id, "arm": args.strategy},
+    )
+    print(f"Backtest complete: engine={args.engine} experiment={args.experiment_id} bars={len(data)}")
+    print(f"net_pnl={result.net_pnl:.4f} trades={result.trade_count} max_dd={result.max_drawdown:.4f}")
     return 0
 
 

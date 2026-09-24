@@ -1,0 +1,7 @@
+{
+  "decision": "STOP",
+  "useful_validation_targets": [],
+  "metrics_file": "metrics.json",
+  "provenance_file": "provenance.json",
+  "oos_used": false
+}

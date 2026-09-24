@@ -45,9 +45,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--no-logs", action="store_true",
                     help="skip JSONL logs (metrics only; replay covered by base-cost logs)")
-    ap.add_argument("--stride", type=int, default=1,
-                    help="DEV ONLY: iterate every Nth bar. Never for gate runs.")
+    ap.add_argument("--allow-oos", action="store_true",
+                    help="explicitly acknowledge an already-locked OOS evaluation")
+    ap.add_argument("--oos-lock", default=None,
+                    help="locked_config.json for an explicitly frozen OOS experiment")
     args = ap.parse_args(argv)
+    oos_start = _utc_ms(date(2025, 1, 1))
+    touches_oos = _utc_ms(args.start) >= oos_start or _utc_ms(args.end) > oos_start
+    if touches_oos:
+        if not args.allow_oos:
+            ap.error("2025+ is frozen OOS; use --allow-oos only for a pre-locked experiment")
+        if not args.oos_lock or not Path(args.oos_lock).is_file():
+            ap.error("--allow-oos requires --oos-lock pointing to a locked config")
+        try:
+            locked = json.loads(Path(args.oos_lock).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            ap.error(f"invalid OOS lock: {exc}")
+        if locked.get("locked") is not True:
+            ap.error("OOS lock must contain locked=true")
 
     bars = pl.read_parquet(args.bars).filter(pl.col("timestamp") < _utc_ms(args.end))
     quant = load_models(args.models)
@@ -69,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     for arm in args.arms.split(","):
         for mult in [float(m) for m in args.fee_mult.split(",")]:
             tag = f"{args.start}_{arm}_x{mult}_p{args.p_thr}"
-            cfg = SimConfig(fee_mult=mult, p_thr=args.p_thr, seed=args.seed, stride=args.stride)
+            cfg = SimConfig(fee_mult=mult, p_thr=args.p_thr, seed=args.seed, stride=1)
             log = None if args.no_logs else out_dir / f"p7_{tag}.jsonl"
             res = run(feats, p_up, jev, arm, cfg, log_path=log,
                       versions=versions, start_ms=_utc_ms(args.start))

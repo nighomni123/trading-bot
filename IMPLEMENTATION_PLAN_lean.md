@@ -1,26 +1,40 @@
-# Implementation Plan — Pluggable BacktestEngine + LEAN adapter
-# Ponytail: only add abstraction + adapter; do not rewrite simulator or Jev.
+# Implementation status — current research path
 
-1. Existing entry point: backtest/simulator.py (simulator.run / prepare).
-2. Existing result/trade schemas: simulator uses JSONL event log + PositionState; no canonical BacktestResult exists yet.
-3. Files changed / added:
-   - backtest/base.py (NEW: ABC + BacktestResult + Trade + DecisionEvent)
-   - backtest/local.py (NEW: adapter around simulator)
-   - backtest/lean.py (NEW: optional adapter; graceful if LEAN absent)
-   - backtest/comparison.py (NEW: compare + reconciliation)
-   - backtest/data_adapter.py (NEW: canonical -> LEAN CSV)
-   - backtest/cli.py (NEW: python -m jev_trading.backtest)
-   - experiments/EXP-LEAN-001/ (NEW: baseline comparison)
-   - experiments/EXP-LEAN-002/ (NEW: Jev replay comparison)
-   - tests/test_backtest_engine.py (NEW)
-   - README.md, docs/ (UPDATED)
-4. LEAN boundary: only lean.py knows LEAN specifics; rest uses BacktestEngine API.
-5. Dependencies: optional requirements-lean.txt (quantconnect.lean); base unchanged.
-6. EXP-LEAN-001 flow: run baseline strategy through Local then Lean adapter; compare results.
-7. EXP-LEAN-002 flow: same Quant+Policy+Jev+Risk inputs, cached Jev answers, compare outputs.
+The earlier LEAN-pluggable plan is historical. The optional LEAN adapter and its
+dependency were intentionally removed; the supported research engine is
+`LocalBacktestEngine` over the deterministic event simulator.
 
-Discrepancies noted:
-- Simulator uses next-bar execution (open[t+1]); must preserve in LEAN adapter.
-- Simulator event log is JSONL per bar; BacktestResult normalizes to structured model.
-- No existing canonical BacktestResult; created new one (no duplication with existing format because none existed at package level).
-- Jev interface (jev.adapter / mock) unchanged; backtest engine is infrastructure only.
+## Completed gates
+
+- **Phase 0 current baseline:** PASS for the new current-code freeze. Two final
+  runs produced identical validation metrics and provenance hashes; 170 tests
+  passed; a real 4,880-record event sample passed schema-v3 verification; the
+  independent ablation runner matched the recorded economics.
+- **Historical baseline reproduction:** FAIL. EXP-002/EXP-003 were produced from
+  uncommitted/older source and execution semantics. They are reference-only.
+- **OOS:** 2025+ was already consumed by historical experiments. No current run
+  uses it for selection, and a fresh untouched holdout is required for promotion.
+
+## Phase 1 economic target gate
+
+`EXP-009-economic-targets` is **STOP**:
+
+- real 5m/15m/30m/60m return, MFE, and MAE labels are point-in-time and tested;
+- deterministic real heads were compared with zero, historical-mean, and linear
+  baselines on 2024 validation using a 60-minute purge;
+- excursion heads had measurable conditional predictability, but no return head
+  produced positive mean predicted net edge after the 0.0014 round-trip cost;
+- no model artifact was promoted and no specialist, Frontier, Jev, RL, or live
+  change was introduced.
+
+The next valid action is feature/target research or acquisition of a fresh
+untouched holdout. Adding an allocator or reasoning layer is blocked by the
+Phase 1 gate.
+
+## Supported commands
+
+```bash
+.venv/bin/python -m pytest -q
+.venv/bin/python scripts/reproduce_phase0.py --out artifacts/phase0-baseline-final-a
+.venv/bin/python scripts/run_phase1_economic.py --bars artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet --out artifacts/phase1-economic-run1
+```

@@ -99,21 +99,14 @@ def test_next_bar_execution_boundary():
     source_file = Path("src/jev_trading/backtest/simulator.py")
     text = source_file.read_text()
     assert "nxt is not None" in text, "Next-bar boundary must be enforced"
-    assert "last iterated bar" in text or "nothing ahead" in text, "Last bar must have no executable fill"
+    assert "nxt = order[k + 1]" in text, "Next iterated bar must be selected explicitly"
+    assert "exec_ts = ts[nxt]" in text, "Execution must use the next iterated bar timestamp"
 
 
 def test_policy_isolation_for_exp_004r():
     cfg = load_config()
     # Policy config must contain min_edge_over_cost
     assert "min_edge_over_cost" in cfg.get("enter_long", {}) or cfg.get("enter_short", {})
-
-
-def test_exp_004r_config_frozen_threshold():
-    cfg_path = Path("experiments/EXP-004R/config.yaml")
-    assert cfg_path.exists()
-    text = cfg_path.read_text()
-    assert "0.40" in text
-    assert "min_edge_over_cost" in text
 
 
 def test_exp_004_r_artifacts_not_modified():

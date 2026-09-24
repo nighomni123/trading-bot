@@ -59,74 +59,76 @@ class LocalBacktestEngine(BacktestEngine):
         )
         metrics = result["metrics"]
         records = result["records"]
-        # Build canonical result from metrics
         initial = cfg.capital_usd
         final = records[-1]["equity"] if records else initial
         net = final - initial
+        # Canonical trades are actual fills; the decision timestamp remains the
+        # originating bar and the fill timestamp is the later bar.
         trades = []
-        # Extract entry/exit events from records (simplified)
         for r in records:
-            if r.get("decision") in ("ENTER_LONG", "EXIT") and r.get("fill_px") is not None:
-                trade = Trade(
-                    trade_id=f"T-{r['seq']}",
-                    instrument="BTCUSDT_PERP",
-                    side=1 if r["decision"] == "ENTER_LONG" else -1,
-                    signal_timestamp=datetime.fromtimestamp(r["ts"]/1000, tz=timezone.utc) if r.get("ts") else None,
-                    decision_timestamp=datetime.fromtimestamp(r.get("exec_ts", r["ts"])/1000, tz=timezone.utc) if r.get("exec_ts") else None,
-                    order_timestamp=datetime.fromtimestamp(r.get("exec_ts", r["ts"])/1000, tz=timezone.utc) if r.get("exec_ts") else None,
-                    fill_timestamp=datetime.fromtimestamp(r.get("exec_ts", r["ts"])/1000, tz=timezone.utc) if r.get("exec_ts") else None,
-                    quantity=r.get("fill_qty", 0.0),
-                    requested_price=r.get("fill_px"),
-                    fill_price=r.get("fill_px"),
-                    fees=r.get("fee", 0.0),
-                    engine=self.name,
-                    unavailable=["entry_price", "exit_price", "gross_pnl", "net_pnl", "holding_time", "position_before", "position_after"] if r["decision"]=="ENTER_LONG" else ["entry_price"],
-                )
-                trades.append(trade)
-        # Build equity curve from records
-        equity_curve = [{"ts": r["ts"], "equity": r["equity"]} for r in records[:500]]  # cap for size
-        # Decisions from records (simplified)
-        decisions = []
-        for r in records:
-            decisions.append(DecisionEvent(
-                timestamp=datetime.fromtimestamp(r["ts"]/1000, tz=timezone.utc) if r.get("ts") else None,
+            if r.get("executed") not in ("ENTER_LONG", "EXIT"):
+                continue
+            origin = r.get("fill_decision_ts")
+            ts = r.get("ts")
+            trades.append(Trade(
+                trade_id=f"T-{r['seq']}",
+                instrument="BTCUSDT_PERP",
+                side=1 if r["executed"] == "ENTER_LONG" else -1,
+                signal_timestamp=datetime.fromtimestamp(origin / 1000, tz=timezone.utc) if origin else None,
+                decision_timestamp=datetime.fromtimestamp(origin / 1000, tz=timezone.utc) if origin else None,
+                order_timestamp=datetime.fromtimestamp(origin / 1000, tz=timezone.utc) if origin else None,
+                fill_timestamp=datetime.fromtimestamp(ts / 1000, tz=timezone.utc) if ts else None,
+                quantity=r.get("fill_qty", 0.0),
+                requested_price=r.get("fill_px"),
+                fill_price=r.get("fill_px"),
+                fees=r.get("fee", 0.0),
+                engine=self.name,
+                unavailable=["entry_price", "exit_price", "gross_pnl", "net_pnl", "holding_time", "position_before", "position_after"],
+            ))
+        equity_curve = [{"ts": r["ts"], "equity": r["equity"]} for r in records[:500]]
+        decisions = [
+            DecisionEvent(
+                timestamp=datetime.fromtimestamp(r["ts"] / 1000, tz=timezone.utc),
                 quant_prediction=r.get("p_up"),
                 final_action=r.get("decision"),
                 engine=self.name,
-            ))
+            )
+            for r in records
+        ]
         return BacktestResult(
             engine=self.name,
-            engine_version="simulator-v2",
+            engine_version="simulator-v3",
             experiment_id=config.get("experiment_id", "EXP-LOCAL-001") if config else "EXP-LOCAL-001",
-            start_time=datetime.fromtimestamp(records[0]["ts"]/1000, tz=timezone.utc) if records else datetime.now(timezone.utc),
-            end_time=datetime.fromtimestamp(records[-1]["ts"]/1000, tz=timezone.utc) if records else datetime.now(timezone.utc),
+            start_time=datetime.fromtimestamp(records[0]["ts"] / 1000, tz=timezone.utc) if records else datetime.now(timezone.utc),
+            end_time=datetime.fromtimestamp(records[-1]["ts"] / 1000, tz=timezone.utc) if records else datetime.now(timezone.utc),
             initial_capital=initial,
             final_equity=final,
             net_pnl=net,
-            gross_pnl=net + metrics.get("fees", 0.0),
+            gross_pnl=metrics.get("gross_pnl", net + metrics.get("fees", 0.0)),
             fees=metrics.get("fees", 0.0),
-            slippage=0.0,  # detailed slippage not tracked separately in simulator; exposed in metadata
+            slippage=metrics.get("slippage", 0.0),
             return_pct=metrics.get("return_pct", 0.0) / 100.0,
             max_drawdown=metrics.get("max_dd_pct", 0.0) / 100.0,
-            trade_count=metrics.get("n_entries", 0) + metrics.get("n_exits", 0),
-            winning_trades=metrics.get("n_entries", 0),  # approximate; full reconciliation needs trade pairing
-            losing_trades=0,
+            trade_count=metrics.get("trade_count", metrics.get("n_entries", 0)),
+            winning_trades=metrics.get("n_wins", 0),
+            losing_trades=max(0, metrics.get("n_exits", 0) - metrics.get("n_wins", 0)),
             win_rate=metrics.get("win_rate") or 0.0,
-            profit_factor=1.0,  # not computed by simulator directly
+            profit_factor=1.0,
             sharpe=None,
             sortino=None,
             average_trade=metrics.get("avg_per_exit", 0.0) or 0.0,
             average_holding_period=0.0,
-            turnover=metrics.get("exposure", 0.0),
+            turnover=metrics.get("turnover", 0.0),
             equity_curve=equity_curve,
             trades=trades,
             decisions=decisions,
             metadata={
                 "arm": arm,
-                "simulator_version": 2,
+                "simulator_version": 3,
                 "execution_assumption": "next-bar open[t+1] + slippage",
                 "fees_model": f"taker_fee_pct={cfg.taker_fee_pct} fee_mult={cfg.fee_mult}",
                 "slippage_model": f"slippage_pct={cfg.slippage_pct}",
+                "funding_model": "full per-8h rate on held position prints",
                 "data_source": "canonical_bar_df",
                 "point_in_time": True,
                 "lookahead_forbidden": True,

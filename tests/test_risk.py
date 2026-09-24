@@ -157,6 +157,13 @@ def test_invalid_risk_config_is_rejected_fail_closed():
         RiskConfig.model_validate({**base, "max_drawdown_pct": float("nan")})
 
 
+def test_entry_is_blocked_while_an_order_is_pending():
+    decision = RiskKernel().evaluate(entry(), portfolio(open_orders=1), market(), NOW, PRICE)
+    assert not decision.allowed
+    assert decision.reason == "open_orders"
+    assert decision.approved_size_btc == 0.0
+
+
 def test_no_action_always_allowed():
     k = RiskKernel()
     d = k.evaluate(

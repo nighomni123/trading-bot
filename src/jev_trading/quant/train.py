@@ -23,8 +23,15 @@ LABEL_COL = "future_return_15m"  # ponytail: P4 turn renames the rest of this ta
 # Walk-forward purge/embargo pattern reviewed from
 # github.com/stefan-jansen/machine-learning-for-trading and PurgedKFold references;
 # this implementation is independent and keeps every split chronological.
-PURGE_MS = 15 * 60_000  # drop train labels that overlap the next split
-EMBARGO_MS = PURGE_MS  # conservative valid-side buffer at both boundaries
+def purge_ms_for_horizon(horizon_bars: int) -> int:
+    """Return the minimum chronological boundary buffer for a target horizon."""
+    if horizon_bars < 1:
+        raise ValueError("horizon_bars must be positive")
+    return horizon_bars * 60_000
+
+
+PURGE_MS = purge_ms_for_horizon(15)  # binary target remains 15m
+EMBARGO_MS = PURGE_MS
 
 
 def _ms(year: int, month: int, day: int) -> int:
@@ -57,7 +64,7 @@ def prepare_xy(bars: pl.DataFrame) -> tuple[pl.DataFrame, pl.Series]:
     from jev_trading.labels.engine import compute_labels  # lazy: labels owned elsewhere
 
     j = _joined(bars, compute_labels)
-    return j.select(["timestamp", *FEATURE_COLUMNS]), (j[LABEL_COL] > THRESHOLD).cast(pl.Int8).alias("y_up15")
+    return j.select(["timestamp", *FEATURE_COLUMNS]), (j[LABEL_COL] >= THRESHOLD).cast(pl.Int8).alias("y_up15")
 
 
 def _parse_split(split) -> tuple[int, int, int | None]:
@@ -154,7 +161,7 @@ def train_models(
     from sklearn.preprocessing import StandardScaler
 
     cols = list(FEATURE_COLUMNS)
-    xtr, ytr = jtr.select(cols).to_numpy(), jtr[LABEL_COL].to_numpy() > THRESHOLD
+    xtr, ytr = jtr.select(cols).to_numpy(), jtr[LABEL_COL].to_numpy() >= THRESHOLD
     xva = jva.select(cols).to_numpy()
 
     lgbm = LGBMClassifier(**{**DEFAULT_LGBM_PARAMS, **(lgbm_params or {})}).fit(xtr, ytr)
@@ -168,7 +175,7 @@ def train_models(
     ).fit(xtr, reg_target)
 
     ret15 = jva[LABEL_COL].to_numpy()
-    yva = (ret15 > THRESHOLD).astype(int)
+    yva = (ret15 >= THRESHOLD).astype(int)
     entries = ret15[::15]  # non-overlapping 15m holds
     p_lgbm = lgbm.predict_proba(xva)[:, 1]
     p_logreg = logreg.predict_proba(xva)[:, 1]
