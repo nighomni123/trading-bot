@@ -39,6 +39,8 @@ def build_completed_path_samples(
     if frame.is_empty():
         return []
     timestamps = frame["timestamp"].to_list()
+    if any(int(right) - int(left) != 60_000 for left, right in zip(timestamps, timestamps[1:])):
+        raise ValueError("path samples require contiguous one-minute bars")
     opens = frame["open"].to_list()
     highs = frame["high"].to_list()
     lows = frame["low"].to_list()
@@ -81,6 +83,8 @@ def build_completed_path_samples(
         else:
             favorable = max(1 - float(lows[j]) / entry for j in range(entry_index, entry_index + horizon_minutes))
             adverse = max(float(highs[j]) / entry - 1 for j in range(entry_index, entry_index + horizon_minutes))
+        favorable = max(0.0, favorable)
+        adverse = max(0.0, adverse)
         samples.append(PathSample(
             timestamp=datetime.fromtimestamp(int(timestamps[entry_index]) / 1000, tz=timezone.utc),
             side=side, target_first=target_first, stop_first=stop_first, timeout=timeout,
