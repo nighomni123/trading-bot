@@ -1,5 +1,8 @@
 # Agent Instructions (User Preferences)
 
+#Subagents:
+-Use only tool subagent_opencode for creating and using subagents
+
 ## Web searches
 - ALWAYS use `monid` (the Monid CLI) for web searches and web research.
 - NEVER use the built-in `web_search` tool/plugin (or any DeepSeek/Exa-backed built-in search).
