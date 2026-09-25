@@ -17,31 +17,40 @@
     "prompt_version": "frontier-strategist-v1",
     "prompt_file": "frontier/prompts/strategist_v1.txt",
     "periodic_seconds": 900,
+    "min_call_interval_seconds": 900,
     "event_severity_threshold": 0.6,
     "max_calls_per_hour": 12,
     "provider": {
       "provider": "disabled",
       "model": "configured-at-deployment",
-      "api_key_env": "JEV_LLM_API_KEY",
+      "api_key_env": "OPENROUTER_API_KEY",
       "timeout_seconds": 30.0,
-      "max_output_tokens": 1800
+      "max_output_tokens": 1800,
+      "temperature": 0.2,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5
     }
   },
   "jev": {
     "prompt_version": "jev-evaluator-v1",
     "prompt_file": "jev/prompts/evaluator_v1.txt",
     "validity_seconds": 60,
+    "min_call_interval_seconds": 0,
     "max_calls_per_hour": 60,
     "minimum_target_probability": 0.55,
     "maximum_stop_probability": 0.45,
     "minimum_entry_quality": 0.55,
     "maximum_failure_probability": 0.45,
+    "minimum_liquidity_quality": 0.0,
     "provider": {
       "provider": "disabled",
       "model": "configured-at-deployment",
-      "api_key_env": "JEV_LLM_API_KEY",
+      "api_key_env": "OPENROUTER_API_KEY",
       "timeout_seconds": 20.0,
-      "max_output_tokens": 900
+      "max_output_tokens": 900,
+      "temperature": 0.0,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5
     }
   },
   "quant": {
@@ -50,6 +59,7 @@
     "return_shock_sigma": 3.0,
     "oi_shock_fraction": 0.03,
     "funding_extreme": 0.0005,
+    "trend_acceleration_threshold": 0.001,
     "path_minimum_samples": 30
   },
   "policy": {
@@ -88,7 +98,6 @@
   },
   "paper": {
     "capital_usd": 10000.0,
-    "partial_fill_ratio": 1.0,
     "funding_interval_hours": 8
   },
   "research": {
@@ -107,5 +116,6 @@
     "retain_component_logs_days": 30
   },
   "ledger_root": "research/runtime/ledger",
+  "pending_intent_ttl_seconds": 120,
   "strategy_registry_version": "strategy-registry-v1"
 }

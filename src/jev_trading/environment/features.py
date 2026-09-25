@@ -86,7 +86,7 @@ def timeframe_features(frame: pl.DataFrame) -> dict[str, float | None]:
     std_volume = _std(volumes[:-1]) or 0.0
     volume_z = (float(volumes[-1]) - mean_volume) / std_volume if std_volume > 1e-12 else None
     ema20, ema50, ema200 = (_ema(closes, span) for span in (20, 50, 200))
-    direction = "UP" if close > previous else "DOWN" if previous is not None and close < previous else "FLAT"
+    direction = "UP" if previous is not None and close > previous else "DOWN" if previous is not None and close < previous else "FLAT"
     if ema20 is not None and ema50 is not None:
         direction = "UP" if ema20 >= ema50 else "DOWN"
     persistence = sum(1 for value in returns[-20:] if (value > 0 and direction == "UP") or (value < 0 and direction == "DOWN")) / min(20, len(returns)) if returns else None

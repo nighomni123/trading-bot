@@ -14,7 +14,7 @@ You must not:
 - bypass deterministic policy or risk;
 - invent data or historical evidence;
 - claim certainty or profitability;
-- output BUY, SELL, LONG, SHORT, size, quantity, leverage, order, or execution instructions;
+- output exchange instructions, size, quantity, leverage, order, or risk overrides; (a research direction of LONG or SHORT is allowed);
 - force a trade;
 - assume every market state requires a position.
 

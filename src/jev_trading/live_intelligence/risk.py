@@ -7,7 +7,7 @@ override it.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from .config import LiveSettings
@@ -44,6 +44,18 @@ class ActiveRiskKernel:
         self._halt_reason = None
         self._last_orders.clear()
 
+    def _prune_orders(self, now: datetime) -> None:
+        cutoff = now - timedelta(seconds=60)
+        self._last_orders = [timestamp for timestamp in self._last_orders if timestamp >= cutoff]
+
+    def record_order(self, timestamp: datetime) -> None:
+        self._prune_orders(timestamp)
+        self._last_orders.append(timestamp)
+
+    def orders_last_minute(self, now: datetime) -> int:
+        self._prune_orders(now)
+        return len(self._last_orders)
+
     def evaluate(
         self,
         policy: PolicyDecision,
@@ -58,7 +70,9 @@ class ActiveRiskKernel:
         timestamp = now or environment.decision_timestamp
         ident = decision_id or policy.decision_id
         reasons: list[str] = []
-        reject = self._reject
+        self._prune_orders(timestamp)
+        if self.limits.kill_switch:
+            reasons.append("configured_kill_switch")
         if self._halt_reason:
             reasons.append(f"kill_switch:{self._halt_reason}")
         if execution.mode.value != "PAPER":
@@ -78,10 +92,11 @@ class ActiveRiskKernel:
         if account.daily_realized_pnl_usd <= -self.limits.maximum_daily_loss_usd:
             reasons.append("daily_loss_limit")
         if account.peak_equity_usd is not None:
-            drawdown_pct = max(0.0, (account.peak_equity_usd - (account.capital_usd + account.daily_realized_pnl_usd)) / account.peak_equity_usd * 100)
+            drawdown_pct = max(0.0, (account.peak_equity_usd - account.capital_usd) / account.peak_equity_usd * 100)
             if drawdown_pct > self.limits.maximum_drawdown_pct:
                 reasons.append("maximum_drawdown")
-        if execution.orders_last_minute >= self.limits.maximum_orders_per_minute:
+        actual_orders = self.orders_last_minute(timestamp)
+        if max(actual_orders, execution.orders_last_minute) > self.limits.maximum_orders_per_minute:
             reasons.append("order_rate_limit")
         if execution.cooldown_until and timestamp < execution.cooldown_until:
             reasons.append("cooldown")
@@ -91,7 +106,12 @@ class ActiveRiskKernel:
             reasons.append("correlated_exposure_limit")
         if environment.liquidity.spread is not None and environment.liquidity.spread * 10_000 > self.limits.maximum_spread_bps:
             reasons.append("spread_limit")
-        if environment.liquidity.estimated_slippage is not None and environment.liquidity.estimated_slippage * 10_000 > self.limits.maximum_slippage_bps:
+        estimated_slippage_bps = (
+            environment.liquidity.estimated_slippage * 10_000
+            if environment.liquidity.estimated_slippage is not None
+            else self.settings.costs.slippage_bps_per_side
+        )
+        if estimated_slippage_bps > self.limits.maximum_slippage_bps:
             reasons.append("slippage_limit")
         if environment.liquidity.top_level_notional is None:
             reasons.append("missing_liquidity_data")
@@ -121,17 +141,32 @@ class ActiveRiskKernel:
                 reasons.append("invalid_stop_distance")
             notional_cap = min(self.limits.maximum_position_notional_usd, account.capital_usd * self.limits.maximum_leverage)
             risk_cap = min(self.limits.maximum_capital_at_risk_usd, account.capital_usd * self.limits.risk_per_trade_pct / 100)
-            if stop_distance > 0:
-                quantity_by_risk = risk_cap / stop_distance
-                quantity_by_notional = notional_cap / entry
-                quantity = min(quantity_by_risk, quantity_by_notional)
+            round_trip_cost = entry * (
+                2 * self.settings.costs.fee_bps_per_side * self.settings.costs.fee_multiplier
+                + 2 * self.settings.costs.slippage_bps_per_side
+                + self.settings.costs.latency_bps
+            ) / 10_000
+            side = 1.0 if policy.candidate.side == Side.LONG else -1.0
+            adverse_funding = max(0.0, side * (environment.derivatives.funding or 0.0))
+            funding_cost = entry * adverse_funding * policy.candidate.max_holding_seconds / (8 * 60 * 60)
+            loss_per_unit = stop_distance + round_trip_cost + funding_cost
+            if loss_per_unit > 0:
+                quantity = min(
+                    risk_cap / loss_per_unit,
+                    self.limits.maximum_trade_loss_usd / loss_per_unit,
+                    notional_cap / entry,
+                )
+                maximum_loss = quantity * loss_per_unit
                 if quantity <= 0:
                     reasons.append("risk_size_zero")
-                if quantity * stop_distance > self.limits.maximum_trade_loss_usd:
+                if maximum_loss > self.limits.maximum_trade_loss_usd + 1e-9:
                     reasons.append("trade_loss_limit")
                 if not reasons:
-                    self._last_orders.append(timestamp)
-                    return RiskDecision(decision_id=ident, timestamp=timestamp, status=RiskStatus.APPROVED, approved_quantity=quantity, approved_notional=quantity * entry, maximum_loss_usd=quantity * stop_distance, reasons=("approved",), risk_config_version=self.version)
+                    return RiskDecision(
+                        decision_id=ident, timestamp=timestamp, status=RiskStatus.APPROVED,
+                        approved_quantity=quantity, approved_notional=quantity * entry,
+                        maximum_loss_usd=maximum_loss, reasons=("approved",), risk_config_version=self.version,
+                    )
         return self._reject(ident, timestamp, tuple(reasons or ("no_execution_authority",)))
 
     def _reject(self, decision_id: str, timestamp: datetime, reasons: tuple[str, ...]) -> RiskDecision:

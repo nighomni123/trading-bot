@@ -191,7 +191,9 @@ def test_risk_can_approve_only_valid_entry_and_paper_execution_is_explicit():
     jev = JevEvaluation(
         decision_id="d", request_id="r", timestamp=env.decision_timestamp,
         valid_until=env.decision_timestamp + timedelta(seconds=30),
-        probabilities={"target": 0.6, "stop": 0.2, "failure": 0.1}, ratings={"entry_quality": 0.8},
+        probabilities={"target": 0.6, "stop": 0.2, "timeout": 0.2},
+        target_probability=0.6, entry_quality=0.8, failure_risk=0.1, liquidity_quality=0.8,
+        ratings={"entry_quality": 0.8, "failure_risk": 0.1},
         answers={}, confidence=0.8, recommended_state="ENTER", reason="test",
         model_version="test-jev", prompt_version="jev-evaluator-v1",
     )
@@ -200,9 +202,15 @@ def test_risk_can_approve_only_valid_entry_and_paper_execution_is_explicit():
     assert policy.action == PolicyAction.ENTER_LONG
     risk = ActiveRiskKernel(settings).evaluate(policy, env, AccountState(capital_usd=10000), ExecutionState(), position=PositionState())
     assert risk.status == RiskStatus.APPROVED
-    intent = ExecutionIntent(intent_id="i", decision_id="d", mode="PAPER", action=PolicyAction.ENTER_LONG, side=Side.LONG, quantity=risk.approved_quantity, reference_price=100, created_at=env.decision_timestamp, earliest_execution_at=env.decision_timestamp + timedelta(minutes=1), strategy_id="momentum")
+    intent = ExecutionIntent(intent_id="i", decision_id="d", mode="PAPER", action=PolicyAction.ENTER_LONG, side=Side.LONG, quantity=risk.approved_quantity, reference_price=100, stop=candidate.stop, target=candidate.target, created_at=env.decision_timestamp, earliest_execution_at=env.decision_timestamp + timedelta(minutes=1), strategy_id="momentum")
     executor = PaperExecutor(settings, ActiveRiskKernel(settings))
-    later = env.model_copy(update={"timestamp": env.timestamp + timedelta(minutes=1)})
+    later_time = env.timestamp + timedelta(minutes=1)
+    one_minute = env.timeframes["1m"].model_copy(update={"open": 100.0, "timestamp": later_time})
+    later = env.model_copy(update={
+        "timestamp": later_time,
+        "decision_timestamp": later_time,
+        "timeframes": {**env.timeframes, "1m": one_minute},
+    })
     fill = executor.execute(intent, risk, later)
     assert fill.mode == "PAPER"
     assert executor.position.side == Side.LONG

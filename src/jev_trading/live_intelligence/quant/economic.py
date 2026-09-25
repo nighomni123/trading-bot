@@ -17,6 +17,7 @@ def calculate_economic_value(
     costs: CostAssumptions,
     *,
     timeout_return_fraction: float = 0.0,
+    expected_duration_seconds: float | None = None,
     sample_size: int = 0,
 ) -> EconomicValue:
     """Calculate cost-adjusted value without inventing a probability.
@@ -36,9 +37,10 @@ def calculate_economic_value(
     entry = candidate.entry_reference
     target_return = sign * (candidate.target / entry - 1.0)
     stop_return = sign * (candidate.stop / entry - 1.0)
-    timeout_return = sign * timeout_return_fraction
+    timeout_return = float(timeout_return_fraction)
     gross = p_target * target_return + p_stop * stop_return + p_timeout * timeout_return
-    holding_fraction = costs.holding_seconds / (8 * 60 * 60)
+    expected_duration = expected_duration_seconds or float(costs.holding_seconds)
+    holding_fraction = expected_duration / (8 * 60 * 60)
     fees = 2 * costs.fee_bps_per_side / 10_000
     slippage = 2 * costs.slippage_bps_per_side / 10_000
     latency = costs.latency_bps / 10_000
@@ -51,6 +53,6 @@ def calculate_economic_value(
         gross_expected_payoff=gross, fees=fees, slippage=slippage, funding=funding,
         latency=latency, net_expected_value=net, expected_downside=downside,
         risk_reward=reward / abs(stop_return) if stop_return else None,
-        expected_duration_seconds=float(costs.holding_seconds),
+        expected_duration_seconds=expected_duration,
         cost_assumptions=costs,
     )

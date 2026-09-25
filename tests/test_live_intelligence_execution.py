@@ -29,13 +29,27 @@ def test_paper_entry_waits_for_next_bar_and_exit_creates_trade(tmp_path: Path):
     entry_risk = approved("entry-decision", 0.1, decision_time)
     with pytest.raises(ValueError):
         executor.execute(entry_intent, entry_risk, env)
-    later = env.model_copy(update={"timestamp": decision_time + timedelta(minutes=1)})
+    later_time = decision_time + timedelta(minutes=1)
+    one_minute = env.timeframes["1m"].model_copy(update={"open": 100.0, "timestamp": later_time})
+    later = env.model_copy(update={
+        "timestamp": later_time,
+        "decision_timestamp": later_time,
+        "timeframes": {**env.timeframes, "1m": one_minute},
+    })
     entry_fill = executor.execute(entry_intent, entry_risk, later)
     assert entry_fill.mode.value == "PAPER"
     assert executor.position.side == Side.LONG
     exit_intent = ExecutionIntent(intent_id="exit-intent", decision_id="exit-decision", mode="PAPER", action=PolicyAction.EXIT, side=Side.LONG, quantity=0.1, reference_price=102, created_at=later.timestamp, earliest_execution_at=later.timestamp + timedelta(minutes=1), strategy_id="momentum")
     exit_risk = approved("exit-decision", 0.1, later.timestamp)
-    exit_fill = executor.execute(exit_intent, exit_risk, later.model_copy(update={"timestamp": later.timestamp + timedelta(minutes=1), "price": later.price.model_copy(update={"last": 102})}))
+    exit_time = later.timestamp + timedelta(minutes=1)
+    exit_one_minute = one_minute.model_copy(update={"open": 102.0, "timestamp": exit_time})
+    exit_env = later.model_copy(update={
+        "timestamp": exit_time,
+        "decision_timestamp": exit_time,
+        "timeframes": {**later.timeframes, "1m": exit_one_minute},
+        "price": later.price.model_copy(update={"last": 102.0}),
+    })
+    exit_fill = executor.execute(exit_intent, exit_risk, exit_env)
     assert exit_fill.mode.value == "PAPER"
     assert executor.position.side == Side.FLAT
     assert executor.last_trade is not None

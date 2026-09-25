@@ -1,79 +1,48 @@
-# JEV / trading-bot
+# JEV Trading Bot
 
-JEV is a **research-first, paper/shadow-only market-intelligence system** for
-BTCUSDT perpetual futures. This repository is not a live-money trading system
-and makes no profitability claim.
+JEV is a research-first, **paper/shadow-only BTCUSDT perpetual market-intelligence system**. It is not a live-money execution system, has no guaranteed profitability or alpha claim, and does not autonomously modify itself.
 
-## Architecture
+## Current architecture
 
 ```text
-                     LIVE MARKET DATA
-                            │
-                            ▼
-                   MARKET DATA FABRIC
-                            │
-                            ▼
-                   MARKET ENVIRONMENT
-                            │
-                            ▼
-                      FRONTIER AI
-                 (strategist/researcher)
-                            │
-                 ┌──────────┴──────────┐
-                 ▼                     ▼
-              QUANT TOOLS          STRATEGY
-                 │                     │
-                 └──────────┬──────────┘
-                            ▼
-                    CANDIDATE TRADE
-                            │
-                            ▼
-                      JEV (bounded)
-                            │
-                            ▼
-                   POLICY FINALIZER
-                            │
-                            ▼
-                    RISK KERNEL
-                            │
-                            ▼
-                    PAPER EXECUTION
-                            │
-                            ▼
-                      TRADE LEDGER
-                            │
-                            ▼
-                   RESEARCH MEMORY
-                            │
-                            └──────────→ FRONTIER
+LIVE MARKET DATA
+      ↓
+SOURCE-AWARE DATA FABRIC
+      ↓
+CAUSAL MARKET ENVIRONMENT
+      ↓
+QUANT EVIDENCE TOOLKIT
+      ↓
+FRONTIER STRATEGIST
+      ↓
+JEV BOUNDED EVALUATOR
+      ↓
+DETERMINISTIC POLICY
+      ↓
+DETERMINISTIC RISK
+      ↓
+NEXT-OPEN PAPER EXECUTION
+      ↓
+HASH-CHAINED TRADE/DECISION LEDGER
+      ↓
+STRUCTURED RESEARCH MEMORY
+      ↺ read-only context to Frontier
 ```
 
-- **Data fabric:** preserves source, venue, instrument, market type, event time,
-  receive time, and sequence identity. It does not average incompatible prices.
-- **Market environment:** builds causal 1m/5m/15m/1h/4h state, volatility,
-  structure, flow, derivatives, liquidity, position, and data-quality fields.
-- **Quant:** callable analytical instruments, not one return predictor. Tools
-  report evidence, limitations, and sample size; they cannot create orders.
-- **Frontier:** a slow strategist/researcher. It may generate hypotheses and
-  bounded questions, but has no sizing, leverage, order, or risk authority.
-- **Jev:** a short-validity evaluator for a supplied candidate. Its output is
-  evidence to policy, never an order.
-- **Policy:** deterministic translation of validated evidence into an action.
-- **Risk:** independent deterministic authority. A rejection cannot be
-  overridden by confidence or an AI response.
-- **Execution:** paper-only. There is no broker/live-order adapter.
-- **Research memory:** structured decisions are canonical; Markdown reports are
-  generated views and are immutable once written.
+### Component boundaries
 
-## Current status
+- **Data fabric:** preserves source, venue, instrument, market type, event time, receive time, and sequence identity. Freshness is event-time based. Duplicate, incoherent, gapped, incomplete, or unsafe data fails closed.
+- **Market environment:** builds completed, causal 1m/5m/15m/1h/4h observations. It carries price, structure, volatility, flow, liquidity, derivatives, events, position, and data quality.
+- **Quant:** a toolkit of typed analytical instruments, not a single trained return predictor. Path samples carry their exact target/stop/horizon identity; economics include fees, slippage, latency, and visible funding.
+- **Frontier:** an OpenAI-compatible, slow strategist. It receives bounded environment/Quant/research context and returns a validated `StrategyHypothesis`. It cannot size, leverage, execute, or override risk.
+- **Jev:** an OpenAI-compatible, short-validity contextual evaluator. It receives the canonical `QuantEvidence`, candidate, position, and Frontier questions. ENTER responses must satisfy configured probability, entry-quality, failure-risk, and expiry gates.
+- **Policy:** deterministic Python code. It turns validated evidence into `NO_TRADE`, `ENTER_LONG`, `ENTER_SHORT`, `HOLD`, `REDUCE`, or `EXIT`.
+- **Risk:** independent deterministic authority. It maintains paper account/execution state, enforces configured kill switch, data health, sizing, daily loss, drawdown, order rate, cooldown, spread, slippage, liquidity, and position limits.
+- **Execution:** PAPER only. Fills use the next one-minute open, side-aware slippage, complete fee/PnL accounting, deterministic visible funding, and explicit full-fill semantics. Venue partial fills are not claimed or silently simulated.
+- **Ledger/recovery:** append-only hash chain, semantic intent/fill/trade links, atomic runtime checkpoints, and fail-closed startup restoration.
+- **Research/replay:** structured observations and derived immutable reports; replay reconstructs recorded decisions and their versions without calling providers.
 
-The active reset is an integration skeleton under
-`src/jev_trading/live_intelligence/`. It is not yet a completed multi-week
-shadow experiment. The previous predictive architecture remains preserved in
-`legacy-main-phase2-phase3`; see [`docs/legacy-research.md`](docs/legacy-research.md).
-Phase 2 and Phase 3 remain **NO EDGE** historical results.
-
-## Install and verify
+## Installation and verification
 
 ```bash
 python3 -m venv .venv
@@ -81,78 +50,71 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 ```
 
-The historical suite is large because several tests read Git-LFS experiment
-logs. A fresh clone without Git LFS may not be able to run those tests.
+The test suite includes historical regression tests and active live-intelligence behavioral tests.
 
 ## Configuration
 
-Runtime settings are in [`configs/live.json`](configs/live.json). Secrets are
-read only from environment variables named by the provider configuration; no
-credentials belong in source or JSON. Frontier and Jev providers default to
-`disabled`, which fails closed.
+Runtime settings are in `configs/live.json`. Never put API keys in JSON or source.
 
-The default execution mode is PAPER. The CLI makes this visible:
+Provider settings support:
+
+- `disabled`
+- `replay`
+- `openai_compatible`
+
+For OpenRouter, set environment variables rather than committing secrets:
+
+```bash
+export OPENROUTER_API_KEY='...'
+export OPENROUTER_BASE_URL='https://openrouter.ai/api/v1'
+export FRONTIER_MODEL='provider/model'
+export JEV_MODEL='provider/model'
+```
+
+The default provider mode is `disabled` and fails closed. Execution mode is always `PAPER`; live orders are disabled.
+
+## CLI
 
 ```bash
 .venv/bin/python -m jev_trading.live_intelligence status
-```
 
-Expected output includes:
-
-```text
-EXECUTION MODE: PAPER
-LIVE ORDERS: DISABLED
-```
-
-## Run paper/shadow mode
-
-The public Binance adapter requires network access but no API key:
-
-```bash
 .venv/bin/python -m jev_trading.live_intelligence paper \
-  --iterations 1 --ledger research/runtime/ledger/decisions.jsonl
+  --iterations 1 \
+  --arm C \
+  --ledger research/runtime/ledger/decisions.jsonl
+
+.venv/bin/python -m jev_trading.live_intelligence replay \
+  research/runtime/ledger/decisions.jsonl
+
+.venv/bin/python -m jev_trading.live_intelligence research daily \
+  --ledger research/runtime/ledger/decisions.jsonl \
+  --root research
 ```
 
-With providers disabled, the runner remains fail-closed and should not enter a
-trade. Configure an explicit OpenAI-compatible Frontier/Jev deployment and
-credentials before attempting a meaningful shadow run. The system never enables
-live orders through configuration.
+`--arm` selects a reproducible ablation:
 
-## Inspect state and research memory
+- `A`: Quant + deterministic Policy + Risk
+- `B`: Quant + Frontier + Policy + Risk
+- `C`: Quant + Frontier + Jev + Policy + Risk
 
-```bash
-.venv/bin/python -m jev_trading.live_intelligence status
-wc -l research/runtime/ledger/*.jsonl
-find research/hourly research/daily research/weekly -type f
-```
+All arms use the same market data, execution, accounting, and ledger contracts. A is not a profitability claim.
 
-The ledger is append-only and hash-chained. Generated reports are written with
-exclusive creation, so a correction must be a new artifact rather than an
-in-place rewrite.
+## Public market-data smoke
 
-## Replay
+The Binance Futures adapter uses public REST data for closed 1m bars, funding, OI, mark/index, and top-of-book depth. Missing or stale data is not replaced with favorable defaults. A paper run with providers disabled should remain flat.
 
-```bash
-.venv/bin/python -m jev_trading.live_intelligence replay research/runtime/ledger/decisions.jsonl
-```
+## Research provenance
 
-Replay consumes a recorded ledger and verifies its chain without calling
-Frontier, Jev, or an exchange.
+Every decision records content-addressed versions for Git commit, configuration, Frontier/Jev models and prompt hashes, Quant analyzers, policy/risk source, strategy registry, data schema, and experiment arm. Runtime state is checkpointed against the ledger hash.
 
-## Legacy research
+## Historical boundary
 
-Backtesting remains available as a sanity-check, hypothesis-screening, and
-replay tool. It is not the new architecture's primary alpha mechanism. The
-historical predictive model is not connected to the active runner. Laya and
-reinforcement learning remain deferred.
+The preserved `legacy-main-phase2-phase3` branch and `pre-live-intelligence-reset-2026-09-25` tag retain the pre-reset implementation. Historical Phase 2 and Phase 3 conclusions remain **NO EDGE**. Legacy predictive modules are not imported by the active runner.
 
 ## Safety limitations
 
-- A missing, stale, malformed, or incomplete input defaults to no trade.
-- A candidate requires empirical path/economic evidence; the initial live
-  analyzers do not fabricate probabilities.
-- Historical spot data must not be silently treated as perpetual execution
-  data; source and market type remain explicit.
-- The current code has no authenticated exchange or live-money execution path.
-- Several-week shadow observation and controlled ablations are still required
-  before drawing any economic conclusion.
+- No authenticated exchange or live-money order path exists.
+- Unknown market measurements remain unknown; they do not become zero.
+- Frontier and Jev are advisory only and cannot bypass deterministic safety controls.
+- Research memory is read-only context, not an autonomous self-modification channel.
+- A multi-week shadow experiment should begin only after the current shadow-readiness report passes and OpenRouter credentials/provider smoke are available.

@@ -7,8 +7,9 @@ import sys
 from pathlib import Path
 
 from .config import load_settings
-from .frontier.client import DisabledFrontierClient
-from .jev.client import DisabledJevClient
+from .frontier.client import FrontierClientFactory
+from .frontier.strategist import load_prompt
+from .jev.client import JevClientFactory
 from .runner import ShadowRunner
 from jev_trading.data.normalization import BinancePerpAdapter
 from jev_trading.replay import ReplayEngine
@@ -23,6 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("paper", help="run the paper shadow loop")
     run.add_argument("--config", default="configs/live.json")
     run.add_argument("--iterations", type=int, default=1)
+    run.add_argument("--arm", choices=("A", "B", "C"), default="C")
     run.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
     replay = sub.add_parser("replay", help="verify and summarize a recorded ledger")
     replay.add_argument("ledger")
@@ -33,8 +35,13 @@ def main(argv: list[str] | None = None) -> int:
     research.add_argument("--config", default="configs/live.json")
     args = parser.parse_args(argv)
     if args.command == "replay":
-        records = ReplayEngine(args.ledger).records()
-        print(json.dumps({"records": len(records), "decisions": [record.decision_id for record in records]}, indent=2))
+        engine = ReplayEngine(args.ledger)
+        records = engine.records()
+        print(json.dumps({
+            "records": len(records),
+            "decisions": [record.decision_id for record in records],
+            "reconstructions": engine.reconstruct_all(),
+        }, indent=2))
         return 0
     if args.command == "research":
         load_settings(args.config)
@@ -45,7 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
         return 0
-    runner = ShadowRunner(settings, BinancePerpAdapter(), DisabledFrontierClient(), DisabledJevClient(), ledger_path=args.ledger)
+    frontier_client = FrontierClientFactory.create(settings.frontier.provider, replay_allow_trade=True)
+    jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
+    jev_client = JevClientFactory.create(settings.jev.provider, prompt=jev_prompt)
+    runner = ShadowRunner(settings, BinancePerpAdapter(), frontier_client, jev_client, arm=args.arm, ledger_path=args.ledger)
     runner.run_forever(iterations=args.iterations)
     print(f"EXECUTION MODE: PAPER\nLIVE ORDERS: DISABLED\nLEDGER: {args.ledger}")
     return 0

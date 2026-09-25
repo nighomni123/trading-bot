@@ -7,7 +7,7 @@ from typing import Iterable
 import polars as pl
 
 from jev_trading.contracts import BAR_COLUMNS
-from jev_trading.environment.features import TIMEFRAME_MS, aggregate_timeframe, timeframe_features, utc_from_ms
+from jev_trading.environment.features import MINUTE_MS, TIMEFRAME_MS, aggregate_timeframe, timeframe_features, utc_from_ms
 from jev_trading.live_intelligence.schemas import (
     CrossMarketState,
     DataQuality,
@@ -59,15 +59,19 @@ def build_market_environment(
     if bars.is_empty():
         raise ValueError("cannot build environment from empty bars")
     frame = bars.select(BAR_COLUMNS).sort("timestamp")
-    timestamps = frame["timestamp"].to_list()
-    if any(b <= a for a, b in zip(timestamps, timestamps[1:])):
-        raise ValueError("bar timestamps must be strictly increasing")
-    latest = frame.row(-1, named=True)
-    event_time = utc_from_ms(int(latest["timestamp"]) + 60_000)
     decision_time = decision_timestamp or datetime.now(tz=timezone.utc)
     if decision_time.tzinfo is None:
         raise ValueError("decision_timestamp must be timezone-aware")
     decision_time = decision_time.astimezone(timezone.utc)
+    cutoff_ms = int(decision_time.timestamp() * 1000)
+    frame = frame.filter((pl.col("timestamp") + MINUTE_MS) <= cutoff_ms)
+    if frame.is_empty():
+        raise ValueError("no closed one-minute bar is available at decision time")
+    timestamps = frame["timestamp"].to_list()
+    if any(b <= a for a, b in zip(timestamps, timestamps[1:])):
+        raise ValueError("bar timestamps must be strictly increasing")
+    latest = frame.row(-1, named=True)
+    event_time = utc_from_ms(int(latest["timestamp"]) + MINUTE_MS)
     if decision_time < event_time:
         raise ValueError("decision timestamp precedes latest closed bar")
 
@@ -76,15 +80,28 @@ def build_market_environment(
         aggregated = aggregate_timeframe(frame, timeframe)
         if aggregated.is_empty():
             continue
+        bucket_end = pl.col("bucket") + minutes * MINUTE_MS
+        aggregated = aggregated.filter(bucket_end <= cutoff_ms)
+        if aggregated.is_empty():
+            continue
         row = aggregated.row(-1, named=True)
         features = timeframe_features(aggregated)
         previous_close = float(aggregated["close"][-2]) if aggregated.height > 1 else None
+        previous_previous_close = float(aggregated["close"][-3]) if aggregated.height > 2 else None
         trend = _direction(float(row["close"]), previous_close, {"trend_direction": "FLAT"})
+        previous_trend = (
+            _direction(previous_close, previous_previous_close, {"trend_direction": "FLAT"})
+            if previous_close is not None else None
+        )
         timeframes[timeframe] = TimeframeState(
             timeframe=timeframe,
-            timestamp=utc_from_ms(int(row["bucket"]) + minutes * 60_000),
+            timestamp=utc_from_ms(int(row["bucket"]) + minutes * MINUTE_MS),
             open=float(row["open"]), high=float(row["high"]), low=float(row["low"]), close=float(row["close"]),
-            volume=float(row["volume"]), trend_direction=trend, **features,
+            volume=float(row["volume"]), trend_direction=trend,
+            previous_trend_direction=previous_trend,
+            previous_high=float(aggregated["high"][-2]) if aggregated.height > 1 else None,
+            previous_low=float(aggregated["low"][-2]) if aggregated.height > 1 else None,
+            **features,
         )
 
     # A full environment requires the requested multi-timeframe set. If the
@@ -93,7 +110,7 @@ def build_market_environment(
     if required - set(timeframes):
         raise ValueError(f"insufficient history for timeframes: {sorted(required - set(timeframes))}")
 
-    tick_list = list(ticks)
+    tick_list = [tick for tick in ticks if tick.event_timestamp <= decision_time]
     latest_tick = next((tick for tick in tick_list if tick.source_role == "primary"), tick_list[0] if tick_list else None)
     close = float(latest_tick.last) if latest_tick and latest_tick.last is not None else float(latest["close"])
     bid = latest_tick.bid if latest_tick else None
@@ -138,12 +155,28 @@ def build_market_environment(
                    if depth_bid is not None and depth_ask is not None and depth_bid + depth_ask > 0 else None),
         top_level_notional=(bid * depth_bid + ask * depth_ask) if bid and ask and depth_bid is not None and depth_ask is not None else None,
     )
+    liquidations: dict[str, float] = {}
+    if latest_tick is not None and latest_tick.liquidation_long is not None:
+        liquidations["long"] = latest_tick.liquidation_long
+    if latest_tick is not None and latest_tick.liquidation_short is not None:
+        liquidations["short"] = latest_tick.liquidation_short
+    current_oi = float(latest["open_interest"]) if latest.get("open_interest") is not None else None
+    previous_row = frame.row(-2, named=True) if frame.height > 1 else {}
+    previous_oi = float(previous_row["open_interest"]) if previous_row.get("open_interest") is not None else None
+    oi_change = current_oi / previous_oi - 1.0 if current_oi is not None and previous_oi not in (None, 0) else None
+    one_hour_return = tf("1h").return_fraction
+    price_oi_relationship = (
+        "CONFIRMING" if one_hour_return is not None and oi_change is not None and one_hour_return * oi_change > 0
+        else "DIVERGING" if one_hour_return is not None and oi_change is not None and one_hour_return * oi_change < 0
+        else "UNKNOWN"
+    )
     derivatives = DerivativesState(
-        open_interest=float(latest["open_interest"]) if latest.get("open_interest") is not None else None,
-        oi_change=None, funding=float(latest["funding_rate"]) if latest.get("funding_rate") is not None else None,
+        open_interest=current_oi,
+        oi_change=oi_change, funding=float(latest["funding_rate"]) if latest.get("funding_rate") is not None else None,
         basis=((mark or close) / index - 1.0) if mark and index else None,
         mark_index_divergence=((mark or close) / index - 1.0) if mark and index else None,
-        liquidations={"long": latest_tick.liquidation_long or 0.0, "short": latest_tick.liquidation_short or 0.0} if latest_tick else {},
+        price_oi_relationship=price_oi_relationship,
+        liquidations=liquidations,
     )
     data_quality = quality or DataQuality(safe_for_trading=False, stale=True, missing_sources=("primary",))
     return MarketEnvironment(

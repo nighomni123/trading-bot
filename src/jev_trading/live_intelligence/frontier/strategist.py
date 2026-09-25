@@ -1,26 +1,41 @@
-"""Frontier strategist and structured-output validation."""
+"""Frontier strategist, context serialization, and output validation."""
 from __future__ import annotations
 
-import json
+import hashlib
 from pathlib import Path
-from typing import Any
 
 from pydantic import ValidationError
 
 from .client import FrontierClient
-from ..schemas import MarketEnvironment, StrategyHypothesis
+from ..schemas import MarketEnvironment, QuantEvidence, StrategyHypothesis
 
 
 def load_prompt(path: str | Path) -> str:
     return Path(path).read_text()
 
 
-def _json_payload(environment: MarketEnvironment, *, request_id: str, required_quant_questions: list[dict], jev_questions: list[dict], prompt_version: str, regime: str) -> dict:
+def _json_payload(
+    environment: MarketEnvironment,
+    *,
+    request_id: str,
+    required_quant_questions: list[dict],
+    jev_questions: list[dict],
+    prompt_version: str,
+    regime: str,
+    quant_evidence: QuantEvidence | None = None,
+    strategy_performance: dict | None = None,
+    research_memory: dict | None = None,
+    system_health: dict | None = None,
+) -> dict:
     return {
         "request_id": request_id,
         "prompt_version": prompt_version,
         "regime": regime,
         "environment": environment.model_dump(mode="json"),
+        "quant_evidence": quant_evidence.model_dump(mode="json") if quant_evidence else None,
+        "strategy_performance": strategy_performance or {},
+        "research_memory": research_memory or {},
+        "system_health": system_health or {},
         "required_quant_questions": required_quant_questions,
         "jev_questions": jev_questions,
     }
@@ -31,16 +46,44 @@ class FrontierStrategist:
         self.client = client
         self.prompt = prompt
         self.prompt_version = prompt_version
+        self.prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
-    def generate(self, environment: MarketEnvironment, *, request_id: str, required_quant_questions=(), jev_questions=(), regime: str = "UNKNOWN") -> StrategyHypothesis:
+    def generate(
+        self,
+        environment: MarketEnvironment,
+        *,
+        request_id: str,
+        required_quant_questions=(),
+        jev_questions=(),
+        regime: str = "UNKNOWN",
+        quant_evidence: QuantEvidence | None = None,
+        strategy_performance: dict | None = None,
+        research_memory: dict | None = None,
+        system_health: dict | None = None,
+    ) -> StrategyHypothesis:
         payload = _json_payload(
             environment, request_id=request_id,
             required_quant_questions=[item.model_dump(mode="json") for item in required_quant_questions],
             jev_questions=[item.model_dump(mode="json") for item in jev_questions],
             prompt_version=self.prompt_version, regime=regime,
+            quant_evidence=quant_evidence,
+            strategy_performance=strategy_performance,
+            research_memory=research_memory,
+            system_health=system_health,
         )
         try:
             raw = self.client.complete(system_prompt=self.prompt, payload=payload)
-            return StrategyHypothesis.model_validate(raw)
+            if not isinstance(raw, dict):
+                raise ValueError("Frontier response must be an object")
+            if raw.get("hypothesis_id") != request_id:
+                raise ValueError("Frontier hypothesis_id does not match request")
+            if raw.get("prompt_version") not in (None, self.prompt_version):
+                raise ValueError("Frontier prompt version mismatch")
+            raw["prompt_version"] = self.prompt_version
+            raw["prompt_hash"] = self.prompt_hash
+            result = StrategyHypothesis.model_validate(raw)
+            if result.timestamp != environment.decision_timestamp:
+                raise ValueError("Frontier timestamp does not match decision time")
+            return result
         except (ValidationError, ValueError, TypeError, KeyError) as exc:
             raise ValueError(f"invalid Frontier output: {exc}") from exc

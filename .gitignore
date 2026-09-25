@@ -19,6 +19,10 @@ artifacts/
 events/
 models/
 research/runtime/
+research/observations.jsonl
+research/hourly/
+research/daily/
+research/weekly/
 
 # OS
 .DS_Store

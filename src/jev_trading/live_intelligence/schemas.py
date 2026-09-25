@@ -120,6 +120,10 @@ class MarketTick(FrozenModel):
             raise ValueError("execution_timestamp cannot precede decision_timestamp")
         if self.bid is not None and self.ask is not None and self.bid > self.ask:
             raise ValueError("bid cannot exceed ask")
+        if self.mid is not None and self.bid is not None and self.ask is not None:
+            expected_mid = (self.bid + self.ask) / 2
+            if not math.isclose(self.mid, expected_mid, rel_tol=1e-6, abs_tol=1e-9):
+                raise ValueError("mid must equal the bid/ask midpoint")
         return self
 
     @property
@@ -136,6 +140,7 @@ class SourceHealth(FrozenModel):
     last_event_timestamp: datetime | None = None
     last_received_timestamp: datetime | None = None
     age_ms: int | None = Field(default=None, ge=0)
+    receive_age_ms: int | None = Field(default=None, ge=0)
     sequence_problems: tuple[str, ...] = ()
     duplicate_events: int = Field(default=0, ge=0)
     gaps: int = Field(default=0, ge=0)
@@ -151,6 +156,9 @@ class DataQuality(FrozenModel):
     duplicate_events: int = Field(default=0, ge=0)
     gaps: int = Field(default=0, ge=0)
     inconsistent_prices: tuple[str, ...] = ()
+    event_time_problems: tuple[str, ...] = ()
+    bar_timestamp_problems: tuple[str, ...] = ()
+    incoherent_data: tuple[str, ...] = ()
     source_health: dict[str, SourceHealth] = Field(default_factory=dict)
 
 
@@ -183,8 +191,11 @@ class TimeframeState(FrozenModel):
     vwap: float | None = None
     distance_from_vwap: float | None = None
     range_position: float | None = Field(default=None, ge=0, le=1)
+    previous_high: float | None = Field(default=None, gt=0)
+    previous_low: float | None = Field(default=None, gt=0)
     volume_z: float | None = None
     trend_direction: str
+    previous_trend_direction: str | None = None
     trend_persistence: float | None = Field(default=None, ge=0, le=1)
     trend_acceleration: float | None = None
 
@@ -269,6 +280,7 @@ class PositionState(FrozenModel):
     entry_price: float | None = Field(default=None, gt=0)
     unrealized_pnl: float = 0.0
     realized_pnl: float = 0.0
+    funding_pnl_usd: float = 0.0
     time_in_position_seconds: int = Field(default=0, ge=0)
     current_stop: float | None = Field(default=None, gt=0)
     current_target: float | None = Field(default=None, gt=0)
@@ -312,6 +324,11 @@ class MarketEnvironment(FrozenModel):
             raise ValueError(f"missing required timeframes: {sorted(missing)}")
         if self.decision_timestamp < self.timestamp:
             raise ValueError("decision timestamp cannot precede market event time")
+        future_timeframes = sorted(
+            name for name, state in self.timeframes.items() if state.timestamp > self.decision_timestamp
+        )
+        if future_timeframes:
+            raise ValueError(f"timeframe observations are in the future: {future_timeframes}")
         return self
 
 
@@ -350,6 +367,7 @@ class StrategyHypothesis(FrozenModel):
     conviction: float = Field(default=0.0, ge=0, le=1)
     model_version: str
     prompt_version: str
+    prompt_hash: str | None = None
 
     @model_validator(mode="after")
     def validate_authority_boundary(self) -> "StrategyHypothesis":
@@ -394,9 +412,16 @@ class CostAssumptions(FrozenModel):
 class PathSample(FrozenModel):
     timestamp: datetime
     side: Side
+    entry_price: float = Field(gt=0)
+    target_price: float = Field(gt=0)
+    stop_price: float = Field(gt=0)
+    target_fraction: float = Field(gt=0)
+    stop_fraction: float = Field(gt=0)
+    horizon_minutes: int = Field(gt=0)
     target_first: bool
     stop_first: bool
     timeout: bool
+    return_fraction: float
     favorable_excursion: float
     adverse_excursion: float
     duration_seconds: int = Field(ge=0)
@@ -405,8 +430,18 @@ class PathSample(FrozenModel):
     def validate_outcome(self) -> "PathSample":
         if sum((self.target_first, self.stop_first, self.timeout)) != 1:
             raise ValueError("path sample must have exactly one outcome")
+        if self.side == Side.FLAT:
+            raise ValueError("path sample cannot be flat")
+        if self.side == Side.LONG and not (self.stop_price < self.entry_price < self.target_price):
+            raise ValueError("long path barriers must bracket entry")
+        if self.side == Side.SHORT and not (self.target_price < self.entry_price < self.stop_price):
+            raise ValueError("short path barriers must bracket entry")
         if self.favorable_excursion < 0 or self.adverse_excursion < 0:
             raise ValueError("path sample excursions must be non-negative")
+        if self.target_first and self.return_fraction <= 0:
+            raise ValueError("long/short target outcome must be positive")
+        if self.stop_first and self.return_fraction >= 0:
+            raise ValueError("stop outcome must be negative")
         return self
 
 
@@ -419,6 +454,11 @@ class QuantAnalysisResult(FrozenModel):
     estimated_probability: float | None = Field(default=None, ge=0, le=1)
     expected_payoff: float | None = None
     expected_downside: float | None = None
+    expected_return: float | None = None
+    expected_mfe: float | None = None
+    expected_mae: float | None = None
+    expected_timeout_return: float | None = None
+    expected_duration_seconds: float | None = Field(default=None, ge=0)
     uncertainty: float | None = Field(default=None, ge=0, le=1)
     horizon_seconds: int | None = Field(default=None, gt=0)
     cost_assumptions: CostAssumptions | None = None
@@ -466,12 +506,43 @@ class EconomicValue(FrozenModel):
         return self
 
 
+class QuantEvidence(FrozenModel):
+    timestamp: datetime
+    version: str = "quant-evidence-v1"
+    regime: str
+    regime_confidence: float = Field(ge=0, le=1)
+    analyzer_results: tuple[QuantAnalysisResult, ...] = ()
+    path: QuantAnalysisResult | None = None
+    probabilities: dict[str, float] | None = None
+    economic_value: EconomicValue | None = None
+    cost_assumptions: CostAssumptions | None = None
+    uncertainty: float | None = Field(default=None, ge=0, le=1)
+    sample_size: int = Field(default=0, ge=0)
+    limitations: tuple[str, ...] = ()
+    analyzer_versions: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_evidence(self) -> "QuantEvidence":
+        names = [result.analysis_name for result in self.analyzer_results]
+        if len(names) != len(set(names)):
+            raise ValueError("quant evidence cannot contain duplicate analyzer results")
+        if self.path is not None and self.path.analysis_name != "path":
+            raise ValueError("path evidence must be a path analysis")
+        if self.probabilities is not None and set(self.probabilities) != {"target", "stop", "timeout"}:
+            raise ValueError("quant evidence probabilities must contain target, stop, timeout")
+        if self.path is not None and self.path.path_probabilities != self.probabilities:
+            raise ValueError("quant evidence probabilities must match path evidence")
+        if self.economic_value is not None and self.probabilities != self.economic_value.probabilities:
+            raise ValueError("quant evidence probabilities must match economic value")
+        return self
+
+
 class JevRequest(FrozenModel):
     request_id: str
     timestamp: datetime
     environment: MarketEnvironment
     frontier_hypothesis: StrategyHypothesis
-    quant_evidence: tuple[QuantAnalysisResult, ...]
+    quant_evidence: QuantEvidence
     candidate_trade: CandidateTrade
     questions: tuple[JevQuestion, ...]
     prompt_version: str
@@ -483,6 +554,10 @@ class JevEvaluation(FrozenModel):
     timestamp: datetime
     valid_until: datetime
     probabilities: dict[str, float] = Field(default_factory=dict)
+    target_probability: float | None = Field(default=None, ge=0, le=1)
+    entry_quality: float | None = Field(default=None, ge=0, le=1)
+    failure_risk: float | None = Field(default=None, ge=0, le=1)
+    liquidity_quality: float | None = Field(default=None, ge=0, le=1)
     ratings: dict[str, float] = Field(default_factory=dict)
     answers: dict[str, str] = Field(default_factory=dict)
     confidence: float = Field(ge=0, le=1)
@@ -490,6 +565,7 @@ class JevEvaluation(FrozenModel):
     reason: str
     model_version: str
     prompt_version: str
+    prompt_hash: str | None = None
 
     @model_validator(mode="after")
     def validate_evaluation(self) -> "JevEvaluation":
@@ -579,6 +655,7 @@ class ExecutionIntent(FrozenModel):
     target: float | None = Field(default=None, gt=0)
     created_at: datetime
     earliest_execution_at: datetime
+    expires_at: datetime | None = None
     strategy_id: str
     strategy_version: str = "unknown"
 
@@ -588,6 +665,8 @@ class ExecutionIntent(FrozenModel):
             raise ValueError("paper execution is the only permitted mode")
         if self.earliest_execution_at <= self.created_at:
             raise ValueError("execution must occur strictly after decision")
+        if self.expires_at is not None and self.expires_at <= self.created_at:
+            raise ValueError("intent expiry must be after decision")
         if self.action == PolicyAction.ENTER_LONG and self.side != Side.LONG:
             raise ValueError("ENTER_LONG requires LONG side")
         if self.action == PolicyAction.ENTER_SHORT and self.side != Side.SHORT:
@@ -596,6 +675,22 @@ class ExecutionIntent(FrozenModel):
             raise ValueError("exit/reduce requires a non-flat side")
         if self.action in (PolicyAction.NO_TRADE, PolicyAction.DATA_UNSAFE, PolicyAction.HOLD):
             raise ValueError("non-execution actions cannot create an execution intent")
+        return self
+
+
+class PendingIntentState(FrozenModel):
+    intent: ExecutionIntent
+    risk_decision: RiskDecision
+    created_at: datetime
+
+    @model_validator(mode="after")
+    def validate_pending_state(self) -> "PendingIntentState":
+        if self.created_at != self.intent.created_at:
+            raise ValueError("pending state timestamp must match its intent")
+        if self.intent.decision_id != self.risk_decision.decision_id:
+            raise ValueError("pending intent and risk decision IDs must match")
+        if self.risk_decision.status != RiskStatus.APPROVED:
+            raise ValueError("pending state requires an approved risk decision")
         return self
 
 
@@ -631,6 +726,8 @@ class TradeRecord(FrozenModel):
     net_pnl_usd: float
     entry_decision_id: str
     exit_decision_id: str
+    entry_fill_id: str | None = None
+    exit_fill_id: str | None = None
 
 
 class Versions(FrozenModel):
@@ -644,6 +741,15 @@ class Versions(FrozenModel):
     policy: str
     risk: str
     strategy_registry: str
+    frontier_prompt_hash: str = ""
+    jev_prompt_hash: str = ""
+    experiment_arm: str = "C"
+    git_commit: str = ""
+    config_hash: str = ""
+    policy_hash: str = ""
+    risk_hash: str = ""
+    strategy_registry_hash: str = ""
+    data_schema_version: str = "live-intelligence-v1"
 
 
 class DecisionRecord(FrozenModel):
@@ -653,6 +759,7 @@ class DecisionRecord(FrozenModel):
     market_environment: MarketEnvironment
     frontier_hypothesis: StrategyHypothesis | None = None
     quant_analyses: tuple[QuantAnalysisResult, ...] = ()
+    quant_evidence: QuantEvidence | None = None
     jev_request: JevRequest | None = None
     jev_evaluation: JevEvaluation | None = None
     economic_value: EconomicValue | None = None
@@ -668,6 +775,8 @@ class DecisionRecord(FrozenModel):
 
     @model_validator(mode="after")
     def validate_pipeline_links(self) -> "DecisionRecord":
+        if self.jev_request is not None and self.quant_evidence is not None and self.jev_request.quant_evidence != self.quant_evidence:
+            raise ValueError("Jev request and decision Quant evidence must match")
         if self.jev_evaluation is not None:
             if self.jev_request is None:
                 raise ValueError("Jev evaluation requires a Jev request")
@@ -700,6 +809,7 @@ class ResearchObservation(FrozenModel):
 
 class ResearchHypothesis(FrozenModel):
     hypothesis_id: str
+    version: str = "v1"
     date_created: datetime
     author: str
     market: str
@@ -711,4 +821,5 @@ class ResearchHypothesis(FrozenModel):
     failure_criteria: tuple[str, ...]
     status: str = Field(default="PROPOSED", pattern="^(PROPOSED|TESTING|SUPPORTED|REJECTED|DEFERRED|PROMOTED)$")
     revision: int = Field(default=1, ge=1)
+    transition_evidence: tuple[str, ...] = ()
     supersedes: str | None = None
