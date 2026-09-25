@@ -13,7 +13,7 @@ Typed tool-call/benchmark commit: `76fd4bf`
 
 **NOT SHADOW READY**
 
-The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key. The minimal typed tool-call interface now passes a 24-case Ling interface benchmark with zero authority violations; a subsequent smoke was rate-limited by the free provider. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key. The minimal typed tool-call interface passes both the 24-case interface benchmark and a serial sustainable benchmark (10/10 valid, zero rate limits, p95 24.8s). Crash recovery is now deterministic: a resumed run reproduces the committed intelligence decision sequence without re-querying the provider. The remaining blocker is that the deterministic baseline selects no candidates on the evaluation slice, so a controlled A/B has no baseline population to compare against.
 
 No live-money execution path was introduced. The active system remains PAPER-only.
 
@@ -30,7 +30,7 @@ JEV_MODEL=inclusionai/ling-3.0-flash-fin:free
 OPENROUTER_API_KEY=<present locally; never committed>
 ```
 
-The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The typed tool-call path now produces valid minimal Frontier/Jev decisions; the free provider subsequently returned HTTP 429 rate limits under repeated benchmark/smoke traffic, so the client fails closed with structured retry telemetry.
+The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The typed tool-call path produces valid minimal Frontier/Jev decisions. An earlier 429 storm was traced to the previously configured key's exhausted quota, not to a model or interface limitation; after credential rotation the endpoint sustains typed tool calls serially with no throttling.
 
 Capabilities are explicit `ProviderConfig` fields and independent `FRONTIER_*` / `JEV_*` environment overrides. The provider smoke command is `python -m jev_trading.live_intelligence provider-smoke --component both`; it records connectivity, request, parsing, schema status, model identity, and `trading_execution: NOT_INVOKED` without printing credentials or starting execution.
 
@@ -255,7 +255,7 @@ No tested critical mutation survived.
 
 ### OpenRouter smoke
 
-**PASS WITH RATE LIMIT.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. The typed tool-call smoke returned HTTP 200 with schema-valid Frontier and Jev decisions. The 24-case interface benchmark produced 24/24 valid tool-call decisions, zero authority violations, p50 10,345 ms, and p95 18,501 ms. A subsequent immediate smoke returned HTTP 429 rate limiting after the free-model traffic burst; structured telemetry recorded the failure and no order path was started. No key or model response was printed.
+**PASS.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. The typed tool-call smoke returns HTTP 200 with schema-valid Frontier and Jev decisions. The 24-case interface benchmark produced 24/24 valid tool-call decisions, zero authority violations, p50 10,345 ms, and p95 18,501 ms. A serial sustainable run (workers=1, 15s minimum interval) produced 10/10 valid tool-call decisions with zero HTTP 429s and zero retries, p50 10,458 ms, p95 24,757 ms, at 3.86 requests/minute. An intermediate 429 storm was traced to the previously configured key's exhausted quota; that episode did produce correctly classified, bounded-retry, fail-closed provider failures with no order path started. No key or model response was printed.
 
 ## Tool-call interface benchmark
 
@@ -336,17 +336,16 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 - [x] Ledger-suffix checkpoint reconstruction and crash/resume equivalence
 - [x] Frontier/Jev typed tool-call interface and 24-case interface benchmark
 - [ ] Remote archive branch pushed and verified
-- [x] OpenRouter live-configuration smoke (typed tool path; free-model rate limit observed)
-- [ ] First controlled A/B experiment (blocked: no baseline population + provider 429)
+- [x] OpenRouter live-configuration smoke (typed tool path, 10/10 at serial rate)
+- [ ] First controlled A/B experiment (blocked: no baseline population)
 
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. The free provider is in a sustained HTTP 429 window even at workers=1 with a 20s minimum interval. The reliability layer handles it correctly (bounded retries, categorized, fail-closed, no execution), but live treatment decisions cannot be populated until the endpoint is available again.
-3. The deterministic baseline selected 0 of 60 evaluation-slice candidates (net expected value never positive), reproducing the preserved `NO EDGE` result. A measurable A/B therefore requires a separately versioned quant/policy change to create a non-empty baseline population; that is out of scope for this stage and must not be smuggled in.
-4. Full checkpoint-suffix reconstruction and crash-boundary equivalence tests are complete as of the Stage 5 commit; re-run after the archive push.
+2. The deterministic baseline selected 0 of 60 evaluation-slice candidates (net expected value never positive), reproducing the preserved `NO EDGE` result. A measurable A/B therefore requires a separately versioned quant/policy change to create a non-empty baseline population; that is out of scope for this stage and must not be smuggled in.
+3. Provider latency is the binding constraint on intelligence cadence: p95 ~24.8s per typed tool call at a serial request rate of ~3.9 requests/minute. Availability is no longer a blocker (10/10 valid tool calls, zero 429s, after credential rotation).
 
-Stages 4–7 are documented in `docs/stage-4-7-report.md`. Stage 7 (first controlled A/B) was **not executed**: the baseline provides no selection opportunity and the provider is rate-limited. Both blockers are recorded rather than worked around.
+Stages 4–7 are documented in `docs/stage-4-7-report.md`. Stage 4 (provider reliability) and Stage 5 (deterministic recovery) both **PASS**. Stage 7 (first controlled A/B) was **not executed**: the baseline provides no selection opportunity. That is the sole remaining blocker, and it is recorded rather than worked around.
 
 Until those blockers are resolved, the correct status is:
 

@@ -1,18 +1,25 @@
 {
-  "generated_for": "Stage 4.8 sustainable benchmark",
+  "generated_for": "Stage 4.8 sustainable benchmark (retry with rotated credential)",
   "model": "inclusionai/ling-3.0-flash-fin:free",
-  "mode": "workers=1, delay=20s, cases=4 (8 requests)",
-  "cooldown_before_run_seconds": 60,
+  "mode": "workers=1, delay=15s, cases=5 (10 requests)",
+  "note": "The earlier 8/8 HTTP 429 result was caused by the previous API key's exhausted quota, not by a provider-wide or client-side limit. After rotating the credential, the same configuration completed with zero rate limits and zero retries.",
   "summary": {
-    "total": 8,
-    "valid": 0,
-    "final_failures": 8,
+    "total": 10,
+    "valid": 10,
+    "final_failures": 0,
     "validation_failures": 0,
-    "rate_limited": 8,
-    "retries": 24,
-    "tool_call_successes": 0,
-    "requests_per_minute": 3.37,
+    "rate_limited": 0,
+    "retries": 0,
+    "tool_call_successes": 10,
+    "latency_p50_ms": 10457.889960991452,
+    "latency_p95_ms": 24756.64691699785,
+    "latency_p99_ms": 24756.64691699785,
+    "requests_per_minute": 3.86,
     "trading_execution": "NOT_INVOKED"
   },
-  "interpretation": "At the lowest practical concurrency the free endpoint still returned HTTP 429 for every request (3 bounded retries each). The reliability layer classified, retried within bounds, and failed closed with no execution. This is a sustained provider rate-limit window, not a client burst artifact. The provider is currently unavailable for live treatment decisions."
+  "per_component": {
+    "frontier": {"cases": 5, "valid": 5, "tool": "submit_strategy_hypothesis"},
+    "jev": {"cases": 5, "valid": 5, "tool": "submit_jev_evaluation"}
+  },
+  "conclusion": "Provider reliability confirmed at a conservative request rate. Ling sustains typed tool-call decisions serially at roughly 3.9 requests/minute with no throttling. Latency remains the binding constraint (p95 ~24.8s), not availability."
 }

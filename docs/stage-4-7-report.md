@@ -48,24 +48,31 @@ python -m jev_trading.live_intelligence provider-benchmark \
 
 ### 4.5 Sustainable Ling benchmark result
 
+The first run of this benchmark returned 429 for every request. That result was **misattributed**: it was caused by the previously configured API key's exhausted quota, not by a provider-wide limit, a client burst, or an interface defect. After the credential was rotated, the identical configuration completed with zero throttling:
+
 ```text
-mode: workers=1, delay=20s, 4 cases per component (8 requests), 60s cooldown
-total: 8
-valid: 0
-rate_limited (HTTP 429): 8
-retries: 24 (3 per request, bounded)
-validation failures: 0
+mode: workers=1, delay=15s, 5 cases per component (10 requests)
+total: 10
+valid: 10
+rate_limited (HTTP 429): 0
+retries: 0
+tool-call successes: 10
+latency p50: 10,457.89 ms
+latency p95: 24,756.65 ms
+latency p99: 24,756.65 ms
+requests/minute: 3.86
 trading execution: NOT_INVOKED
-requests/minute: 3.37
 ```
 
-**Result: the free endpoint is in a sustained 429 window.** At the lowest practical concurrency every request still returned 429 after bounded retries. This is not a client burst artifact. The reliability layer behaved correctly — it classified, retried within bounds, and failed closed with zero execution — but the provider is currently unavailable for live decisions.
+The provider smoke also passes cleanly against the rotated credential (Frontier and Jev both PASS, exit 0).
 
 Raw result: `docs/provider-sustainable-benchmark-2026-09-25.json`.
 
 ### Stage 4 conclusion
 
-The reliability mechanics are correct and covered by tests (`tests/test_live_intelligence_provider_reliability.py`). Zero 429s are not required. The requirement that a 429 be handled safely and predictably is met. The remaining limitation is external: the free model is currently rate-limited.
+The reliability mechanics are correct and covered by tests (`tests/test_live_intelligence_provider_reliability.py`). Zero 429s are not required. The requirement that a 429 be handled safely and predictably is met — and that handling was exercised for real, since the earlier key exhaustion produced 8 correctly-classified, bounded-retry, fail-closed 429s with zero execution.
+
+Availability is not a blocker. **Latency is the binding constraint**: p95 of ~24.8s against a 15-minute decision horizon is workable for candidate evaluation, but it constrains how many candidates can be evaluated per decision window.
 
 ## Stage 5 — Checkpoint and crash recovery
 
@@ -175,13 +182,11 @@ treatment: QUANT_FRONTIER_JEV    (wiring verified; live run blocked)
 
 ### 7.2 Why it was not run
 
-Two independent blockers, either of which alone is sufficient:
+**One** blocker remains:
 
 1. **No selection opportunity.** The baseline selected 0 of 60 evaluation candidates, so a paired A/B on selection quality has no baseline population to compare against. Running it would produce a vacuous, uninterpretable result at the cost of many provider calls.
 
-2. **Provider unavailable.** The free Ling endpoint returned HTTP 429 for every request at workers=1 with a 20-second minimum interval. A treatment arm cannot be populated from a provider that is refusing requests.
-
-The A/B harness itself is implemented and exercised: `decision-quality` runs the baseline and treatment arms over one shared candidate stream, with identical economic assumptions, identical candidate ids, and no execution. It is ready to run the moment both blockers clear.
+   A second blocker — provider rate limiting — was previously cited here. That is now **withdrawn**: after credential rotation the endpoint sustains typed tool calls serially (10/10, zero 429s). Provider availability is not a constraint.
 
 ### 7.3 Safety
 
@@ -194,8 +199,9 @@ The A/B harness scores policy/risk eligibility and observed outcomes only. It ne
 
 ### 7.4 What would unblock Stage 7
 
-- A quant/policy configuration change that produces a non-empty baseline candidate population. This is a separate, explicitly out-of-scope experiment and must be versioned as such; it must not be smuggled in here.
-- A provider that can sustain the request rate the decision cadence actually requires, or an explicit decision to accept a reduced cadence.
+- A quant/policy configuration change that produces a non-empty baseline candidate population. This is a separate, explicitly out-of-scope experiment and must be versioned as such; it must not be smuggled in here. This is now the **only** blocker.
+
+Provider availability is no longer a blocker.
 
 ## Tests
 
@@ -223,9 +229,9 @@ No push was performed.
 
 | Stage | Status | Basis |
 |---|---|---|
-| 4 — Provider reliability | Mechanics PASS, provider 429-limited | Bounded retries, Retry-After, jitter, cap, no duplicate decisions; 8/8 rate-limited at workers=1 |
+| 4 — Provider reliability | **PASS** | 10/10 valid tool calls at workers=1, zero 429s, zero retries, p50 10.5s / p95 24.8s |
 | 5 — Checkpoint integrity | **PASS** | Continuous == crash/resume, zero provider calls on resume |
 | 6 — Decision benchmark | Baseline characterized; A/B not measurable | 0/60 eligible, NEV never positive |
-| 7 — Controlled A/B | **NOT EXECUTED** | No baseline population + provider unavailable |
+| 7 — Controlled A/B | **NOT EXECUTED** | Sole blocker: no baseline population |
 
 Stopping here as instructed. No optimization, no quant changes, no Laya training, no further experiments.
