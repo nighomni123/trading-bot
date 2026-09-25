@@ -123,7 +123,7 @@ class ShadowRunner:
             path_result = analyze_path(environment, self._path_samples, side=candidate.side, horizon_seconds=candidate.max_holding_seconds)
             analyses.append(path_result)
             if path_result.path_probabilities is not None:
-                economic_value = calculate_economic_value(candidate, path_result.path_probabilities, self.settings.costs.assumptions(candidate.max_holding_seconds, environment.derivatives.funding or 0.0))
+                economic_value = calculate_economic_value(candidate, path_result.path_probabilities, self.settings.costs.assumptions(candidate.max_holding_seconds, environment.derivatives.funding or 0.0), sample_size=path_result.empirical_sample_size or 0)
         jev_request = None
         jev_evaluation = None
         if candidate is not None and not hypothesis.abstain and quality.safe_for_trading:

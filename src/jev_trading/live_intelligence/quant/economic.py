@@ -17,6 +17,7 @@ def calculate_economic_value(
     costs: CostAssumptions,
     *,
     timeout_return_fraction: float = 0.0,
+    sample_size: int = 0,
 ) -> EconomicValue:
     """Calculate cost-adjusted value without inventing a probability.
 
@@ -46,7 +47,7 @@ def calculate_economic_value(
     downside = p_stop * abs(stop_return)
     reward = abs(target_return)
     return EconomicValue(
-        side=candidate.side, probabilities=probabilities,
+        side=candidate.side, sample_size=sample_size, probabilities=probabilities,
         gross_expected_payoff=gross, fees=fees, slippage=slippage, funding=funding,
         latency=latency, net_expected_value=net, expected_downside=downside,
         risk_reward=reward / abs(stop_return) if stop_return else None,

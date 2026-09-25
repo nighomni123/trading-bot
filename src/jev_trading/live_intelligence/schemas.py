@@ -441,6 +441,7 @@ class QuantAnalysisResult(FrozenModel):
 
 class EconomicValue(FrozenModel):
     side: Side
+    sample_size: int = Field(default=0, ge=0)
     probabilities: dict[str, float]
     gross_expected_payoff: float
     fees: float

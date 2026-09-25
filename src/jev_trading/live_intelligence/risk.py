@@ -93,7 +93,9 @@ class ActiveRiskKernel:
             reasons.append("spread_limit")
         if environment.liquidity.estimated_slippage is not None and environment.liquidity.estimated_slippage * 10_000 > self.limits.maximum_slippage_bps:
             reasons.append("slippage_limit")
-        if environment.liquidity.top_level_notional is not None and environment.liquidity.top_level_notional < self.limits.minimum_liquidity_notional:
+        if environment.liquidity.top_level_notional is None:
+            reasons.append("missing_liquidity_data")
+        elif environment.liquidity.top_level_notional < self.limits.minimum_liquidity_notional:
             reasons.append("minimum_liquidity")
 
         if policy.action in {PolicyAction.EXIT, PolicyAction.REDUCE}:

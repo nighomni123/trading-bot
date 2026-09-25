@@ -185,6 +185,7 @@ def test_risk_rejects_stale_data_even_with_high_policy_confidence():
 def test_risk_can_approve_only_valid_entry_and_paper_execution_is_explicit():
     settings = load_settings()
     env = environment()
+    env = env.model_copy(update={"liquidity": env.liquidity.model_copy(update={"top_level_notional": 100000.0})})
     hyp = hypothesis()
     candidate = make_candidate(env, hyp, settings=settings)
     jev = JevEvaluation(
@@ -194,7 +195,7 @@ def test_risk_can_approve_only_valid_entry_and_paper_execution_is_explicit():
         answers={}, confidence=0.8, recommended_state="ENTER", reason="test",
         model_version="test-jev", prompt_version="jev-evaluator-v1",
     )
-    value = calculate_economic_value(candidate, {"target": 0.5, "stop": 0.2, "timeout": 0.3}, settings.costs.assumptions(900))
+    value = calculate_economic_value(candidate, {"target": 0.5, "stop": 0.2, "timeout": 0.3}, settings.costs.assumptions(900), sample_size=30)
     policy = PolicyFinalizer(settings).finalize(env, hyp, value, jev, candidate=candidate, decision_id="d")
     assert policy.action == PolicyAction.ENTER_LONG
     risk = ActiveRiskKernel(settings).evaluate(policy, env, AccountState(capital_usd=10000), ExecutionState(), position=PositionState())

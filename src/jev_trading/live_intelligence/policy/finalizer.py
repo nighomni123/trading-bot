@@ -72,6 +72,8 @@ class PolicyFinalizer:
             reasons.append("frontier_abstain")
         if economic_value is None:
             reasons.append("missing_economic_value")
+        elif economic_value.sample_size < self.settings.quant.path_minimum_samples:
+            reasons.append("insufficient_path_samples")
         elif economic_value.net_expected_value < self.thresholds.minimum_net_expected_value:
             reasons.append("net_expected_value_below_minimum")
         if jev is None:
