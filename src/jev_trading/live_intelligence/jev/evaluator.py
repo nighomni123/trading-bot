@@ -26,6 +26,14 @@ class JevEvaluator:
             raise ValueError("Jev response prompt version mismatch")
         if response.valid_until > request.timestamp + timedelta(seconds=self.max_validity_seconds):
             raise ValueError("Jev validity window exceeds configured maximum")
-        if response.valid_until <= datetime.now(tz=timezone.utc):
+        now = datetime.now(tz=timezone.utc)
+        if response.valid_until <= max(now, request.timestamp):
             raise ValueError("Jev response is expired")
+        if response.recommended_state == "ENTER":
+            required = {"target", "stop", "timeout"}
+            if not required.issubset(response.probabilities):
+                raise ValueError("ENTER Jev response requires target/stop/timeout probabilities")
+            total = sum(response.probabilities[name] for name in required)
+            if abs(total - 1.0) > 1e-8:
+                raise ValueError("ENTER Jev path probabilities must sum to one")
         return response
