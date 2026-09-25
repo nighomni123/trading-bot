@@ -36,6 +36,51 @@ def _direction(close: float, previous: float | None, features: dict[str, float |
     return features.get("trend_direction", "FLAT") or "FLAT"
 
 
+def _cross_venue_observations(
+    ticks: Iterable[MarketTick], quality: DataQuality | None
+) -> dict[str, float]:
+    observations: dict[str, float] = {}
+    for tick in ticks:
+        health = None
+        if quality is not None:
+            for key in (tick.source, f"{tick.source}:{tick.venue}:{tick.instrument}"):
+                if key in quality.source_health:
+                    health = quality.source_health[key]
+                    break
+        if health is not None and not health.healthy:
+            continue
+        values = {
+            "last": tick.last,
+            "mid": tick.mid,
+            "spread_fraction": tick.spread_fraction,
+            "bid_depth": tick.bid_depth,
+            "ask_depth": tick.ask_depth,
+            "mark": tick.mark,
+            "index": tick.index,
+            "open_interest": tick.open_interest,
+            "funding_rate": tick.funding_rate,
+            "liquidation_long": tick.liquidation_long,
+            "liquidation_short": tick.liquidation_short,
+        }
+        if tick.buy_volume is not None and tick.sell_volume is not None:
+            total = tick.buy_volume + tick.sell_volume
+            values["trade_imbalance"] = (
+                (tick.buy_volume - tick.sell_volume) / total if total else 0.0
+            )
+        if tick.bid_depth is not None and tick.ask_depth is not None:
+            total_depth = tick.bid_depth + tick.ask_depth
+            values["depth_imbalance"] = (
+                (tick.bid_depth - tick.ask_depth) / total_depth
+                if total_depth else 0.0
+            )
+        observations.update({
+            f"{tick.venue}:{name}": float(value)
+            for name, value in values.items()
+            if value is not None
+        })
+    return observations
+
+
 def build_market_environment(
     bars: pl.DataFrame,
     *,
@@ -160,7 +205,8 @@ def build_market_environment(
         liquidations["long"] = latest_tick.liquidation_long
     if latest_tick is not None and latest_tick.liquidation_short is not None:
         liquidations["short"] = latest_tick.liquidation_short
-    current_oi = float(latest["open_interest"]) if latest.get("open_interest") is not None else None
+    bar_oi = float(latest["open_interest"]) if latest.get("open_interest") is not None else None
+    current_oi = latest_tick.open_interest if latest_tick and latest_tick.open_interest is not None else bar_oi
     previous_row = frame.row(-2, named=True) if frame.height > 1 else {}
     previous_oi = float(previous_row["open_interest"]) if previous_row.get("open_interest") is not None else None
     oi_change = current_oi / previous_oi - 1.0 if current_oi is not None and previous_oi not in (None, 0) else None
@@ -172,7 +218,8 @@ def build_market_environment(
     )
     derivatives = DerivativesState(
         open_interest=current_oi,
-        oi_change=oi_change, funding=float(latest["funding_rate"]) if latest.get("funding_rate") is not None else None,
+        oi_change=oi_change,
+        funding=float(latest["funding_rate"]) if latest.get("funding_rate") is not None else None,
         basis=((mark or close) / index - 1.0) if mark and index else None,
         mark_index_divergence=((mark or close) / index - 1.0) if mark and index else None,
         price_oi_relationship=price_oi_relationship,
@@ -181,8 +228,12 @@ def build_market_environment(
     data_quality = quality or DataQuality(safe_for_trading=False, stale=True, missing_sources=("primary",))
     return MarketEnvironment(
         timestamp=event_time, decision_timestamp=decision_time, instrument=instrument,
-        venue=venue, market_type=market_type, price=price, timeframes=timeframes,
+        venue=latest_tick.venue if latest_tick is not None else venue,
+        market_type=market_type, price=price, timeframes=timeframes,
         structure=structure, volatility=vol, flow=flow, liquidity=liquidity,
-        derivatives=derivatives, events=events, cross_market=CrossMarketState(),
+        derivatives=derivatives, events=events,
+        cross_market=CrossMarketState(
+            observations=_cross_venue_observations(tick_list, quality)
+        ),
         position=position, data_quality=data_quality,
     )

@@ -272,7 +272,15 @@ class DataFabric:
 
     def ingest(self, observations: list[MarketTick]) -> None:
         for tick in observations:
-            key = (tick.source, tick.venue, tick.instrument, tick.event_type, tick.event_timestamp, tick.sequence)
+            key = (
+                tick.source,
+                tick.venue,
+                tick.instrument,
+                tick.event_type,
+                tick.event_timestamp,
+                tick.sequence,
+                tick.metadata.get("feed_generation"),
+            )
             if key in self._seen_event_keys:
                 self._duplicates += 1
                 continue
@@ -309,6 +317,7 @@ class DataFabric:
         event_time_problems = list(self._event_time_problems)
         if self._last_bar_timestamp is not None and self._last_bar_timestamp > int(current.timestamp() * 1000):
             event_time_problems.append(f"future_bar:{self._last_bar_timestamp}")
+        required_roles = set(self.required_roles)
         for source_key, tick in self._last_by_source.items():
             event_age_signed = int((current - tick.event_timestamp).total_seconds() * 1000)
             receive_age_signed = int((current - tick.received_timestamp).total_seconds() * 1000)
@@ -316,7 +325,9 @@ class DataFabric:
             receive_age = max(0, receive_age_signed)
             future = event_age_signed < 0 or receive_age_signed < 0
             healthy = not future and event_age <= self.max_age_ms
-            stale |= not healthy
+            # Optional venues stay visible as unhealthy without failing Binance.
+            if not healthy and tick.source_role in required_roles:
+                stale = True
             health_key = tick.source
             if health_key in health:
                 health_key = f"{tick.source}:{tick.venue}:{tick.instrument}"

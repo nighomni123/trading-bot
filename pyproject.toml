@@ -16,6 +16,7 @@ dependencies = [
     "lightgbm>=4.3",
     "pydantic>=2.6,<3.0",
     "requests>=2.31",
+    "websockets>=14",
 ]
 
 [project.scripts]
