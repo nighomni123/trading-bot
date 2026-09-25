@@ -65,8 +65,17 @@ class PolicyFinalizer:
         if not environment.data_quality.safe_for_trading:
             return PolicyDecision(decision_id=ident, timestamp=now, action=PolicyAction.DATA_UNSAFE, reasons=("data_quality_unsafe",), policy_version="policy-v1")
         if position and position.side != Side.FLAT:
-            if jev and jev.recommended_state == JevState.EXIT:
-                return PolicyDecision(decision_id=ident, timestamp=now, action=PolicyAction.EXIT, confidence=jev.confidence, reasons=("jev_exit",), policy_version="policy-v1", hypothesis_id=hypothesis.hypothesis_id)
+            price = environment.price.last
+            stop_hit = False
+            target_hit = False
+            if price is not None and position.current_stop is not None:
+                stop_hit = (position.side == Side.LONG and price <= position.current_stop) or (position.side == Side.SHORT and price >= position.current_stop)
+            if price is not None and position.current_target is not None:
+                target_hit = (position.side == Side.LONG and price >= position.current_target) or (position.side == Side.SHORT and price <= position.current_target)
+            timed_out = position.opened_at is not None and (now - position.opened_at).total_seconds() >= self.settings.policy.maximum_holding_seconds
+            if stop_hit or target_hit or timed_out or (jev and jev.recommended_state == JevState.EXIT):
+                reason = "stop_hit" if stop_hit else "target_hit" if target_hit else "max_holding_timeout" if timed_out else "jev_exit"
+                return PolicyDecision(decision_id=ident, timestamp=now, action=PolicyAction.EXIT, confidence=jev.confidence if jev else 1.0, reasons=(reason,), policy_version="policy-v1", hypothesis_id=hypothesis.hypothesis_id)
             return PolicyDecision(decision_id=ident, timestamp=now, action=PolicyAction.HOLD, confidence=jev.confidence if jev else 0.0, reasons=("position_aware_hold",), policy_version="policy-v1", hypothesis_id=hypothesis.hypothesis_id)
         if hypothesis.abstain:
             reasons.append("frontier_abstain")

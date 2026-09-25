@@ -72,7 +72,13 @@ class ShadowRunner:
         observations = self.adapter.snapshot()
         self.fabric.ingest(observations)
         quality = self.fabric.quality()
-        environment = build_market_environment(bars, ticks=self.fabric.latest(), quality=quality, decision_timestamp=datetime.now(tz=timezone.utc))
+        environment = build_market_environment(
+            bars, ticks=self.fabric.latest(), quality=quality,
+            position=self.position, decision_timestamp=datetime.now(tz=timezone.utc),
+        )
+        if environment.price.last is not None:
+            self.position = self.paper.mark(environment.price.last, environment.timestamp)
+            environment = environment.model_copy(update={"position": self.position})
         if self._pending_intent is not None and environment.timestamp >= self._pending_intent.earliest_execution_at:
             fill = self.paper.execute(self._pending_intent, self._pending_risk, environment)
             self.ledger.append_fill(fill)
