@@ -38,12 +38,13 @@ def test_completed_path_builder_excludes_incomplete_tail_and_is_causal():
 def test_runner_records_request_and_fails_closed_with_disabled_providers(tmp_path: Path):
     settings = load_settings()
     n = 300
+    base = int(datetime.now(UTC).timestamp() * 1000) - n * 60_000
     rows = []
     for i in range(n):
         close = 100 + i * 0.01
-        rows.append({"timestamp": T0 + i * 60_000, "open": close, "high": close + 0.1, "low": close - 0.1, "close": close, "volume": 10.0, "funding_rate": 0.0001, "open_interest": 1000.0})
+        rows.append({"timestamp": base + i * 60_000, "open": close, "high": close + 0.1, "low": close - 0.1, "close": close, "volume": 10.0, "funding_rate": 0.0001, "open_interest": 1000.0})
     frame = pl.DataFrame(rows, schema={c: pl.Int64 if c == "timestamp" else pl.Float64 for c in BAR_COLUMNS})
-    now = datetime.fromtimestamp((T0 + n * 60_000) / 1000, tz=UTC)
+    now = datetime.now(UTC)
     observation = MarketTick(source="primary", source_role="primary", instrument="BTCUSDT_PERP", venue="binance-futures", market_type=MarketType.PERPETUAL, event_timestamp=now, received_timestamp=now, event_type=DataEventType.BAR, last=100, mark=100, volume=10, open_interest=1000, funding_rate=0.0001)
     adapter = ReplayAdapter("primary", "binance-futures", "BTCUSDT_PERP", frame, [observation])
     runner = ShadowRunner(settings, adapter, ReplayFrontierClient(allow_trade=True), ReplayJevClient(), ledger_path=tmp_path / "ledger.jsonl")
