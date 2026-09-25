@@ -21,3 +21,4 @@ models/
 
 # OS
 .DS_Store
+.local/
