@@ -1,0 +1,275 @@
+# Shadow-readiness report
+
+Corrective implementation commit: `e9bc0e933e516e1d3e71921d1e8a062bb99d0737`  
+Audit baseline: `dcb618a6675941b98db777cb1766eac0bae1ee73`  
+Remote `origin/main`: `2db1d573a2c202aa5453275796fa5a7ebb76f166`
+
+## Executive status
+
+**NOT SHADOW READY**
+
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable, and real OpenRouter smoke verification is blocked because `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, and `JEV_MODEL` are absent. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+
+No live-money execution path was introduced. The active system remains PAPER-only.
+
+## Architecture verification
+
+The active runtime graph is:
+
+```text
+Binance/public or Replay data
+  → DataFabric.ingest_bars/ingest/quality
+  → build_market_environment
+      → completed 1m/5m/15m/1h/4h states
+      → detect_events attached to environment
+  → QuantRegistry + canonical QuantEvidence
+  → Frontier (optional Arm B/C)
+  → Jev (Arm C)
+  → deterministic PolicyFinalizer
+  → ActiveRiskKernel
+  → next-open PaperExecutor
+  → DecisionLedger
+  → structured ResearchMemory
+  → read-only Frontier context
+```
+
+`ShadowRunner` supports arms:
+
+- `A`: Quant + Policy + Risk
+- `B`: Quant + Frontier + Policy + Risk
+- `C`: Quant + Frontier + Jev + Policy + Risk
+
+The real AI path is not configured in the default environment. No external provider was called during this audit.
+
+## Frontier verification
+
+| Item | Result |
+|---|---|
+| Provider abstraction | `FrontierClientFactory` supports disabled, replay, and OpenAI-compatible modes |
+| OpenRouter transport | OpenAI-compatible `/chat/completions`; `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `FRONTIER_MODEL` |
+| Prompt | Configured `frontier/prompts/strategist_v1.txt`; SHA-256 recorded per decision |
+| Context | Environment, current position, Quant evidence, system health, strategy performance/research summary |
+| Cadence | `should_call_frontier()` and minimum interval enforced |
+| Rate limit | Rolling hourly cap enforced |
+| Retry | Bounded retries/backoff; provider failure becomes abstention |
+| Validation | Request ID, timestamp, prompt version/hash, structured output |
+| Authority | No order, sizing, leverage, or risk override fields/API |
+| Runtime smoke | Blocked by absent OpenRouter credentials; no secret was requested or printed |
+
+## Jev verification
+
+| Item | Result |
+|---|---|
+| Provider abstraction | `JevClientFactory` supports disabled, replay, and OpenAI-compatible modes |
+| OpenRouter transport | OpenAI-compatible `/chat/completions`; `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `JEV_MODEL` |
+| Prompt | Configured evaluator prompt; SHA-256 recorded |
+| Context | Canonical `QuantEvidence`, environment, candidate, position, Frontier questions |
+| Expiry | Request/decision IDs, timestamp, prompt, maximum validity, and expiry validated |
+| Thresholds | Target probability, stop probability, entry quality, failure risk, and optional liquidity quality enforced |
+| Failure behavior | Provider/validation failure becomes abstention and no trade |
+| Authority | Evaluator has no order/size/leverage/risk interface |
+| Runtime smoke | Blocked by absent OpenRouter credentials |
+
+## Risk verification
+
+Implemented and behaviorally tested:
+
+- PAPER-only mode
+- current data-health and event-time freshness
+- configured kill switch
+- position, notional, and leverage caps
+- capital-at-risk and all-in trade-loss sizing
+- daily realized loss
+- drawdown
+- open positions and correlated exposure checks
+- spread and configured slippage cap
+- liquidity-notional requirement
+- rolling order rate
+- cooldown state
+- pending-intent expiry and current revalidation
+- position/action compatibility
+- account/execution/pending/position synchronization
+
+The current public smoke correctly rejected stale event data and produced no fill.
+
+## Execution verification
+
+- Entry and exit use the next completed one-minute open.
+- Long and short paths are tested.
+- Entry gaps through planned barriers are rejected.
+- Entry and exit fees are included in trade P&L.
+- Slippage is side-aware and included in diagnostics.
+- Visible funding is charged once per configured interval and included in P&L.
+- Partial fills are explicitly unsupported; `partial_fill_ratio` was removed rather than left as dead configuration.
+- No broker/live-order API is reachable.
+
+## Research, replay, and recovery verification
+
+- Structured observations are written for each decision.
+- Frontier receives aggregate read-only research context.
+- Hourly/daily/weekly reports are period-filtered and immutable.
+- Replay reconstructs environment, Quant evidence, Frontier, Jev, policy, risk, intent, fills, trades, and versions.
+- Ledger hash-chain tamper detection passes.
+- Fill-to-intent and trade-to-fill semantic links are enforced.
+- Runtime checkpoints are atomically written and anchored to the ledger hash.
+- Missing or mismatched checkpoints fail closed.
+
+Remaining recovery gap: a checkpoint behind the ledger is not yet incrementally rebuilt; startup rejects it. This is safe but does not yet satisfy the full crash-recovery requirement.
+
+## Ablation verification
+
+The active runner has reproducible `A`, `B`, and `C` arms. A focused test proves:
+
+- A does not call Frontier or Jev.
+- B calls Frontier but not Jev.
+- C calls Frontier and Jev.
+- Every decision records its arm and content-addressed versions.
+
+No profitability interpretation is made.
+
+## Test results
+
+### Full suite
+
+```text
+298 passed
+0 failed
+0 skipped
+```
+
+### Fake-provider end-to-end
+
+Passed:
+
+```text
+data → environment → events → QuantEvidence → Frontier → Jev
+→ Policy → Risk → next-open PaperExecutor → fill → DecisionLedger
+→ checkpoint → replay reconstruction
+```
+
+Test: `tests/test_live_intelligence_fake_e2e.py`
+
+### Public-data smoke
+
+Command:
+
+```bash
+.venv/bin/python -m jev_trading.live_intelligence paper \
+  --iterations 1 \
+  --config /private/tmp/jev-smoke-config.json \
+  --ledger /private/tmp/jev-smoke-ledger.jsonl
+```
+
+Result: exit `0`.
+
+Observed:
+
+- Binance klines, funding, OI, depth, mark, and index were fetched.
+- Current-day OI archive returned the expected not-yet-published 404.
+- Data was correctly marked unsafe because event age exceeded the configured threshold.
+- Policy returned `DATA_UNSAFE`.
+- Risk returned `REJECTED` for stale/unsafe data.
+- No paper fill occurred.
+- Canonical events and populated depth/mark/index fields were recorded.
+
+### Replay and research smoke
+
+- Replay returned one validated record and one reconstruction.
+- Daily research generation returned one report path.
+- Reports are generated from structured ledger/observation data.
+
+### Mutation checks
+
+The following safety mutations were each detected by focused tests after strengthening independent guards:
+
+```text
+stale rejection
+duplicate rejection
+kill switch
+slippage cap
+pending revalidation
+Jev expiry
+Jev threshold
+Frontier cadence
+next-open fill
+entry-fee accounting
+ledger intent linkage
+```
+
+No tested critical mutation survived.
+
+### OpenRouter smoke
+
+**BLOCKED.** The environment has no `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, or `JEV_MODEL`. No credential was requested or exposed.
+
+## Repository cleanup status
+
+A local archive branch exists at:
+
+```text
+archive/pre-live-intelligence-cleanup-2026-09-25
+dcb618a6675941b98db777cb1766eac0bae1ee73
+```
+
+The required remote push was attempted and failed with:
+
+```text
+fatal: could not read Username for 'https://github.com'
+```
+
+Therefore no obsolete documentation or experiment material was deleted. Active-main cleanup is intentionally blocked until the archive branch is remotely verified.
+
+## Final gate checklist
+
+- [x] Pending-order revalidation
+- [x] Event-time freshness
+- [x] Duplicate rejection
+- [x] Bar-gap detection
+- [x] Causal timeframe timestamps
+- [x] Kill switch
+- [x] Daily loss
+- [x] Drawdown
+- [x] Order rate
+- [x] Cooldown
+- [x] Slippage cap
+- [x] Liquidity contract
+- [x] Next-open execution
+- [x] Long execution
+- [x] Short execution
+- [x] Entry-gap rejection
+- [x] Complete fee accounting
+- [x] Funding semantics
+- [x] Explicit partial-fill removal
+- [x] Barrier-homogeneous path analysis
+- [x] QuantEvidence
+- [x] Frontier provider factory
+- [x] Frontier prompt/hash/cadence/rate handling
+- [x] Jev provider factory
+- [x] Jev prompt/hash/expiry/thresholds
+- [x] Event attachment
+- [x] Strategy registry
+- [x] Research memory
+- [x] Frontier research context
+- [x] Replay reconstruction
+- [x] Ablation arms
+- [x] Experiment hashes
+- [x] Atomic checkpoint/fail-closed startup
+- [x] Semantic ledger linkage
+- [x] Fake-provider E2E
+- [x] Mutation tests
+- [x] Full pytest
+- [ ] Remote archive branch pushed and verified
+- [ ] OpenRouter live-configuration smoke
+- [ ] Full checkpoint-suffix reconstruction after crash
+- [ ] Multi-week frozen shadow experiment
+
+## Exact remaining blockers
+
+1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
+2. Provide `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, and optionally `JEV_MODEL`; run the conservative OpenRouter smoke without exposing secrets.
+3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
+4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
+
+Until those blockers are resolved, the correct status is:
+
+**NOT SHADOW READY**
