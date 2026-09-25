@@ -25,13 +25,13 @@ def main(argv: list[str] | None = None) -> int:
     replay = sub.add_parser("replay", help="verify and summarize a recorded ledger")
     replay.add_argument("ledger")
     args = parser.parse_args(argv)
-    settings = load_settings(args.config)
-    if args.command == "status":
-        print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
-        return 0
     if args.command == "replay":
         records = ReplayEngine(args.ledger).records()
         print(json.dumps({"records": len(records), "decisions": [record.decision_id for record in records]}, indent=2))
+        return 0
+    settings = load_settings(args.config)
+    if args.command == "status":
+        print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
         return 0
     runner = ShadowRunner(settings, BinancePerpAdapter(), DisabledFrontierClient(), DisabledJevClient(), ledger_path=args.ledger)
     runner.run_forever(iterations=args.iterations)
