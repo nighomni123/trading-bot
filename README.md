@@ -133,7 +133,7 @@ in-place rewrite.
 ## Replay
 
 ```bash
-.venv/bin/python -m jev_trading.replay --help
+.venv/bin/python -m jev_trading.live_intelligence replay research/runtime/ledger/decisions.jsonl
 ```
 
 Replay consumes a recorded ledger and verifies its chain without calling

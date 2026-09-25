@@ -10,12 +10,13 @@ from jev_trading.data.normalization import DataFabric, MarketDataAdapter
 from jev_trading.environment import assess_regime, build_market_environment, detect_events
 from jev_trading.ledger import DecisionLedger
 from jev_trading.live_intelligence.config import LiveSettings
+from jev_trading.live_intelligence.execution import PaperExecutor
 from jev_trading.live_intelligence.frontier.client import FrontierClient, FrontierUnavailable
 from jev_trading.live_intelligence.frontier.strategist import FrontierStrategist, load_prompt
 from jev_trading.live_intelligence.jev.client import JevClient
 from jev_trading.live_intelligence.jev.evaluator import JevEvaluator
 from jev_trading.live_intelligence.policy import PolicyFinalizer, make_candidate
-from jev_trading.live_intelligence.quant import QuantRegistry, analyze_path, calculate_economic_value
+from jev_trading.live_intelligence.quant import QuantRegistry, analyze_path, build_completed_path_samples, calculate_economic_value
 from jev_trading.live_intelligence.risk import ActiveRiskKernel
 from jev_trading.live_intelligence.schemas import (
     AccountState,
@@ -44,6 +45,7 @@ class ShadowRunner:
         self.jev = JevEvaluator(jev_client, max_validity_seconds=settings.jev.validity_seconds, prompt_version=settings.jev.prompt_version)
         self.policy = PolicyFinalizer(settings)
         self.risk = ActiveRiskKernel(settings)
+        self.paper = PaperExecutor(settings, self.risk)
         self.fabric = DataFabric(settings.market.required_source_roles, max_age_ms=settings.risk.stale_data_ms)
         self.ledger = DecisionLedger(ledger_path)
         self.position = PositionState()
@@ -51,6 +53,7 @@ class ShadowRunner:
         self.execution = ExecutionState()
         self._last_frontier_call: datetime | None = None
         self._path_samples: list[PathSample] = []
+        self._path_sample_keys: set[tuple[datetime, Side, bool, bool, bool]] = set()
 
     def should_call_frontier(self, events) -> bool:
         now = datetime.now(tz=timezone.utc)
@@ -91,6 +94,18 @@ class ShadowRunner:
         candidate = make_candidate(environment, hypothesis, settings=self.settings)
         path_result = None
         economic_value = None
+        if candidate is not None:
+            target_fraction = abs(candidate.target / candidate.entry_reference - 1.0)
+            stop_fraction = abs(candidate.stop / candidate.entry_reference - 1.0)
+            generated = build_completed_path_samples(
+                bars, side=candidate.side, target_fraction=target_fraction, stop_fraction=stop_fraction,
+                horizon_minutes=max(1, candidate.max_holding_seconds // 60), max_samples=500,
+            )
+            for sample in generated:
+                key = (sample.timestamp, sample.side, sample.target_first, sample.stop_first, sample.timeout)
+                if key not in self._path_sample_keys:
+                    self._path_sample_keys.add(key)
+                    self._path_samples.append(sample)
         if candidate is not None and self._path_samples:
             path_result = analyze_path(environment, self._path_samples, side=candidate.side, horizon_seconds=candidate.max_holding_seconds)
             analyses.append(path_result)
@@ -110,7 +125,7 @@ class ShadowRunner:
         risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
         intent = None
         if risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
-            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=candidate.side, quantity=risk.approved_quantity, reference_price=environment.price.last, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=candidate.strategy_id)
+            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=candidate.side, quantity=risk.approved_quantity, reference_price=environment.price.last, stop=candidate.stop, target=candidate.target, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=candidate.strategy_id)
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
@@ -119,6 +134,11 @@ class ShadowRunner:
             versions=Versions(code_version=self.settings.code_version, experiment_id=self.settings.experiment_id, frontier_model=self.frontier.client.model_version, frontier_prompt=self.settings.frontier.prompt_version, jev_model=self.jev.client.model_version, jev_prompt=self.settings.jev.prompt_version, quant_analyzers={name: "quant-v1" for name in self.quant.names()}, policy="policy-v1", risk=self.risk.version, strategy_registry=self.settings.strategy_registry_version),
         )
         self.ledger.append_decision(record)
+        if intent is not None:
+            execution_environment = environment.model_copy(update={"timestamp": intent.earliest_execution_at})
+            fill = self.paper.execute(intent, risk, execution_environment)
+            self.ledger.append_fill(fill)
+            self.position = self.paper.position
         self._last_frontier_call = environment.decision_timestamp
         return record
 

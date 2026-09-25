@@ -70,6 +70,10 @@ class BinancePerpAdapter:
         oi = fetch_open_interest(start_ms - 2 * 86_400_000, end_ms, self.instrument.removesuffix("_PERP"))
         return merge_enrichment(bars, funding, oi)
 
+    def fetch_ohlcv(self, *, limit: int = 3000) -> pl.DataFrame:
+        """Canonical OHLCV accessor used by environment/replay callers."""
+        return self.fetch_closed_bars(limit=limit)
+
     def _book_ticker(self) -> dict | None:
         """Best effort book context; failure is represented as missing data."""
         try:

@@ -51,7 +51,7 @@ class PaperExecutor:
             raise ValueError("paper execution requires an approved PAPER intent")
         if intent.decision_id != risk_decision.decision_id:
             raise ValueError("risk decision does not match execution intent")
-        if intent.earliest_execution_at > environment.timestamp:
+        if environment.timestamp < intent.earliest_execution_at:
             raise ValueError("execution is not yet eligible")
         quantity = min(intent.quantity, risk_decision.approved_quantity)
         if quantity <= 0:

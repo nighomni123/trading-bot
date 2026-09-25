@@ -76,7 +76,7 @@ class PolicyFinalizer:
             reasons.append("net_expected_value_below_minimum")
         if jev is None:
             reasons.append("missing_jev")
-        elif jev.recommended_state not in {JevState.ENTER, JevState.WAIT}:
+        elif jev.recommended_state != JevState.ENTER:
             reasons.append(f"jev_state_{jev.recommended_state.value.lower()}")
         if jev and jev.probabilities.get("stop", 1.0) > self.thresholds.maximum_failure_probability:
             reasons.append("jev_failure_probability_exceeded")

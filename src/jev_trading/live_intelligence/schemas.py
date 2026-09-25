@@ -89,6 +89,8 @@ class MarketTick(FrozenModel):
     market_type: MarketType
     event_timestamp: datetime
     received_timestamp: datetime
+    decision_timestamp: datetime | None = None
+    execution_timestamp: datetime | None = None
     event_type: DataEventType
     sequence: int | None = None
     last: float | None = Field(default=None, gt=0)
@@ -112,6 +114,10 @@ class MarketTick(FrozenModel):
     def validate_timing_and_prices(self) -> "MarketTick":
         if self.received_timestamp < self.event_timestamp:
             raise ValueError("received_timestamp cannot precede event_timestamp")
+        if self.decision_timestamp is not None and self.decision_timestamp < self.received_timestamp:
+            raise ValueError("decision_timestamp cannot precede received_timestamp")
+        if self.execution_timestamp is not None and self.decision_timestamp is not None and self.execution_timestamp < self.decision_timestamp:
+            raise ValueError("execution_timestamp cannot precede decision_timestamp")
         if self.bid is not None and self.ask is not None and self.bid > self.ask:
             raise ValueError("bid cannot exceed ask")
         return self
@@ -399,6 +405,8 @@ class PathSample(FrozenModel):
     def validate_outcome(self) -> "PathSample":
         if sum((self.target_first, self.stop_first, self.timeout)) != 1:
             raise ValueError("path sample must have exactly one outcome")
+        if self.favorable_excursion < 0 or self.adverse_excursion < 0:
+            raise ValueError("path sample excursions must be non-negative")
         return self
 
 
@@ -487,8 +495,8 @@ class JevEvaluation(FrozenModel):
         if self.valid_until <= self.timestamp:
             raise ValueError("valid_until must be later than timestamp")
         for name, value in {**self.probabilities, **self.ratings}.items():
-            if not 0 <= value <= 1:
-                raise ValueError(f"{name} must be in [0, 1]")
+            if not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(f"{name} must be finite and in [0, 1]")
         return self
 
 
@@ -566,6 +574,8 @@ class ExecutionIntent(FrozenModel):
     side: Side
     quantity: float = Field(gt=0)
     reference_price: float = Field(gt=0)
+    stop: float | None = Field(default=None, gt=0)
+    target: float | None = Field(default=None, gt=0)
     created_at: datetime
     earliest_execution_at: datetime
     strategy_id: str
@@ -652,6 +662,25 @@ class DecisionRecord(FrozenModel):
     eventual_outcome: dict[str, Any] | None = None
     counterfactual_without_jev: PolicyAction | None = None
     versions: Versions
+
+    @model_validator(mode="after")
+    def validate_pipeline_links(self) -> "DecisionRecord":
+        if self.jev_evaluation is not None:
+            if self.jev_request is None:
+                raise ValueError("Jev evaluation requires a Jev request")
+            if self.jev_evaluation.request_id != self.jev_request.request_id:
+                raise ValueError("Jev request/evaluation ids do not match")
+        if self.execution_intent is not None:
+            if self.risk_decision.status != RiskStatus.APPROVED:
+                raise ValueError("execution intent requires approved risk")
+            if self.execution_intent.decision_id != self.decision_id:
+                raise ValueError("execution intent decision id mismatch")
+            if self.policy_decision.action not in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT, PolicyAction.EXIT, PolicyAction.REDUCE}:
+                raise ValueError("execution intent requires an execution policy action")
+        if self.paper_fill is not None:
+            if self.execution_intent is None or self.paper_fill.decision_id != self.execution_intent.decision_id:
+                raise ValueError("paper fill requires matching execution intent")
+        return self
 
 
 class ResearchObservation(FrozenModel):

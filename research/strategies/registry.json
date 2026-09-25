@@ -1,0 +1,51 @@
+{
+  "registry_version": "strategy-registry-v1",
+  "status": "RESEARCH_ONLY",
+  "strategies": [
+    {
+      "strategy_id": "momentum",
+      "version": "v1",
+      "family": "momentum",
+      "description": "Trend continuation hypothesis; requires multi-timeframe alignment and empirical path evidence.",
+      "required_market_conditions": ["trend_alignment", "adequate_liquidity"],
+      "entry_conditions": ["validated_policy_entry"],
+      "exit_conditions": ["invalidation", "target", "timeout"],
+      "invalidations": ["trend_transition", "liquidity_deterioration"],
+      "allowed_horizons": ["5m", "15m"],
+      "quant_requirements": ["trend", "volatility", "path", "economic_value"],
+      "jev_requirements": ["entry_quality", "failure_regime_likelihood"],
+      "risk_profile": "bounded",
+      "status": "PROPOSED"
+    },
+    {
+      "strategy_id": "breakout",
+      "version": "v1",
+      "family": "breakout",
+      "description": "Range expansion hypothesis; no promotion without empirical continuation evidence.",
+      "required_market_conditions": ["compression_then_expansion", "adequate_liquidity"],
+      "entry_conditions": ["validated_policy_entry"],
+      "exit_conditions": ["invalidation", "target", "timeout"],
+      "invalidations": ["failed_breakout", "spread_expansion"],
+      "allowed_horizons": ["5m", "15m"],
+      "quant_requirements": ["structure", "volatility", "path", "economic_value"],
+      "jev_requirements": ["entry_quality", "short_term_continuation"],
+      "risk_profile": "bounded",
+      "status": "PROPOSED"
+    },
+    {
+      "strategy_id": "mean_reversion",
+      "version": "v1",
+      "family": "mean_reversion",
+      "description": "Range reversion hypothesis; requires empirical path evidence and explicit invalidation.",
+      "required_market_conditions": ["range_bound", "liquidity_adequate"],
+      "entry_conditions": ["validated_policy_entry"],
+      "exit_conditions": ["invalidation", "target", "timeout"],
+      "invalidations": ["trend_acceleration", "range_failure"],
+      "allowed_horizons": ["5m", "15m"],
+      "quant_requirements": ["structure", "volatility", "path", "economic_value"],
+      "jev_requirements": ["entry_quality", "failure_regime_likelihood"],
+      "risk_profile": "bounded",
+      "status": "PROPOSED"
+    }
+  ]
+}

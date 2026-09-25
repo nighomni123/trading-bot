@@ -93,7 +93,8 @@ def build_market_environment(
     if required - set(timeframes):
         raise ValueError(f"insufficient history for timeframes: {sorted(required - set(timeframes))}")
 
-    latest_tick = next(iter(ticks), None)
+    tick_list = list(ticks)
+    latest_tick = next((tick for tick in tick_list if tick.source_role == "primary"), tick_list[0] if tick_list else None)
     close = float(latest_tick.last) if latest_tick and latest_tick.last is not None else float(latest["close"])
     bid = latest_tick.bid if latest_tick else None
     ask = latest_tick.ask if latest_tick else None
