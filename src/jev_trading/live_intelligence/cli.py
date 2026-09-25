@@ -6,17 +6,22 @@ import json
 import sys
 from pathlib import Path
 
-from .config import load_settings
+from .config import load_project_env, load_settings
 from .frontier.client import FrontierClientFactory
 from .frontier.strategist import load_prompt
 from .jev.client import JevClientFactory
 from .runner import ShadowRunner
-from jev_trading.data.normalization import BinancePerpAdapter
+from jev_trading.data.venue_adapters import (
+    BinanceLivePerpAdapter,
+    BybitPerpAdapter,
+    CompositeMarketDataAdapter,
+)
 from jev_trading.replay import ReplayEngine
 from jev_trading.research import ResearchMemory
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_project_env()
     parser = argparse.ArgumentParser(prog="jev")
     sub = parser.add_subparsers(dest="command", required=True)
     status = sub.add_parser("status", help="show paper-mode status")
@@ -50,13 +55,23 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     settings = load_settings(args.config)
     if args.command == "status":
-        print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
+        print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "primary_source": settings.market.primary_source, "secondary_source": settings.market.secondary_source, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
         return 0
     frontier_client = FrontierClientFactory.create(settings.frontier.provider, replay_allow_trade=True)
     jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
     jev_client = JevClientFactory.create(settings.jev.provider, prompt=jev_prompt)
-    runner = ShadowRunner(settings, BinancePerpAdapter(), frontier_client, jev_client, arm=args.arm, ledger_path=args.ledger)
-    runner.run_forever(iterations=args.iterations)
+    primary = BinanceLivePerpAdapter(source_role=settings.market.primary_source_role)
+    secondary = (BybitPerpAdapter(),) if settings.market.secondary_source == "bybit" else ()
+    adapter = CompositeMarketDataAdapter(primary, secondary)
+    adapter.start()
+    try:
+        runner = ShadowRunner(
+            settings, adapter, frontier_client, jev_client,
+            arm=args.arm, ledger_path=args.ledger,
+        )
+        runner.run_forever(iterations=args.iterations)
+    finally:
+        adapter.close()
     print(f"EXECUTION MODE: PAPER\nLIVE ORDERS: DISABLED\nLEDGER: {args.ledger}")
     return 0
 

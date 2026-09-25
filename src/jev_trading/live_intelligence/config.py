@@ -21,6 +21,7 @@ class MarketConfig(StrictConfig):
     market_type: Literal["PERPETUAL"] = "PERPETUAL"
     primary_source: str = "binance"
     primary_source_role: str = "primary"
+    secondary_source: Literal["bybit"] | None = "bybit"
     required_source_roles: tuple[str, ...] = ("primary",)
     warmup_bars: int = Field(default=3000, ge=300)
     poll_seconds: float = Field(default=15.0, gt=0)
@@ -183,7 +184,41 @@ def project_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _unquote_env_value(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def load_project_env(path: str | Path | None = None) -> dict[str, str]:
+    """Load a small project-root .env without overriding the real environment."""
+    candidate = Path(path) if path is not None else project_root() / ".env"
+    if not candidate.is_absolute():
+        candidate = project_root() / candidate
+    if not candidate.is_file():
+        return {}
+    loaded: dict[str, str] = {}
+    for line_number, raw_line in enumerate(candidate.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            raise ValueError(f"invalid .env assignment at {candidate}:{line_number}")
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or not all(character.isalnum() or character == "_" for character in key):
+            raise ValueError(f"invalid .env variable name at {candidate}:{line_number}")
+        if key not in os.environ:
+            os.environ[key] = _unquote_env_value(value)
+            loaded[key] = os.environ[key]
+    return loaded
+
+
 def load_settings(path: str | Path = "configs/live.json") -> LiveSettings:
+    load_project_env()
     candidate = Path(path)
     if not candidate.is_absolute():
         candidate = project_root() / candidate

@@ -62,16 +62,44 @@ Provider settings support:
 - `replay`
 - `openai_compatible`
 
-For OpenRouter, set environment variables rather than committing secrets:
+For local OpenRouter configuration, copy the tracked template and create an ignored
+`.env` at the repository root:
 
 ```bash
-export OPENROUTER_API_KEY='...'
-export OPENROUTER_BASE_URL='https://openrouter.ai/api/v1'
-export FRONTIER_MODEL='provider/model'
-export JEV_MODEL='provider/model'
+cp .env.example .env
+chmod 600 .env
 ```
 
-The default provider mode is `disabled` and fails closed. Execution mode is always `PAPER`; live orders are disabled.
+Then fill in:
+
+```dotenv
+OPENROUTER_API_KEY=your-key-here
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+FRONTIER_MODEL=provider/frontier-model
+JEV_MODEL=provider/jev-model
+```
+
+The application loads the project-root `.env` automatically when the CLI or
+`load_settings()` runs. Existing process environment variables take precedence
+over values in `.env`; `.env` never overrides an already-exported variable.
+Blank values, comments, `export KEY=value`, and single/double-quoted values are
+supported. The loader never prints or persists the API key.
+
+To enable OpenRouter, also set the provider mode in `configs/live.json`:
+
+```json
+"provider": {
+  "provider": "openai_compatible",
+  "base_url": "https://openrouter.ai/api/v1",
+  "model": "configured-at-deployment",
+  "api_key_env": "OPENROUTER_API_KEY"
+}
+```
+
+`OPENROUTER_BASE_URL`, `FRONTIER_MODEL`, and `JEV_MODEL` are used when the JSON
+model/base URL is left at its deployment placeholder. The default provider mode
+is `disabled` and fails closed. Execution mode is always `PAPER`; live orders are
+disabled.
 
 ## CLI
 

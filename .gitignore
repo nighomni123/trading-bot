@@ -1,4 +1,7 @@
-# Secrets — monid CLI state includes a live API key
+# Secrets — local environment and monid CLI state
+.env
+.env.*
+!.env.example
 .monid/
 
 # Agent workspace
