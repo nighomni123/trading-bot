@@ -342,10 +342,10 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. The deterministic baseline selected 0 of 60 evaluation-slice candidates (net expected value never positive), reproducing the preserved `NO EDGE` result. A measurable A/B therefore requires a separately versioned quant/policy change to create a non-empty baseline population; that is out of scope for this stage and must not be smuggled in.
+2. The deterministic baseline selected 0 of 30 evaluation-slice candidates (net expected value never positive), reproducing the preserved `NO EDGE` result. Stage 8 (`docs/stage-8-quant-economic-diagnostic.md`) traced the cause: observed p_target reaches ~10% of the break-even requirement, realized target-hit rate is 0.000 across all prediction buckets, and median gross is already negative before the 15 bps cost stack. The binding constraint is the quant target/estimator and the 2:1 barrier geometry, not the cost model and not the LLM. A measurable A/B therefore requires a separately versioned quant experiment with a fresh evaluation period; that is out of scope for this stage and must not be smuggled in.
 3. Provider latency is the binding constraint on intelligence cadence: p95 ~24.8s per typed tool call at a serial request rate of ~3.9 requests/minute. Availability is no longer a blocker (10/10 valid tool calls, zero 429s, after credential rotation).
 
-Stages 4–7 are documented in `docs/stage-4-7-report.md`. Stage 4 (provider reliability) and Stage 5 (deterministic recovery) both **PASS**. Stage 7 (first controlled A/B) was **not executed**: the baseline provides no selection opportunity. That is the sole remaining blocker, and it is recorded rather than worked around.
+Stages 4–8 are documented in `docs/stage-4-7-report.md` and `docs/stage-8-quant-economic-diagnostic.md`. Stage 4 (provider reliability) and Stage 5 (deterministic recovery) both **PASS**. Stage 7 (first controlled A/B) remains **not executed**: the baseline provides no selection opportunity. That is the sole remaining blocker, and it is recorded rather than worked around.
 
 Until those blockers are resolved, the correct status is:
 

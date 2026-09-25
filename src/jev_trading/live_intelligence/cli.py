@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .config import load_project_env, load_settings
 from .decision_quality import run_decision_quality
+from .quant.economic_diagnostic import run_quant_diagnostic
 from .frontier.client import FrontierClientFactory
 from .frontier.strategist import load_prompt
 from .jev.client import JevClientFactory
@@ -54,7 +55,18 @@ def main(argv: list[str] | None = None) -> int:
     quality.add_argument("--candidates", type=int, default=12)
     quality.add_argument("--horizon", type=int, default=15, help="outcome horizon in minutes")
     quality.add_argument("--quant-only", action="store_true", help="skip all LLM calls (harness self-check)")
+    diagnostic = sub.add_parser("quant-diagnostic", help="Stage 8 read-only economic diagnostic; never executes")
+    diagnostic.add_argument("--config", default="configs/live.json")
+    diagnostic.add_argument("--candidates", type=int, default=60)
+    diagnostic.add_argument("--calibration-rows", type=int, default=200)
     args = parser.parse_args(argv)
+    if args.command == "quant-diagnostic":
+        payload = run_quant_diagnostic(
+            load_settings(args.config), count=args.candidates,
+            calibration_rows=args.calibration_rows,
+        )
+        print(json.dumps(payload, indent=2))
+        return 0
     if args.command == "decision-quality":
         payload = run_decision_quality(
             load_settings(args.config), count=args.candidates,
