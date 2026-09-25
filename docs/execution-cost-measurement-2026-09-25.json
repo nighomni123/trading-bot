@@ -1,0 +1,75 @@
+{
+  "measurement": {
+    "venue_reachable": true,
+    "error": null,
+    "samples": 40,
+    "spread_bps": {
+      "n": 40,
+      "median": 0.011945340509847304,
+      "p90": 0.011945540282550345,
+      "max": 0.011946210991090011
+    },
+    "taker_slippage_bps": {
+      "n": 40,
+      "median": 0.00597267025579279,
+      "p90": 0.22098404793696685,
+      "max": 0.7346919759085756
+    },
+    "maker_slippage_bps": {
+      "n": 40,
+      "median": 0.005972670254054514,
+      "p90": 0.22098035245664677,
+      "max": 0.7227457649192239
+    },
+    "book_depth_levels": {
+      "n": 40,
+      "median": 40.0,
+      "p90": 40,
+      "max": 40
+    },
+    "top_level_notional_usd": {
+      "n": 40,
+      "median": 809734.7749000001,
+      "p90": 1045679.3808,
+      "max": 1389747.0899
+    }
+  },
+  "profiles": [
+    {
+      "name": "configured_taker_taker",
+      "mode": "taker/taker",
+      "fee_rt_bps": 10.0,
+      "slippage_source": "assumed",
+      "total_rt_bps": 15.0,
+      "achievable": true,
+      "note": "The current configs/live.json assumption, retained for comparison."
+    },
+    {
+      "name": "measured_taker_taker",
+      "mode": "taker/taker",
+      "fee_rt_bps": 10.0,
+      "slippage_source": "measured",
+      "total_rt_bps": 11.005972670255792,
+      "achievable": true,
+      "note": "Documented base-tier taker fee with book-walked slippage."
+    },
+    {
+      "name": "measured_taker_maker",
+      "mode": "taker/maker",
+      "fee_rt_bps": 14.0,
+      "slippage_source": "measured",
+      "total_rt_bps": 15.005972670255792,
+      "achievable": true,
+      "note": "Enter taker, exit maker. Requires the bot to rest a passive exit."
+    },
+    {
+      "name": "measured_maker_maker",
+      "mode": "maker/maker",
+      "fee_rt_bps": 8.0,
+      "slippage_source": "measured",
+      "total_rt_bps": 9.005972670254055,
+      "achievable": false,
+      "note": "Both legs passive. Fill probability is NOT modelled here, so this profile is reported but never used to declare viability."
+    }
+  ]
+}

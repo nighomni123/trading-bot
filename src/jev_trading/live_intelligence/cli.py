@@ -59,7 +59,25 @@ def main(argv: list[str] | None = None) -> int:
     diagnostic.add_argument("--config", default="configs/live.json")
     diagnostic.add_argument("--candidates", type=int, default=60)
     diagnostic.add_argument("--calibration-rows", type=int, default=200)
+    economics = sub.add_parser("execution-costs", help="measure live execution costs; never trades")
+    economics.add_argument("--symbol", default="BTCUSDT")
+    economics.add_argument("--samples", type=int, default=40)
+    economics.add_argument("--notional", type=float, default=1000.0)
     args = parser.parse_args(argv)
+    if args.command == "execution-costs":
+        from jev_trading.quant.execution_economics import build_profiles, measure_book, profile_total_bps
+        measurement = measure_book(symbol=args.symbol, samples=args.samples, notional_usd=args.notional)
+        print(json.dumps({
+            "measurement": measurement.summary(),
+            "profiles": [
+                {"name": p.name, "mode": p.execution_mode, "slippage_source": p.slippage_source,
+                 "achievable": p.achievable, "total_rt_bps": profile_total_bps(p, measurement),
+                 "note": p.note}
+                for p in build_profiles(measurement)
+            ],
+            "execution": "NOT_INVOKED",
+        }, indent=2))
+        return 0
     if args.command == "quant-diagnostic":
         payload = run_quant_diagnostic(
             load_settings(args.config), count=args.candidates,

@@ -1,6 +1,7 @@
 """Label parity: vectorized labels must equal the live path estimator exactly."""
 from __future__ import annotations
 
+import numpy as np
 import polars as pl
 import pytest
 
@@ -109,3 +110,56 @@ def test_atr_fraction_is_causal():
     truncated = pl.Series(__import__("jev_trading.labels.live_barrier", fromlist=["atr_fraction"]).atr_fraction(bars.head(120)))
     for i in range(10, 115):
         assert full[i] == pytest.approx(truncated[i], abs=1e-12)
+
+
+# --------------------------------------------------------------- numpy path
+
+from jev_trading.labels.live_barrier import build_live_barrier_labels_numpy  # noqa: E402
+
+
+@pytest.mark.parametrize("side", [LONG, SHORT])
+@pytest.mark.parametrize("horizon", [15, 60])
+def test_numpy_labels_match_polars_reference(side, horizon):
+    """The fast path must be byte-equivalent to the reference implementation."""
+    bars = _bars(4000, seed=11)
+    tf = pl.Series([0.004] * bars.height)
+    sf = pl.Series([0.002] * bars.height)
+    ref = build_live_barrier_labels(bars, tf, sf, side, horizon)
+    fast = build_live_barrier_labels_numpy(bars, tf, sf, side, horizon)
+    r = ref["outcome"].to_numpy().astype(float)
+    f = fast["outcome"].to_numpy().astype(int)
+    valid = r >= 0
+    assert valid.sum() > 3000
+    assert np.array_equal(r[valid], f[valid]), f"outcome mismatch on valid rows: {(r[valid] != f[valid]).sum()}"
+    assert (f[~valid] < 0).all(), "numpy must not invent valid rows the reference rejects"
+    # tp_time: polars nulls an untouched barrier; numpy uses -1. Normalize both.
+    rt = np.nan_to_num(ref["time_to_tp"].to_numpy().astype(float), nan=-1)
+    ft = fast["time_to_tp"].to_numpy().astype(float)
+    assert np.array_equal(rt[valid], ft[valid])
+
+
+def test_numpy_labels_match_live_path_estimator():
+    """The ultimate authority: the live loop itself."""
+    bars = _bars(3000, seed=13)
+    tf, sf = 0.004, 0.002
+    lab = build_live_barrier_labels_numpy(
+        bars, pl.Series([tf] * bars.height), pl.Series([sf] * bars.height), LONG, 15,
+    )
+    samples = build_completed_path_samples(
+        bars, side=Side.LONG, target_fraction=tf, stop_fraction=sf,
+        horizon_minutes=15, max_samples=10_000,
+    )
+    from datetime import datetime, timezone
+    live_by_entry = {s.timestamp: s for s in samples}
+    checked = 0
+    for row in lab.iter_rows(named=True):
+        if row["outcome"] is None or row["outcome"] < 0 or row["entry_timestamp"] is None:
+            continue
+        entry_ts = datetime.fromtimestamp(int(row["entry_timestamp"]) / 1000, tz=timezone.utc)
+        live = live_by_entry.get(entry_ts)
+        if live is None:
+            continue
+        expected = TARGET_FIRST if live.target_first else STOP_FIRST if live.stop_first else TIMEOUT
+        assert row["outcome"] == expected, f"numpy/live mismatch at {entry_ts}"
+        checked += 1
+    assert checked > 100

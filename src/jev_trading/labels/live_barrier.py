@@ -94,3 +94,96 @@ def build_live_barrier_labels(
 
 
 STOP_FIRST, TIMEOUT, TARGET_FIRST = 0, 1, 2
+
+
+# ---------------------------------------------------------------- fast path
+#
+# The polars implementation above is the reference: it is what the parity test
+# pins against the live loop. It is O(horizon) list-concats per barrier, which
+# costs minutes at horizon 240 on a dual-core laptop. The numpy path computes
+# the identical first-touch outcome with strided windows and argmax, chunked to
+# bound peak memory. `tests/test_live_barrier_parity.py` asserts the two agree.
+
+import numpy as np  # noqa: E402
+
+
+def build_live_barrier_labels_numpy(
+    bars: pl.DataFrame,
+    target_fraction: pl.Series,
+    stop_fraction: pl.Series,
+    side: int,
+    horizon: int = 15,
+    chunk: int = 50_000,
+) -> pl.DataFrame:
+    """Numpy equivalent of `build_live_barrier_labels`, same tie-break and validity.
+
+    Chunked over rows so peak memory stays bounded on small machines.
+    """
+    if side not in (LONG, SHORT):
+        raise ValueError("side must be LONG or SHORT")
+    if horizon < 1:
+        raise ValueError("horizon must be positive")
+
+    n = bars.height
+    decision_ts = bars["timestamp"].to_numpy()
+    entry_ts = np.empty(n, dtype=decision_ts.dtype)
+    entry_ts[:-1] = decision_ts[1:]
+    entry_ts[-1] = 0
+
+    open_ = bars["open"].to_numpy().astype(np.float64)
+    high = bars["high"].to_numpy().astype(np.float64)
+    low = bars["low"].to_numpy().astype(np.float64)
+    entry = np.empty(n, dtype=np.float64)
+    entry[:-1] = open_[1:]
+    entry[-1] = 0.0
+
+    tf = np.asarray(target_fraction, dtype=np.float64)
+    sf = np.asarray(stop_fraction, dtype=np.float64)
+    target = entry * (1.0 + side * tf)
+    stop = entry * (1.0 - side * sf)
+
+    outcome = np.full(n, -1, dtype=np.int8)
+    tp_time = np.full(n, -1, dtype=np.int16)
+    sl_time = np.full(n, -1, dtype=np.int16)
+
+    window = np.lib.stride_tricks.sliding_window_view
+    # A decision at row i needs entry at i+1 and a timeout exit bar at
+    # i+horizon+1, so the last fully-valid decision row is n-horizon-1 (exclusive
+    # bound n-horizon-1). Match the reference's `valid` mask exactly.
+    limit = n - horizon - 1
+    for start in range(0, max(limit, 0), chunk):
+        end = min(start + chunk, limit)
+        # Barriers are checked on bars i+1..i+horizon, so each row's window must
+        # begin at the entry bar (i+1), not at i.
+        base = start + 1
+        if side == LONG:
+            tp = window(high[base:end + horizon], horizon)[:end - start] >= target[start:end, None]
+            sl = window(low[base:end + horizon], horizon)[:end - start] <= stop[start:end, None]
+        else:
+            tp = window(low[base:end + horizon], horizon)[:end - start] <= target[start:end, None]
+            sl = window(high[base:end + horizon], horizon)[:end - start] >= stop[start:end, None]
+        tp_first = np.where(tp.any(1), np.argmax(tp, axis=1) + 1, horizon + 1)
+        sl_first = np.where(sl.any(1), np.argmax(sl, axis=1) + 1, horizon + 1)
+        first = np.minimum(tp_first, sl_first)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            # Mirror the reference: a barrier that was never touched is null (-1).
+            tp_time[start:end] = np.where(tp_first > horizon, -1, tp_first).astype(np.int16)
+            sl_time[start:end] = np.where(sl_first > horizon, -1, sl_first).astype(np.int16)
+        # stop-favouring tie-break, identical to the polars reference
+        code = np.where(first > horizon, TIMEOUT, np.where(sl_first <= tp_first, STOP_FIRST, TARGET_FIRST))
+        outcome[start:end] = code.astype(np.int8)
+
+    # Rows lacking a full forward window stay null, as in the reference.
+    outcome[max(limit, 0):] = -1
+    tp_time[max(limit, 0):] = -1
+    sl_time[max(limit, 0):] = -1
+    return pl.DataFrame({
+        "decision_timestamp": decision_ts,
+        "entry_timestamp": entry_ts,
+        "entry_price": entry,
+        "target_price": target,
+        "stop_price": stop,
+        "outcome": pl.Series(outcome).cast(pl.Int8),
+        "time_to_tp": pl.Series(tp_time).cast(pl.Int16),
+        "time_to_sl": pl.Series(sl_time).cast(pl.Int16),
+    })
