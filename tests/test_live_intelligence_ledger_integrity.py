@@ -77,16 +77,35 @@ def test_checkpoint_restores_or_fails_closed(tmp_path: Path):
     assert restored.ledger.last_hash == runner.ledger.last_hash
     assert restored.account.capital_usd == runner.account.capital_usd
     assert restored.position == runner.position
+    # Stage 5: a stale/corrupt checkpoint is rebuilt from the committed ledger
+    # suffix instead of hard-failing, so a crash in the append->checkpoint
+    # window is recoverable.
     runner.checkpoint_path.write_text('{"schema_version":1,"ledger_hash":"wrong"}')
-    with pytest.raises(RuntimeError, match="checkpoint"):
-        ShadowRunner(settings, adapter, DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)
+    rebuilt = ShadowRunner(settings, adapter, DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)
+    assert rebuilt.account.capital_usd == runner.account.capital_usd
+    assert rebuilt.position == runner.position
 
 
-def test_missing_checkpoint_for_nonempty_ledger_fails_closed(tmp_path: Path):
+def test_missing_checkpoint_recovers_from_ledger_suffix(tmp_path: Path):
     settings = load_settings()
     ledger_path = tmp_path / "ledger.jsonl"
     runner = ShadowRunner(settings, ReplayAdapter("primary", "binance-futures", "BTCUSDT_PERP", bars(), []), DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)
     runner.run_once()
     runner.checkpoint_path.unlink()
-    with pytest.raises(RuntimeError, match="checkpoint"):
+    restored = ShadowRunner(settings, ReplayAdapter("primary", "binance-futures", "BTCUSDT_PERP", bars(), []), DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)
+    assert restored.position == runner.position
+    assert restored.account.capital_usd == runner.account.capital_usd
+
+
+def test_unrecoverable_state_still_fails_closed(tmp_path: Path):
+    """Recovery must never guess: a checkpoint from another experiment is rejected."""
+    settings = load_settings()
+    ledger_path = tmp_path / "ledger.jsonl"
+    runner = ShadowRunner(settings, ReplayAdapter("primary", "binance-futures", "BTCUSDT_PERP", bars(), []), DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)
+    runner.run_once()
+    import json
+    payload = json.loads(runner.checkpoint_path.read_text())
+    payload["experiment_id"] = "OTHER-EXPERIMENT"
+    runner.checkpoint_path.write_text(json.dumps(payload))
+    with pytest.raises(RuntimeError, match="experiment"):
         ShadowRunner(settings, ReplayAdapter("primary", "binance-futures", "BTCUSDT_PERP", bars(), []), DisabledFrontierClient(), DisabledJevClient(), ledger_path=ledger_path)

@@ -819,6 +819,9 @@ class DecisionRecord(FrozenModel):
     eventual_outcome: dict[str, Any] | None = None
     counterfactual_without_jev: PolicyAction | None = None
     provider_failures: tuple[ProviderFailureRecord, ...] = ()
+    # Committed runtime state, so a checkpoint that trails the ledger can be
+    # rebuilt from the ledger suffix instead of guessing.
+    runtime_state: dict[str, Any] | None = None
     versions: Versions
 
     @model_validator(mode="after")

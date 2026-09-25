@@ -333,17 +333,20 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 - [x] Public Binance/Bybit live-feed adapters and paper-only source isolation
 - [x] Future-dated exchange events fail closed
 - [x] Project-root `.env` loading, precedence, `.env.example`, and secret-ignore tests
+- [x] Ledger-suffix checkpoint reconstruction and crash/resume equivalence
+- [x] Frontier/Jev typed tool-call interface and 24-case interface benchmark
 - [ ] Remote archive branch pushed and verified
 - [x] OpenRouter live-configuration smoke (typed tool path; free-model rate limit observed)
-- [ ] Full checkpoint-suffix reconstruction after crash
-- [ ] Multi-week frozen shadow experiment
+- [ ] First controlled A/B experiment (blocked: no baseline population + provider 429)
 
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. Add durable provider rate-limit handling and repeat the benchmark at a controlled request rate; the typed interface passed 24/24, but the free model returned HTTP 429 after the burst.
-3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
-4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
+2. The free provider is in a sustained HTTP 429 window even at workers=1 with a 20s minimum interval. The reliability layer handles it correctly (bounded retries, categorized, fail-closed, no execution), but live treatment decisions cannot be populated until the endpoint is available again.
+3. The deterministic baseline selected 0 of 60 evaluation-slice candidates (net expected value never positive), reproducing the preserved `NO EDGE` result. A measurable A/B therefore requires a separately versioned quant/policy change to create a non-empty baseline population; that is out of scope for this stage and must not be smuggled in.
+4. Full checkpoint-suffix reconstruction and crash-boundary equivalence tests are complete as of the Stage 5 commit; re-run after the archive push.
+
+Stages 4–7 are documented in `docs/stage-4-7-report.md`. Stage 7 (first controlled A/B) was **not executed**: the baseline provides no selection opportunity and the provider is rate-limited. Both blockers are recorded rather than worked around.
 
 Until those blockers are resolved, the correct status is:
 

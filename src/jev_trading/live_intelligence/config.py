@@ -37,6 +37,7 @@ class ProviderConfig(StrictConfig):
     temperature: float = Field(default=0.2, ge=0, le=2)
     max_retries: int = Field(default=2, ge=0, le=5)
     retry_backoff_seconds: float = Field(default=0.5, ge=0, le=10)
+    max_retry_delay_seconds: float = Field(default=30.0, gt=0, le=300)
     supports_response_format: bool = False
     supports_tool_calling: bool = False
     supports_reasoning: bool = False

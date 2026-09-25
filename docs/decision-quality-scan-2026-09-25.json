@@ -1,0 +1,13 @@
+{
+  "generated_for": "Stage 6.1-6.2 baseline characterization",
+  "history": "data/btcusdt_1m.parquet",
+  "history_span": "2021-01-01 .. 2025-12-31 (2,629,440 one-minute bars)",
+  "evaluation_window": "last 60 evenly spaced candidate timestamps (3-day spacing) ending 2025-12-31",
+  "horizon_minutes": 15,
+  "arm": "QUANT_ONLY (deterministic quant + policy + risk; no LLM)",
+  "candidates_built": 60,
+  "target_probability": {"min": 0.0, "median": 0.021, "max": 0.088, "nonzero": 50},
+  "net_expected_value": {"min": -0.002476, "median": -0.001492, "max": -0.00088, "positive": 0},
+  "policy_eligible": 0,
+  "conclusion": "The deterministic baseline selected 0 of 60 candidates: net expected value was never positive on this evaluation slice. This is a faithful reproduction of the preserved historical NO EDGE result. Consequently an A/B of 'LLM-selected vs quant-selected' outcomes is not measurable with the current configuration, because the baseline provides no selection opportunity. Changing quant parameters to create one is out of scope for this stage and forbidden by the stage constraints."
+}

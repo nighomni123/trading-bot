@@ -86,7 +86,7 @@ def _run_frontier(settings: LiveSettings, index: int) -> dict[str, Any]:
     )
     started = time.perf_counter()
     result = strategist.generate(environment, request_id=f"benchmark-frontier-{index}", quant_evidence=evidence)
-    return {"component": "frontier", "case": index, "ok": True, "interface_mode": result.interface_mode, "tool_name": result.tool_name, "latency_ms": (time.perf_counter() - started) * 1000}
+    return {"component": "frontier", "case": index, "ok": True, "interface_mode": result.interface_mode, "tool_name": result.tool_name, "retry_count": client.last_retry_count, "latency_ms": (time.perf_counter() - started) * 1000}
 
 
 def _run_jev(settings: LiveSettings, index: int) -> dict[str, Any]:
@@ -108,18 +108,44 @@ def _run_jev(settings: LiveSettings, index: int) -> dict[str, Any]:
     )
     started = time.perf_counter()
     result = evaluator.evaluate(request)
-    return {"component": "jev", "case": index, "ok": True, "interface_mode": result.interface_mode, "tool_name": result.tool_name, "latency_ms": (time.perf_counter() - started) * 1000}
+    return {"component": "jev", "case": index, "ok": True, "interface_mode": result.interface_mode, "tool_name": result.tool_name, "retry_count": client.last_retry_count, "latency_ms": (time.perf_counter() - started) * 1000}
 
 
-def run_benchmark(settings: LiveSettings, *, cases: int = 24, workers: int = 4) -> dict[str, Any]:
+_throttle_lock = __import__("threading").Lock()
+_last_start = 0.0
+
+
+def _throttle(min_interval_seconds: float) -> None:
+    """Space every request start so a free endpoint is not deliberately bursted."""
+    global _last_start
+    if min_interval_seconds <= 0:
+        return
+    with _throttle_lock:
+        wait = _last_start + min_interval_seconds - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_start = time.monotonic()
+
+
+def _run_gated(fn, settings: LiveSettings, index: int, min_interval_seconds: float) -> dict[str, Any]:
+    _throttle(min_interval_seconds)
+    return fn(settings, index)
+
+
+def run_benchmark(settings: LiveSettings, *, cases: int = 24, workers: int = 4, delay: float = 0.0) -> dict[str, Any]:
     tasks = []
     for index in range(cases):
         tasks.append(("frontier", index))
         tasks.append(("jev", index))
     results: list[dict[str, Any]] = []
+    started_at = time.perf_counter()
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {
-            pool.submit(_run_frontier if component == "frontier" else _run_jev, settings, index): (component, index)
+            pool.submit(
+                _run_gated,
+                _run_frontier if component == "frontier" else _run_jev,
+                settings, index, delay,
+            ): (component, index)
             for component, index in tasks
         }
         for future in as_completed(futures):
@@ -131,9 +157,12 @@ def run_benchmark(settings: LiveSettings, *, cases: int = 24, workers: int = 4) 
                     "component": component, "case": index, "ok": False,
                     "interface_mode": None, "tool_name": None,
                     "latency_ms": None,
+                    "retry_count": getattr(exc, "retry_count", 0),
+                    "retry_after": getattr(exc, "retry_after", None),
                     "error_category": getattr(exc, "category", type(exc).__name__),
                     "http_status": getattr(exc, "http_status", None),
                 })
+    elapsed_minutes = max((time.perf_counter() - started_at) / 60.0, 1e-9)
     latencies = sorted(result["latency_ms"] for result in results if result.get("latency_ms") is not None)
     def percentile(value):
         if not latencies:
@@ -142,14 +171,21 @@ def run_benchmark(settings: LiveSettings, *, cases: int = 24, workers: int = 4) 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cases": cases,
+        "workers": max(1, workers),
+        "delay_seconds": delay,
         "results": sorted(results, key=lambda item: (item["component"], item["case"])),
         "summary": {
             "total": len(results),
             "valid": sum(result["ok"] for result in results),
-            "validation_failures": sum(not result["ok"] for result in results),
+            "final_failures": sum(not result["ok"] for result in results),
+            "validation_failures": sum(result.get("error_category") == "validation" for result in results),
+            "rate_limited": sum(result.get("http_status") == 429 for result in results),
+            "retries": sum(result.get("retry_count", 0) or 0 for result in results),
             "tool_call_successes": sum(result.get("interface_mode") == "tool_call" for result in results),
             "latency_p50_ms": percentile(0.50),
             "latency_p95_ms": percentile(0.95),
+            "latency_p99_ms": percentile(0.99),
+            "requests_per_minute": round(len(results) / elapsed_minutes, 2),
             "trading_execution": "NOT_INVOKED",
         },
     }

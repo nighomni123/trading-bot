@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .config import load_project_env, load_settings
+from .decision_quality import run_decision_quality
 from .frontier.client import FrontierClientFactory
 from .frontier.strategist import load_prompt
 from .jev.client import JevClientFactory
@@ -47,9 +48,22 @@ def main(argv: list[str] | None = None) -> int:
     benchmark.add_argument("--config", default="configs/live.json")
     benchmark.add_argument("--cases", type=int, default=12)
     benchmark.add_argument("--workers", type=int, default=4)
+    benchmark.add_argument("--delay", type=float, default=0.0, help="minimum seconds between provider request starts")
+    quality = sub.add_parser("decision-quality", help="historical candidate-level selection quality; never executes")
+    quality.add_argument("--config", default="configs/live.json")
+    quality.add_argument("--candidates", type=int, default=12)
+    quality.add_argument("--horizon", type=int, default=15, help="outcome horizon in minutes")
+    quality.add_argument("--quant-only", action="store_true", help="skip all LLM calls (harness self-check)")
     args = parser.parse_args(argv)
+    if args.command == "decision-quality":
+        payload = run_decision_quality(
+            load_settings(args.config), count=args.candidates,
+            horizon_minutes=args.horizon, with_intelligence=not args.quant_only,
+        )
+        print(json.dumps(payload, indent=2))
+        return 0
     if args.command == "provider-benchmark":
-        payload = run_benchmark(load_settings(args.config), cases=args.cases, workers=args.workers)
+        payload = run_benchmark(load_settings(args.config), cases=args.cases, workers=args.workers, delay=args.delay)
         print(json.dumps(payload, indent=2))
         return 0
     if args.command == "provider-smoke":

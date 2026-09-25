@@ -16,6 +16,8 @@ from jev_trading.live_intelligence.provider_errors import (
     ProviderFailure,
     classify_request_error,
     http_status,
+    next_retry_delay,
+    retry_after_seconds,
     retryable_request_error,
 )
 from jev_trading.live_intelligence.schemas import JevEvaluation, JevRequest
@@ -93,6 +95,7 @@ class OpenAICompatibleJevClient:
     temperature: float = 0.0
     max_retries: int = 2
     retry_backoff_seconds: float = 0.5
+    max_retry_delay_seconds: float = 30.0
     supports_response_format: bool = False
     supports_tool_calling: bool = False
     supports_reasoning: bool = False
@@ -100,6 +103,7 @@ class OpenAICompatibleJevClient:
     tool: dict[str, Any] | None = None
     last_interface: str = "json"
     last_tool_name: str | None = None
+    last_retry_count: int = 0
 
     def evaluate(self, request: JevRequest) -> JevEvaluation:
         key = os.environ.get(self.api_key_env)
@@ -109,6 +113,7 @@ class OpenAICompatibleJevClient:
                 provider=self.provider, model=self.model, category="authentication",
             )
         last_error: Exception | None = None
+        self.last_retry_count = 0
         for attempt in range(self.max_retries + 1):
             try:
                 request_body = {
@@ -138,14 +143,19 @@ class OpenAICompatibleJevClient:
             except requests.RequestException as exc:
                 last_error = exc
                 category = classify_request_error(exc)
+                delay, retry_after = next_retry_delay(
+                    exc, attempt, self.retry_backoff_seconds, self.max_retry_delay_seconds,
+                )
                 if not retryable_request_error(exc) or attempt >= self.max_retries:
                     raise JevUnavailable(
                         f"OpenAI-compatible Jev request failed: {category}",
                         provider=self.provider, model=self.model, category=category,
                         http_status=http_status(exc), retry_count=attempt + 1,
                         request_id=request.request_id,
+                        retry_after=retry_after, chosen_delay=delay,
                     ) from exc
-                time.sleep(self.retry_backoff_seconds * (2 ** attempt))
+                time.sleep(delay)
+                self.last_retry_count = attempt + 1
                 continue
             try:
                 message = response.json()["choices"][0]["message"]
@@ -208,6 +218,7 @@ class JevClientFactory:
             temperature=config.temperature,
             max_retries=config.max_retries,
             retry_backoff_seconds=config.retry_backoff_seconds,
+            max_retry_delay_seconds=config.max_retry_delay_seconds,
             supports_response_format=env_bool("JEV_SUPPORTS_RESPONSE_FORMAT", config.supports_response_format),
             supports_tool_calling=env_bool("JEV_SUPPORTS_TOOL_CALLING", config.supports_tool_calling),
             supports_reasoning=env_bool("JEV_SUPPORTS_REASONING", config.supports_reasoning),

@@ -1,0 +1,18 @@
+{
+  "generated_for": "Stage 4.8 sustainable benchmark",
+  "model": "inclusionai/ling-3.0-flash-fin:free",
+  "mode": "workers=1, delay=20s, cases=4 (8 requests)",
+  "cooldown_before_run_seconds": 60,
+  "summary": {
+    "total": 8,
+    "valid": 0,
+    "final_failures": 8,
+    "validation_failures": 0,
+    "rate_limited": 8,
+    "retries": 24,
+    "tool_call_successes": 0,
+    "requests_per_minute": 3.37,
+    "trading_execution": "NOT_INVOKED"
+  },
+  "interpretation": "At the lowest practical concurrency the free endpoint still returned HTTP 429 for every request (3 bounded retries each). The reliability layer classified, retried within bounds, and failed closed with no execution. This is a sustained provider rate-limit window, not a client burst artifact. The provider is currently unavailable for live treatment decisions."
+}

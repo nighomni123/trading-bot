@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -147,40 +148,73 @@ class ShadowRunner:
         self._last_jev_call = timestamp
         self._jev_call_times.append(timestamp)
 
-    def _restore_checkpoint(self) -> None:
-        if not self.checkpoint_path.exists():
-            if self.ledger.records() or self.ledger.fills() or self.ledger.trades():
-                raise RuntimeError("durable runtime checkpoint is missing for a non-empty ledger")
-            return
-        try:
-            payload = json.loads(self.checkpoint_path.read_text())
-            if payload.get("schema_version") != 1:
-                raise ValueError("unsupported runtime checkpoint schema")
-            if payload.get("ledger_hash") != self.ledger.last_hash:
-                raise ValueError("runtime checkpoint is not anchored to the ledger")
-            self.position = PositionState.model_validate(payload["position"])
-            self.account = AccountState.model_validate(payload["account"])
-            self.execution = ExecutionState.model_validate(payload["execution"])
-            self.paper.restore_state(payload["paper"])
-            pending = payload.get("pending")
-            self._pending_state = PendingIntentState.model_validate(pending) if pending else None
-            self._pending_intent = self._pending_state.intent if self._pending_state else None
-            self._pending_risk = self._pending_state.risk_decision if self._pending_state else None
-            self._pending_decision_id = self._pending_intent.decision_id if self._pending_intent else None
-            self._trading_day = datetime.fromisoformat(payload["trading_day"]).date()
-        except Exception as exc:
-            raise RuntimeError(f"runtime checkpoint restore failed: {exc}") from exc
-
-    def _persist_checkpoint(self) -> None:
-        payload = {
-            "schema_version": 1,
-            "ledger_hash": self.ledger.last_hash,
+    def _runtime_state(self) -> dict:
+        """Single source of truth for committable runtime state."""
+        return {
             "position": self.position.model_dump(mode="json"),
             "account": self.account.model_dump(mode="json"),
             "execution": self.execution.model_dump(mode="json"),
             "pending": self._pending_state.model_dump(mode="json") if self._pending_state else None,
             "trading_day": self._trading_day.isoformat(),
             "paper": self.paper.to_state(),
+        }
+
+    def _apply_runtime_state(self, payload: dict) -> None:
+        self.position = PositionState.model_validate(payload["position"])
+        self.account = AccountState.model_validate(payload["account"])
+        self.execution = ExecutionState.model_validate(payload["execution"])
+        self.paper.restore_state(payload["paper"])
+        pending = payload.get("pending")
+        self._pending_state = PendingIntentState.model_validate(pending) if pending else None
+        self._pending_intent = self._pending_state.intent if self._pending_state else None
+        self._pending_risk = self._pending_state.risk_decision if self._pending_state else None
+        self._pending_decision_id = self._pending_intent.decision_id if self._pending_intent else None
+        self._trading_day = datetime.fromisoformat(payload["trading_day"]).date()
+
+    def _ledger_committed_state(self) -> dict | None:
+        """Rebuild committed state from the ledger when the checkpoint is stale.
+
+        ponytail: linear scan of the ledger suffix; fine at current run sizes.
+        Upgrade to an index if a long-running experiment needs sublinear lookup.
+        """
+        for record in reversed(self.ledger.records()):
+            if record.runtime_state is not None:
+                return record.runtime_state
+        return None
+
+    def _restore_checkpoint(self) -> None:
+        payload = None
+        if self.checkpoint_path.exists():
+            try:
+                candidate = json.loads(self.checkpoint_path.read_text())
+                if candidate.get("schema_version") != 1:
+                    raise ValueError("unsupported runtime checkpoint schema")
+                # An explicit mismatch is dangerous and must hard-fail; a missing
+                # field means a legacy/stale checkpoint, so fall back to the ledger.
+                stored_experiment = candidate.get("experiment_id")
+                if stored_experiment is not None and stored_experiment != self.settings.experiment_id:
+                    raise ValueError("runtime checkpoint belongs to another experiment")
+                if candidate.get("ledger_hash") == self.ledger.last_hash:
+                    payload = candidate
+            except ValueError as exc:
+                raise RuntimeError(f"runtime checkpoint restore failed: {exc}") from exc
+        if payload is None:
+            payload = self._ledger_committed_state()
+            if payload is None and (self.ledger.records() or self.ledger.fills() or self.ledger.trades()):
+                raise RuntimeError("durable runtime checkpoint is missing for a non-empty ledger")
+        if payload is None:
+            return
+        try:
+            self._apply_runtime_state(payload)
+        except Exception as exc:
+            raise RuntimeError(f"runtime checkpoint restore failed: {exc}") from exc
+
+    def _persist_checkpoint(self) -> None:
+        payload = {
+            "schema_version": 1,
+            "experiment_id": self.settings.experiment_id,
+            "ledger_hash": self.ledger.last_hash,
+            **self._runtime_state(),
         }
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.checkpoint_path.with_suffix(self.checkpoint_path.suffix + ".tmp")
@@ -197,6 +231,23 @@ class ShadowRunner:
                 os.close(directory_fd)
         except OSError:
             pass
+
+    def _request_id(self, decision_timestamp: datetime) -> str:
+        return hashlib.sha256(
+            f"{self.settings.experiment_id}|{decision_timestamp.isoformat()}".encode()
+        ).hexdigest()[:32]
+
+    def _committed_decision(self, request_id: str) -> DecisionRecord | None:
+        """Return an already-committed decision, so replay never re-decides.
+
+        The ledger is the intelligence cache, so a resumed experiment replays
+        provider decisions instead of issuing fresh calls.
+        ponytail: linear scan; upgrade to an index only if run sizes demand it.
+        """
+        for record in reversed(self.ledger.records()):
+            if record.decision_id == request_id:
+                return record
+        return None
 
     def _clear_pending(self) -> None:
         self._pending_intent = None
@@ -316,6 +367,13 @@ class ShadowRunner:
         )
 
     def run_once(self) -> DecisionRecord:
+        # Deterministic per (experiment, decision time): a committed decision is
+        # replayed, never re-decided, so a resumed run cannot re-query the provider
+        # or append a duplicate decision.
+        request_id = self._request_id(self._clock())
+        committed = self._committed_decision(request_id)
+        if committed is not None and self._pending_state is None:
+            return committed
         bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
         if bars.is_empty():
             raise RuntimeError("market adapter returned no closed bars")
@@ -354,10 +412,15 @@ class ShadowRunner:
             )),
             analyzer_versions={result.analysis_name: result.analyzer_version for result in analyses},
         )
-        request_id = str(uuid4())
+        # Deterministic per (experiment, decision time): a resumed run reuses the
+        # committed ledger decision instead of re-querying the provider.
+        request_id = self._request_id(environment.decision_timestamp)
         provider_failures: list[ProviderFailureRecord] = []
+        committed = self._committed_decision(request_id)
         hypothesis: StrategyHypothesis
-        if not quality.safe_for_trading:
+        if committed is not None and committed.frontier_hypothesis is not None:
+            hypothesis = committed.frontier_hypothesis
+        elif not quality.safe_for_trading:
             hypothesis = StrategyHypothesis(
                 hypothesis_id=request_id, timestamp=environment.decision_timestamp, regime=regime.trend,
                 regime_confidence=regime.confidence, thesis="Data quality is unsafe", abstain=True,
@@ -458,20 +521,24 @@ class ShadowRunner:
                 questions = hypothesis.jev_questions or ()
                 jev_request = JevRequest(request_id=request_id, timestamp=environment.decision_timestamp, environment=environment, frontier_hypothesis=hypothesis, quant_evidence=quant_evidence, candidate_trade=candidate, questions=questions, prompt_version=self.settings.jev.prompt_version)
                 self._record_jev_call(environment.decision_timestamp)
-                try:
-                    jev_evaluation = self.jev.evaluate(jev_request)
-                except Exception as exc:
-                    provider_failures.append(ProviderFailureRecord.from_exception(
-                        component="jev",
-                        provider=getattr(self.jev.client, "provider", self.settings.jev.provider.provider),
-                        model=getattr(self.jev.client, "model", self.settings.jev.provider.model),
-                        exc=exc,
-                    ))
-                    hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{_provider_failure_label(exc)}"})
-                    candidate = None
+                if committed is not None and committed.jev_evaluation is not None:
+                    jev_evaluation = committed.jev_evaluation
+                else:
+                    try:
+                        jev_evaluation = self.jev.evaluate(jev_request)
+                    except Exception as exc:
+                        provider_failures.append(ProviderFailureRecord.from_exception(
+                            component="jev",
+                            provider=getattr(self.jev.client, "provider", self.settings.jev.provider.provider),
+                            model=getattr(self.jev.client, "model", self.settings.jev.provider.model),
+                            exc=exc,
+                        ))
+                        hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{_provider_failure_label(exc)}"})
+                        candidate = None
         policy = self.policy.finalize(
             environment, hypothesis, economic_value, jev_evaluation,
             position=self.position, candidate=candidate, require_jev=self.require_jev,
+            decision_id=request_id,
         )
         risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
         _pending_valid, pending_executed = self._revalidate_pending(environment, policy, risk, candidate)
@@ -500,6 +567,7 @@ class ShadowRunner:
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
             quant_evidence=quant_evidence, jev_request=jev_request, jev_evaluation=jev_evaluation, economic_value=economic_value, policy_decision=policy, risk_decision=risk,
             provider_failures=tuple(provider_failures),
+            runtime_state=self._runtime_state(),
             execution_intent=intent, position_before=position_before, position_after=self.position,
             versions=make_versions(
                 self.settings,
