@@ -1,0 +1,36 @@
+{
+  "cost_model": {
+    "extra_slippage_bps_per_side": 0.0,
+    "fee_multiplier": 1.0,
+    "reference_round_trip_cost": 0.0014,
+    "slippage_bps_per_side": 2.0,
+    "taker_fee_bps_per_side": 5.0
+  },
+  "data_range": "NOT RUN",
+  "data_source": "NOT RUN \u2014 unavailable in the admissible pre-2025 local dataset",
+  "decision": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+  "experiment_id": "EXP-028-microstructure-family-b",
+  "feature_set": [],
+  "hypothesis": "M2 order-book imbalance adds incremental economic information.",
+  "metrics": {
+    "reason": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "status": "DEFERRED"
+  },
+  "model": "NOT RUN",
+  "purge": {
+    "minutes_each_side": 60,
+    "random_temporal_split": false
+  },
+  "result": {
+    "reason": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "status": "DEFERRED"
+  },
+  "seed": 7,
+  "target": "M2 \u2014 order-book depth/imbalance",
+  "threshold": {
+    "minimum_edge_over_cost": 2.0
+  },
+  "trade_count": 0,
+  "train_period": "NOT RUN",
+  "validation_period": "NOT RUN"
+}

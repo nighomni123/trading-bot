@@ -1,0 +1,16 @@
+experiment_id: "EXP-025-existing-state-analysis"
+hypothesis: "Barrier-defined opportunity states correspond to reproducible current-feature distributions."
+data_source: "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet"
+data_range: ["2021-01-01", "2023-01-01)"]
+feature_set: ["ret_1m", "ret_5m", "ret_15m", "ret_60m", "realized_vol_5m", "realized_vol_30m", "atr_14", "ema20", "ema50", "ema200", "trend_score", "funding", "funding_z", "oi_change_1d", "vol_regime", "volume_z"]
+target: "tp20bp_sl20bph15m"
+model: "descriptive analysis; no new features"
+seed: 7
+train_period: ["2021-01-01", "2022-01-01)"]
+validation_period: ["2022-01-01", "2023-01-01)"]
+purge: {"minutes_each_side": 60, "random_temporal_split": false}
+cost_model: {"taker_fee_bps_per_side": 5.0, "slippage_bps_per_side": 2.0, "fee_multiplier": 1.0, "extra_slippage_bps_per_side": 0.0, "reference_round_trip_cost": 0.0014}
+threshold: {"minimum_edge_over_cost": 2.0}
+trade_count: 0
+result: {"new_features_promoted": false, "status": "EMPIRICALLY VALIDATED"}
+decision: "NOT VALIDATED"

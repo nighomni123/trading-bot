@@ -1,0 +1,98 @@
+{
+  "deferred_microstructure_records": 4,
+  "experiments": [
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-020",
+      "hypothesis": "Phase 2 predicted and realized economics use the same executable quantity.",
+      "path": "experiments/EXP-020-economic-measurement-audit/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    },
+    {
+      "decision": "IMPLEMENTED",
+      "experiment_id": "EXP-021",
+      "hypothesis": "Executable-entry TP/SL/timeout labels are point-in-time and side-symmetric.",
+      "path": "experiments/EXP-021-barrier-target-construction/metrics.json",
+      "status": "TESTED"
+    },
+    {
+      "decision": "NOT VALIDATED",
+      "experiment_id": "EXP-022",
+      "hypothesis": "Barrier outcome probabilities add information beyond class frequencies.",
+      "path": "experiments/EXP-022-barrier-probability-model/metrics.json",
+      "status": "TESTED"
+    },
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-023",
+      "hypothesis": "At least one stable neighboring TP/SL/horizon region has positive discovery economics.",
+      "path": "experiments/EXP-023-target-shape-sweep/metrics.json",
+      "status": "NO EDGE"
+    },
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-024",
+      "hypothesis": "Separating opportunity detection from direction improves stable economics.",
+      "path": "experiments/EXP-024-opportunity-direction-decomposition/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    },
+    {
+      "decision": "NOT VALIDATED",
+      "experiment_id": "EXP-025",
+      "hypothesis": "Barrier-defined opportunity states correspond to reproducible current-feature distributions.",
+      "path": "experiments/EXP-025-existing-state-analysis/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    },
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-026",
+      "hypothesis": "Trade scarcity is explained by pre-registered economic gates rather than relaxed targets.",
+      "path": "experiments/EXP-026-rare-event-gate-decomposition/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    },
+    {
+      "decision": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+      "experiment_id": "EXP-027",
+      "hypothesis": "M1 spread/liquidity can add point-in-time economic information.",
+      "path": "experiments/EXP-027-microstructure-family-a/metrics.json",
+      "status": "DEFERRED"
+    },
+    {
+      "decision": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+      "experiment_id": "EXP-028",
+      "hypothesis": "M2 order-book imbalance adds incremental economic information.",
+      "path": "experiments/EXP-028-microstructure-family-b/metrics.json",
+      "status": "DEFERRED"
+    },
+    {
+      "decision": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+      "experiment_id": "EXP-029",
+      "hypothesis": "M3 trade-flow or signed volume adds incremental economic information.",
+      "path": "experiments/EXP-029-microstructure-family-c/metrics.json",
+      "status": "DEFERRED"
+    },
+    {
+      "decision": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+      "experiment_id": "EXP-030",
+      "hypothesis": "A combined causal microstructure set improves stable target economics.",
+      "path": "experiments/EXP-030-combined-causal-feature-set/metrics.json",
+      "status": "DEFERRED"
+    },
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-031",
+      "hypothesis": "A discovery-frozen target region remains economically positive across expanding walk-forward folds.",
+      "path": "experiments/EXP-031-walk-forward-confirmation/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    },
+    {
+      "decision": "NO EDGE",
+      "experiment_id": "EXP-032",
+      "hypothesis": "Confirmation selections survive base, 2x/3x fees, extra slippage, and one-minute actual delay.",
+      "path": "experiments/EXP-032-cost-stress-confirmation/metrics.json",
+      "status": "EMPIRICALLY VALIDATED"
+    }
+  ],
+  "generated_at_utc": "2026-09-25T06:01:05.335771+00:00",
+  "phase": 3
+}

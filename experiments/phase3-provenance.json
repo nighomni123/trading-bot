@@ -1,0 +1,92 @@
+{
+  "baseline_commit": "2abb4d4",
+  "code_hashes": {
+    "configs/phase3.json": "8952f64704c09dac8efa218e54f4f902efbeb84aefbb2adf63d0c62d42d73447",
+    "scripts/run_phase3.py": "1ffac6f1d6689b802c26702ef7bec9067e32adf091a6435cef5f265d5ae882a3",
+    "src/jev_trading/labels/barriers.py": "ec437415b90b687da2001e1a54be2c51b81298b43148c74c1c5db667db049962",
+    "src/jev_trading/quant/payoff.py": "9a997afc95453c61e74fb6d93435d40126d85ab0117375d333c8d1145b19e371",
+    "tests/test_phase3_barriers.py": "1bdc88b28407f9facbf53a7d25560847a897f48708fd6bba7efd01dd1829f533",
+    "tests/test_phase3_economics.py": "ee75b2f6c724f4aaadf3af843343ee88dec2c9ad0ea79573ae9ccfb96bf65a21",
+    "tests/test_phase3_provenance.py": "2c61d25c47ee57966a6f38ba4f7f40c80807f8b7b25e41d3ebf16e6f89254125"
+  },
+  "config_sha256": "8952f64704c09dac8efa218e54f4f902efbeb84aefbb2adf63d0c62d42d73447",
+  "costs": {
+    "actual_additional_delay_bars": 1,
+    "extra_slippage_bps_per_side": 5.0,
+    "fee_stress_multipliers": [
+      1.0,
+      2.0,
+      3.0
+    ],
+    "funding": "discrete visible rate-change events while held; latest visible rate estimates future event cost in predicted EV",
+    "minimum_edge_over_cost": 2.0,
+    "non_overlap": "block maximum configured horizon after every selected trade",
+    "slippage_bps_per_side": 2.0,
+    "taker_fee_bps_per_side": 5.0,
+    "trade_unit": "fraction of entry notional"
+  },
+  "fresh_holdout": {
+    "2025_plus_eligible": false,
+    "required_start": "after frozen candidate timestamp",
+    "status": "NOT OBTAINED"
+  },
+  "generated_at_utc": "2026-09-25T06:01:05.336340+00:00",
+  "implementation_commit": "2abb4d453ecbd76a393a7fa8ef73ec5ed8540094",
+  "model": {
+    "conditional_timeout_fallback": "side-specific training mean when the conditional class has fewer than two rows",
+    "conditional_timeout_minimum_rows": 2,
+    "ensemble_uncertainty_used_as_economic_penalty": false,
+    "family": "paired_lightgbm_three_class",
+    "heads": [
+      "LONG_SL_FIRST_TIMEOUT",
+      "SHORT_SL_FIRST_TIMEOUT",
+      "CONDITIONAL_TIMEOUT_RETURN"
+    ],
+    "outcome_classes": [
+      "SL_FIRST",
+      "TIMEOUT",
+      "TP_FIRST"
+    ],
+    "params": {
+      "deterministic": true,
+      "force_col_wise": true,
+      "learning_rate": 0.05,
+      "n_estimators": 20,
+      "num_leaves": 15,
+      "verbosity": -1
+    },
+    "probability_calibration": "none; raw probabilities evaluated",
+    "seed": 7,
+    "uncertainty_diagnostic_seeds": [
+      7,
+      17,
+      27
+    ]
+  },
+  "phase": 3,
+  "phase2_evidence_commit": "2abb4d4",
+  "phase2_frozen_status": "NO EDGE",
+  "phase2_provenance_commit": "67be354",
+  "preexisting_untracked_preserved": [
+    ".local/",
+    "docs/pre-jev/",
+    "kaggle/",
+    "scripts/build_kaggle_kernel.py",
+    "scripts/run_kaggle_benchmark.sh"
+  ],
+  "runtime": {
+    "numpy": "2.5.3",
+    "polars": "1.44.2",
+    "python": "3.12.10"
+  },
+  "source": {
+    "2025_plus_used_for_selection": false,
+    "path": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+    "period": [
+      "2021-01-01",
+      "2025-01-01)"
+    ],
+    "sha256": "bcd43b1e7a35cd1db11be3c074415051f64edaefa6c93b69c1eb1f4546d08a96"
+  },
+  "working_tree_dirty": true
+}

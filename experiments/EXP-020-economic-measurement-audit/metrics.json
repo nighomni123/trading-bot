@@ -1,0 +1,145 @@
+{
+  "cost_model": {
+    "extra_slippage_bps_per_side": 0.0,
+    "fee_multiplier": 1.0,
+    "reference_round_trip_cost": 0.0014,
+    "slippage_bps_per_side": 2.0,
+    "taker_fee_bps_per_side": 5.0
+  },
+  "data_range": [
+    "2024-01-01",
+    "2025-01-01)"
+  ],
+  "data_source": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+  "decision": "NO EDGE",
+  "experiment_id": "EXP-020-economic-measurement-audit",
+  "feature_set": [
+    "ret_1m",
+    "ret_5m",
+    "ret_15m",
+    "ret_60m",
+    "realized_vol_5m",
+    "realized_vol_30m",
+    "atr_14",
+    "ema20",
+    "ema50",
+    "ema200",
+    "trend_score",
+    "funding",
+    "funding_z",
+    "oi_change_1d",
+    "vol_regime",
+    "volume_z"
+  ],
+  "hypothesis": "Phase 2 predicted and realized economics use the same executable quantity.",
+  "metrics": {
+    "accounting_deltas": {
+      "net_return_with_penalty": -0.09386917638138438,
+      "net_return_without_penalty": -0.08784119270767787,
+      "trade_count_with_penalty": 0
+    },
+    "corrected_actual_one_minute_delay": {
+      "expectancy": 0.011618852996792595,
+      "fees": 0.011069438410687703,
+      "funding": 0.0,
+      "gross_return_sum": 0.13887682137540625,
+      "max_drawdown": 0.013920310996891266,
+      "net_return_sum": 0.12780738296471855,
+      "profit_factor": 10.181359740688332,
+      "sharpe": 0.9212331878628266,
+      "slippage": 0.0044564420169531825,
+      "sortino": null,
+      "trade_count": 11,
+      "turnover_notional": 22.0,
+      "win_rate": 0.9090909090909091
+    },
+    "corrected_exact_with_uncertainty_penalty": {
+      "expectancy": -0.0013867420708659232,
+      "fees": 0.008998258790076142,
+      "funding": 0.0,
+      "gross_return_sum": -0.003482419847717164,
+      "max_drawdown": 0.02246417691400845,
+      "net_return_sum": -0.012480678637793308,
+      "profit_factor": 0.7025542448241661,
+      "sharpe": -0.13203377462825774,
+      "slippage": 0.0035993268974394877,
+      "sortino": -0.1608500883468578,
+      "trade_count": 9,
+      "turnover_notional": 18.0,
+      "win_rate": 0.4444444444444444
+    },
+    "corrected_exact_without_uncertainty_penalty": {
+      "expectancy": -0.0005866086330988,
+      "fees": 0.011002274789912914,
+      "funding": 0.0,
+      "gross_return_sum": 0.004549579825826112,
+      "max_drawdown": 0.02246417691400845,
+      "net_return_sum": -0.0064526949640868,
+      "profit_factor": 0.8631213552766288,
+      "sharpe": -0.056555673481142286,
+      "slippage": 0.004402700372003724,
+      "sortino": -0.07499763246995417,
+      "trade_count": 11,
+      "turnover_notional": 22.0,
+      "win_rate": 0.45454545454545453
+    },
+    "old_accounting_reproduces_frozen_headline": true,
+    "phase2_frozen_stored": {
+      "expectancy": 0.009043166415954563,
+      "fees": null,
+      "funding": null,
+      "gross_return_sum": 0.09406048055609106,
+      "max_drawdown": 0.020511578321772205,
+      "net_return_sum": 0.08138849774359107,
+      "profit_factor": 4.967929550170232,
+      "sharpe": 0.6361465993927023,
+      "slippage": null,
+      "sortino": 0.6320872465917681,
+      "trade_count": 9,
+      "turnover_notional": null,
+      "win_rate": null
+    },
+    "phase2_recomputed_old_accounting": {
+      "expectancy": 0.009043166415954563,
+      "fees": null,
+      "funding": null,
+      "gross_return_sum": 0.09406048055609106,
+      "max_drawdown": 0.020511578321772205,
+      "net_return_sum": 0.08138849774359107,
+      "profit_factor": 4.967929550170232,
+      "sharpe": 0.6361465993927023,
+      "slippage": null,
+      "sortino": 0.6320872465917681,
+      "trade_count": 9,
+      "turnover_notional": null,
+      "win_rate": null
+    }
+  },
+  "model": "frozen Phase 2 economic-v2 bundle",
+  "purge": {
+    "minutes_each_side": 60,
+    "random_temporal_split": false
+  },
+  "result": {
+    "interpretation": "Accounting correction does not overturn the Phase 2 gate; tiny selected-trade PnL is not promoted",
+    "phase2_conclusion_changed": false,
+    "status": "EMPIRICALLY VALIDATED"
+  },
+  "seed": 7,
+  "target": "execution_return_15m accounting audit",
+  "threshold": {
+    "min_edge_over_cost": 2.0
+  },
+  "trade_count": {
+    "corrected": 9,
+    "old": 9
+  },
+  "train_period": [
+    "2021-01-01",
+    "2024-01-01)"
+  ],
+  "validation_period": [
+    "2024-01-01",
+    "2025-01-01)"
+  ]
+}

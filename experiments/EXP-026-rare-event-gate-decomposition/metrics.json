@@ -1,0 +1,98 @@
+{
+  "cost_model": {
+    "extra_slippage_bps_per_side": 0.0,
+    "fee_multiplier": 1.0,
+    "reference_round_trip_cost": 0.0014,
+    "slippage_bps_per_side": 2.0,
+    "taker_fee_bps_per_side": 5.0
+  },
+  "data_range": [
+    "2021-01-01",
+    "2023-01-01)"
+  ],
+  "data_source": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+  "decision": "NO EDGE",
+  "experiment_id": "EXP-026-rare-event-gate-decomposition",
+  "feature_set": [
+    "ret_1m",
+    "ret_5m",
+    "ret_15m",
+    "ret_60m",
+    "realized_vol_5m",
+    "realized_vol_30m",
+    "atr_14",
+    "ema20",
+    "ema50",
+    "ema200",
+    "trend_score",
+    "funding",
+    "funding_z",
+    "oi_change_1d",
+    "vol_regime",
+    "volume_z"
+  ],
+  "hypothesis": "Trade scarcity is explained by pre-registered economic gates rather than relaxed targets.",
+  "metrics": {
+    "barrier_opportunity_discovery": {
+      "interpretation": "Thresholds were not loosened; scarcity is reported at each pre-registered gate.",
+      "model_hurdle_trade_count": 0,
+      "model_probability_positive_rate": 0.9999904742853333,
+      "target_positive_rate": 0.9092637575134075
+    },
+    "phase2_2024_gate_decomposition": {
+      "cost_gate": {
+        "fraction_of_valid": 0.00035211602698921764,
+        "lost_at_stage": 525210,
+        "surviving": 185
+      },
+      "direction_gate": {
+        "fraction_of_valid": 0.028793574358339916,
+        "lost_at_stage": 510267,
+        "surviving": 15128
+      },
+      "gross_return_gate": {
+        "fraction_of_valid": 0.020019223631743736,
+        "lost_at_stage": 514877,
+        "surviving": 10518
+      },
+      "risk_hurdle_gate": {
+        "fraction_of_valid": 6.661654564660875e-05,
+        "lost_at_stage": 525360,
+        "surviving": 35
+      },
+      "uncertainty_gate": {
+        "fraction_of_valid": 0.0003121460996012524,
+        "lost_at_stage": 525231,
+        "surviving": 164
+      },
+      "valid_model_observations": {
+        "fraction_of_valid": 1.0,
+        "lost_at_stage": 0,
+        "surviving": 525395
+      }
+    }
+  },
+  "model": "frozen Phase 2 gate and EXP-024 discovery models",
+  "purge": {
+    "minutes_each_side": 60,
+    "random_temporal_split": false
+  },
+  "result": {
+    "status": "EMPIRICALLY VALIDATED",
+    "thresholds_loosened": false
+  },
+  "seed": 7,
+  "target": "Phase 2 gate plus sentinel barrier opportunity",
+  "threshold": {
+    "minimum_edge_over_cost": 2.0
+  },
+  "trade_count": 0,
+  "train_period": [
+    "2021-01-01",
+    "2022-01-01)"
+  ],
+  "validation_period": [
+    "2022-01-01",
+    "2025-01-01)"
+  ]
+}

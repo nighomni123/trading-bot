@@ -1,0 +1,16 @@
+experiment_id: "EXP-029-microstructure-family-c"
+hypothesis: "M3 trade-flow or signed volume adds incremental economic information."
+data_source: "NOT RUN \u2014 unavailable in the admissible pre-2025 local dataset"
+data_range: "NOT RUN"
+feature_set: []
+target: "M3 \u2014 trade-flow/signed volume"
+model: "NOT RUN"
+seed: 7
+train_period: "NOT RUN"
+validation_period: "NOT RUN"
+purge: {"minutes_each_side": 60, "random_temporal_split": false}
+cost_model: {"taker_fee_bps_per_side": 5.0, "slippage_bps_per_side": 2.0, "fee_multiplier": 1.0, "extra_slippage_bps_per_side": 0.0, "reference_round_trip_cost": 0.0014}
+threshold: {"minimum_edge_over_cost": 2.0}
+trade_count: 0
+result: {"reason": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.", "status": "DEFERRED"}
+decision: "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously."

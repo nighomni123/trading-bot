@@ -1,0 +1,59 @@
+{
+  "data_integrity": {
+    "2025_plus_selection": false,
+    "calibration_contamination": false,
+    "future_feature_leakage_detected": false,
+    "future_label_leakage_detected": false,
+    "pre_2025_only": true,
+    "source_hash_verified": true,
+    "timestamp_compression": false
+  },
+  "economic_integrity": {
+    "actual_one_minute_delay_tested": true,
+    "discrete_funding": true,
+    "executable_entry": "open[t+1]",
+    "executable_exit": "barrier fill or open[t+H+1]",
+    "fees_exact_per_fill": true,
+    "side_transformation": true,
+    "slippage_exact_per_fill": true,
+    "timeout_payoff": true
+  },
+  "experiment_decisions": {
+    "EXP-020": "NO EDGE",
+    "EXP-021": "IMPLEMENTED",
+    "EXP-022": "NOT VALIDATED",
+    "EXP-023": "NO EDGE",
+    "EXP-024": "NO EDGE",
+    "EXP-025": "NOT VALIDATED",
+    "EXP-026": "NO EDGE",
+    "EXP-027": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "EXP-028": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "EXP-029": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "EXP-030": "NOT RUN \u2014 the repository has no provenance-safe point-in-time historical BTCUSDT spread/depth/trade-flow/liquidation fields. No family was fabricated, backfilled from 2025+, or added simultaneously.",
+    "EXP-031": "NO EDGE",
+    "EXP-032": "NO EDGE"
+  },
+  "phase3_decision": "NO EDGE",
+  "pytest": {
+    "command": ".venv/bin/python -m pytest -q",
+    "passed": 217,
+    "failed": 0,
+    "status": "PASS"
+  },
+  "research_integrity": {
+    "controls_preserved": true,
+    "frontier_laya_jev_rl_live_modified": false,
+    "microstructure_fabricated": false,
+    "negative_results_retained": true,
+    "phase2_frozen": true,
+    "historical_yaml_syntax_repair": "EXP-001/002/003 values and verdicts preserved; scalar syntax only"
+  },
+  "statistical_integrity": {
+    "chronological_validation": true,
+    "multiple_testing_documented": true,
+    "purge_embargo_minutes": 60,
+    "random_temporal_split": false,
+    "target_sweep_controlled": true,
+    "uncertainty_not_forced_monotonic": true
+  }
+}

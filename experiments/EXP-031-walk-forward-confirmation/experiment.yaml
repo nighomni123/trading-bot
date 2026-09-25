@@ -1,0 +1,16 @@
+experiment_id: "EXP-031-walk-forward-confirmation"
+hypothesis: "A discovery-frozen target region remains economically positive across expanding walk-forward folds."
+data_source: "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet"
+data_range: ["2021-01-01", "2025-01-01)"]
+feature_set: ["ret_1m", "ret_5m", "ret_15m", "ret_60m", "realized_vol_5m", "realized_vol_30m", "atr_14", "ema20", "ema50", "ema200", "trend_score", "funding", "funding_z", "oi_change_1d", "vol_regime", "volume_z"]
+target: ["tp20bp_sl20bph15m"]
+model: "three-seed barrier probability, learned direction, opportunity, and timeout return"
+seed: 7
+train_period: ["expanding through 2021, 2022, or 2023"]
+validation_period: ["2022", "2023", "2024"]
+purge: {"minutes_each_side": 60, "random_temporal_split": false}
+cost_model: {"taker_fee_bps_per_side": 5.0, "slippage_bps_per_side": 2.0, "fee_multiplier": 1.0, "extra_slippage_bps_per_side": 0.0, "reference_round_trip_cost": 0.0014}
+threshold: {"minimum_trade_count_per_config_fold": 30, "minimum_configs_passing_all_confirmation_folds": 3, "required_positive_base_cost_folds": 3, "required_positive_2x_fee_folds_per_config": 3, "minimum_nonnegative_3x_fee_folds_per_config": 2, "required_positive_extra_slippage_folds_per_config": 2, "required_positive_actual_delay_folds_per_config": 2, "maximum_mean_probability_ece": 0.05, "maximum_single_regime_trade_share": 0.8}
+trade_count: 0
+result: {"fresh_holdout_used": false, "promising": false, "stable_region_found": false, "status": "EMPIRICALLY VALIDATED"}
+decision: "NO EDGE"

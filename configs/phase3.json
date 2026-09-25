@@ -1,0 +1,166 @@
+{
+  "phase": 3,
+  "preregistered_at_utc": "2026-09-25T04:28:56Z",
+  "baseline_commit": "2abb4d4",
+  "data": {
+    "path": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+    "sha256": "bcd43b1e7a35cd1db11be3c074415051f64edaefa6c93b69c1eb1f4546d08a96",
+    "allowed_end_exclusive_ms": 1735689600000,
+    "historically_consumed_2025_plus_allowed_for_selection": false
+  },
+  "barriers": {
+    "take_profit_bps": [10, 15, 20, 30, 40],
+    "stop_loss_bps": [10, 15, 20, 30],
+    "horizons_minutes": [5, 10, 15, 30, 60],
+    "entry": "decision close[t] -> executable open[t+1]",
+    "monitoring_window": "high/low from bar t+1 through bar t+H inclusive",
+    "timeout_exit": "open[t+H+1]",
+    "same_bar_touch": "SL_FIRST conservative; ambiguous_touch flag retained",
+    "exact_touch": "inclusive barrier comparison",
+    "missing_bars": "reject and never compress",
+    "side_symmetry": "long high=TP/low=SL; short low=TP/high=SL"
+  },
+  "features": [
+    "ret_1m",
+    "ret_5m",
+    "ret_15m",
+    "ret_60m",
+    "realized_vol_5m",
+    "realized_vol_30m",
+    "atr_14",
+    "ema20",
+    "ema50",
+    "ema200",
+    "trend_score",
+    "funding",
+    "funding_z",
+    "oi_change_1d",
+    "vol_regime",
+    "volume_z"
+  ],
+  "model": {
+    "family": "paired_lightgbm_three_class",
+    "heads": ["LONG_SL_FIRST_TIMEOUT", "SHORT_SL_FIRST_TIMEOUT", "CONDITIONAL_TIMEOUT_RETURN"],
+    "outcome_classes": ["SL_FIRST", "TIMEOUT", "TP_FIRST"],
+    "params": {
+      "n_estimators": 20,
+      "num_leaves": 15,
+      "learning_rate": 0.05,
+      "verbosity": -1,
+      "deterministic": true,
+      "force_col_wise": true
+    },
+    "seed": 7,
+    "uncertainty_diagnostic_seeds": [7, 17, 27],
+    "conditional_timeout_minimum_rows": 2,
+    "conditional_timeout_fallback": "side-specific training mean when the conditional class has fewer than two rows",
+    "probability_calibration": "none; raw probabilities evaluated",
+    "ensemble_uncertainty_used_as_economic_penalty": false
+  },
+  "splits": {
+    "embargo_minutes": 60,
+    "discovery": {
+      "train": ["2021-01-01", "2022-01-01)"],
+      "selection_validation": ["2022-01-01", "2023-01-01)"]
+    },
+    "walk_forward_confirmation": [
+      {
+        "fold": "2021->2022",
+        "train": ["2021-01-01", "2022-01-01)"],
+        "validation": ["2022-01-01", "2023-01-01)"]
+      },
+      {
+        "fold": "2021-2022->2023",
+        "train": ["2021-01-01", "2023-01-01)"],
+        "validation": ["2023-01-01", "2024-01-01)"]
+      },
+      {
+        "fold": "2021-2023->2024",
+        "train": ["2021-01-01", "2024-01-01)"],
+        "validation": ["2024-01-01", "2025-01-01)"]
+      }
+    ],
+    "fresh_holdout": "not available; must begin after candidate freeze and remain untouched"
+  },
+  "target_selection": {
+    "evaluated_on": "discovery selection_validation only",
+    "cell_pass": {
+      "minimum_trade_count": 30,
+      "base_cost_expectancy_strictly_positive": true,
+      "mean_predicted_ev_strictly_positive": true
+    },
+    "neighbor_definition": "orthogonal TP/SL neighbor within the same horizon",
+    "minimum_passing_neighbors": 2,
+    "minimum_region_cells": 3,
+    "region_rank": ["minimum cell expectancy descending", "total trades descending", "config id ascending"],
+    "isolated_optimum_is_promotable": false,
+    "later_folds_may_change_frozen_region": false
+  },
+  "opportunity": {
+    "definition": "max(realized base-cost net payoff among long and short) > 0",
+    "probability_threshold": 0.5,
+    "direction_rule": "most probable non-flat class; momentum sign for the naive control",
+    "sentinel_barrier": {"tp_bps": 20, "sl_bps": 20, "horizon_minutes": 15},
+    "models": {
+      "A": "Phase 2 terminal-return plus explicit direction",
+      "B": "binary opportunity plus naive momentum direction",
+      "C": "binary opportunity plus learned direction",
+      "D": "binary opportunity plus learned direction plus barrier payoff distribution"
+    }
+  },
+  "economics": {
+    "taker_fee_bps_per_side": 5.0,
+    "slippage_bps_per_side": 2.0,
+    "minimum_edge_over_cost": 2.0,
+    "funding": "discrete visible rate-change events while held; latest visible rate estimates future event cost in predicted EV",
+    "fee_stress_multipliers": [1.0, 2.0, 3.0],
+    "extra_slippage_bps_per_side": 5.0,
+    "actual_additional_delay_bars": 1,
+    "non_overlap": "block maximum configured horizon after every selected trade",
+    "trade_unit": "fraction of entry notional"
+  },
+  "controls": {
+    "A": "frozen Phase 2 terminal-return gate under corrected accounting",
+    "B": "trade every non-overlapping horizon on the side with the larger training-mean timeout return",
+    "C": "trade every non-overlapping horizon on the sign of ret_5m",
+    "D": "use training barrier outcome frequencies and mean timeout return; trade only when unconditional EV clears the same 2x hurdle"
+  },
+  "state_analysis": {
+    "sentinel_barrier": {"tp_bps": 20, "sl_bps": 20, "horizon_minutes": 15},
+    "high_mfe_and_high_mae_quantile": 0.75,
+    "regimes": {
+      "volatility": "training tertiles",
+      "volume": "training tertiles",
+      "oi_change_1d": "training tertiles",
+      "trend": "abs(trend_score) < 0.15 flat, otherwise trending",
+      "funding": "funding_z < -1 negative_extreme, > 1 positive_extreme, otherwise normal"
+    }
+  },
+  "promotion": {
+    "confirmation_thresholds": {
+      "minimum_trade_count_per_config_fold": 30,
+      "minimum_configs_passing_all_confirmation_folds": 3,
+      "required_positive_base_cost_folds": 3,
+      "required_positive_2x_fee_folds_per_config": 3,
+      "minimum_nonnegative_3x_fee_folds_per_config": 2,
+      "required_positive_extra_slippage_folds_per_config": 2,
+      "required_positive_actual_delay_folds_per_config": 2,
+      "maximum_mean_probability_ece": 0.05,
+      "maximum_single_regime_trade_share": 0.8
+    },
+    "required": [
+      "positive out-of-sample net expectancy",
+      "meaningful trade population",
+      "base-cost survival",
+      "improvement over frozen Phase 2",
+      "multiple walk-forward consistency",
+      "regime stability",
+      "stable neighboring target region",
+      "acceptable calibration",
+      "moderate cost and actual-delay robustness",
+      "point-in-time audit"
+    ],
+    "final_states": ["NO EDGE", "PROMISING — REQUIRES FRESH HOLDOUT"],
+    "historical_2025_plus_counts_as_fresh_holdout": false
+  }
+}

@@ -1,0 +1,360 @@
+{
+  "cost_model": {
+    "extra_slippage_bps_per_side": 0.0,
+    "fee_multiplier": 1.0,
+    "reference_round_trip_cost": 0.0014,
+    "slippage_bps_per_side": 2.0,
+    "taker_fee_bps_per_side": 5.0
+  },
+  "data_range": [
+    "2021-01-01",
+    "2023-01-01)"
+  ],
+  "data_source": "artifacts/phase0-baseline-final-d/pre_oos_2021_2024.parquet",
+  "decision": "NO EDGE",
+  "experiment_id": "EXP-024-opportunity-direction-decomposition",
+  "feature_set": [
+    "ret_1m",
+    "ret_5m",
+    "ret_15m",
+    "ret_60m",
+    "realized_vol_5m",
+    "realized_vol_30m",
+    "atr_14",
+    "ema20",
+    "ema50",
+    "ema200",
+    "trend_score",
+    "funding",
+    "funding_z",
+    "oi_change_1d",
+    "vol_regime",
+    "volume_z"
+  ],
+  "hypothesis": "Separating opportunity detection from direction improves stable economics.",
+  "metrics": {
+    "models": {
+      "A_direction_only": {
+        "expectancy": -0.0013942067111411087,
+        "fees": 34.99781279952693,
+        "funding": 0.016272347812202506,
+        "gross_return_sum": -13.773390295621677,
+        "max_drawdown": 48.79108456600599,
+        "net_return_sum": -48.78747544296082,
+        "profit_factor": 0.16496368250266982,
+        "sharpe": -0.7256089917433798,
+        "slippage": 13.998900817704788,
+        "sortino": -1.8270937869813788,
+        "trade_count": 34993,
+        "turnover_notional": 69986.0,
+        "win_rate": 0.4592632812276741
+      },
+      "B_opportunity_naive_direction": {
+        "expectancy": -0.0014402191380112708,
+        "fees": 34.985934336602185,
+        "funding": 0.0007535110864126918,
+        "gross_return_sum": -15.400818914773733,
+        "max_drawdown": 50.38750676247604,
+        "net_return_sum": -50.38750676246232,
+        "profit_factor": 0.15700631873200654,
+        "sharpe": -0.7510094369801038,
+        "slippage": 13.994337356988195,
+        "sortino": -1.9346903238703461,
+        "trade_count": 34986,
+        "turnover_notional": 69972.0,
+        "win_rate": 0.4476933630595095
+      },
+      "C_opportunity_learned_direction": {
+        "expectancy": -0.0013942067111411087,
+        "fees": 34.99781279952693,
+        "funding": 0.016272347812202506,
+        "gross_return_sum": -13.773390295621677,
+        "max_drawdown": 48.79108456600599,
+        "net_return_sum": -48.78747544296082,
+        "profit_factor": 0.16496368250266982,
+        "sharpe": -0.7256089917433798,
+        "slippage": 13.998900817704788,
+        "sortino": -1.8270937869813788,
+        "trade_count": 34993,
+        "turnover_notional": 69986.0,
+        "win_rate": 0.4592632812276741
+      },
+      "Control_A_phase2_terminal_corrected": {
+        "expectancy": -0.0024825962810525277,
+        "fees": 0.019985166620499727,
+        "funding": 0.0,
+        "gross_return_sum": -0.029666759000550838,
+        "max_drawdown": 0.09410816943323891,
+        "net_return_sum": -0.04965192562105055,
+        "profit_factor": 0.7078399915475654,
+        "sharpe": -0.12730018977191096,
+        "slippage": 0.007989731242647402,
+        "sortino": -0.2736822971270883,
+        "trade_count": 20,
+        "turnover_notional": 40.0,
+        "win_rate": 0.4
+      },
+      "Control_B_unconditional_return": {
+        "expectancy": -0.001422977046745651,
+        "fees": 34.985586041440335,
+        "funding": -0.01926736400336846,
+        "gross_return_sum": -14.827917119333598,
+        "max_drawdown": 49.795871059929794,
+        "net_return_sum": -49.794235796770565,
+        "profit_factor": 0.2789096484789827,
+        "sharpe": -0.41032744791471226,
+        "slippage": 13.994067646680033,
+        "sortino": -0.5475997461439845,
+        "trade_count": 34993,
+        "turnover_notional": 69986.0,
+        "win_rate": 0.23901923241791215
+      },
+      "Control_C_naive_momentum": {
+        "expectancy": -0.0014977880819906084,
+        "fees": 34.99244375870908,
+        "funding": 0.004022186449794618,
+        "gross_return_sum": -17.41563240793849,
+        "max_drawdown": 52.41209835309723,
+        "net_return_sum": -52.41209835309736,
+        "profit_factor": 0.2701587092403119,
+        "sharpe": -0.4316909329807266,
+        "slippage": 13.996810733587532,
+        "sortino": -0.6064131085566478,
+        "trade_count": 34993,
+        "turnover_notional": 69986.0,
+        "win_rate": 0.2185865744577487
+      },
+      "Control_D_unconditional_barrier_payoff": {
+        "cost_survival_rate": null,
+        "expectancy": null,
+        "fees": 0.0,
+        "funding": 0.0,
+        "gross_return_sum": 0.0,
+        "hurdle_eligible_observations": 0,
+        "long_mean_ev": -0.00143737261684047,
+        "long_selection_rate": 0.0,
+        "max_drawdown": 0.0,
+        "mean_max_predicted_ev": -0.001392625596347825,
+        "mean_predicted_fees": 0.0010001962146862775,
+        "mean_predicted_funding": 9.10656140614037e-12,
+        "mean_predicted_gross": -0.00039242937255498596,
+        "mean_predicted_slippage": 0.00040007695635770627,
+        "mean_selected_predicted_ev": null,
+        "net_return_sum": 0.0,
+        "positive_ev_observations": 0,
+        "profit_factor": null,
+        "sharpe": null,
+        "short_mean_ev": -0.001392625596347825,
+        "slippage": 0.0,
+        "sortino": null,
+        "trade_count": 0,
+        "turnover_notional": 0.0,
+        "win_rate": null
+      },
+      "D_opportunity_direction_payoff": {
+        "cost_survival_rate": null,
+        "expectancy": null,
+        "fees": 0.0,
+        "funding": 0.0,
+        "gross_return_sum": 0.0,
+        "hurdle_eligible_observations": 0,
+        "long_mean_ev": -0.0013258662185622245,
+        "long_selection_rate": 0.11703674068146963,
+        "max_drawdown": 0.0,
+        "mean_max_predicted_ev": -0.001310454353894537,
+        "mean_predicted_fees": 0.0010001935996066596,
+        "mean_predicted_funding": 1.04094070408255e-11,
+        "mean_predicted_gross": -0.0004720180546633471,
+        "mean_predicted_slippage": 0.0004000935838060916,
+        "mean_selected_predicted_ev": null,
+        "net_return_sum": 0.0,
+        "positive_ev_observations": 0,
+        "profit_factor": null,
+        "sharpe": null,
+        "short_mean_ev": -0.0014887172450038374,
+        "slippage": 0.0,
+        "sortino": null,
+        "trade_count": 0,
+        "turnover_notional": 0.0,
+        "win_rate": null
+      },
+      "incremental_D_expectancy": null,
+      "incremental_D_minus_C_net": 48.78747544296082
+    },
+    "opportunity_probability": {
+      "accuracy": 0.9092580420846074,
+      "brier": 0.17777704597940167,
+      "class_counts": [
+        47627,
+        477268
+      ],
+      "f1": [
+        4.1988579106483035e-05,
+        0.9524725642064426
+      ],
+      "log_loss": 0.4288926479665473,
+      "macro_auc_ovr": null,
+      "mean_ece": 0.08222026655930398,
+      "mean_probability": [
+        0.008526296776261424,
+        0.9914737032224258
+      ],
+      "n": 524895,
+      "precision": [
+        0.2,
+        0.9092647983386996
+      ],
+      "recall": [
+        2.099649358557121e-05,
+        0.9999916189646069
+      ],
+      "reliability": {
+        "NO_TRADE": [
+          {
+            "bin": 0,
+            "lower": 0.0,
+            "mean_probability": 0.008206931584764604,
+            "n": 523942,
+            "observed_frequency": 0.0903878673593642,
+            "upper": 0.1
+          },
+          {
+            "bin": 1,
+            "lower": 0.1,
+            "mean_probability": 0.14387050406135504,
+            "n": 629,
+            "observed_frequency": 0.2591414944356121,
+            "upper": 0.2
+          },
+          {
+            "bin": 2,
+            "lower": 0.2,
+            "mean_probability": 0.24034827941825826,
+            "n": 271,
+            "observed_frequency": 0.3210332103321033,
+            "upper": 0.30000000000000004
+          },
+          {
+            "bin": 3,
+            "lower": 0.30000000000000004,
+            "mean_probability": 0.3383623249579969,
+            "n": 46,
+            "observed_frequency": 0.3695652173913043,
+            "upper": 0.4
+          },
+          {
+            "bin": 4,
+            "lower": 0.4,
+            "mean_probability": 0.41472311944177503,
+            "n": 2,
+            "observed_frequency": 0.5,
+            "upper": 0.5
+          },
+          {
+            "bin": 6,
+            "lower": 0.6000000000000001,
+            "mean_probability": 0.6771702531725228,
+            "n": 4,
+            "observed_frequency": 0.0,
+            "upper": 0.7000000000000001
+          },
+          {
+            "bin": 7,
+            "lower": 0.7000000000000001,
+            "mean_probability": 0.7226730182723582,
+            "n": 1,
+            "observed_frequency": 1.0,
+            "upper": 0.8
+          }
+        ],
+        "TRADE": [
+          {
+            "bin": 2,
+            "lower": 0.2,
+            "mean_probability": 0.2773269817276418,
+            "n": 1,
+            "observed_frequency": 0.0,
+            "upper": 0.30000000000000004
+          },
+          {
+            "bin": 3,
+            "lower": 0.30000000000000004,
+            "mean_probability": 0.3228297468274771,
+            "n": 4,
+            "observed_frequency": 1.0,
+            "upper": 0.4
+          },
+          {
+            "bin": 5,
+            "lower": 0.5,
+            "mean_probability": 0.5852768805582249,
+            "n": 2,
+            "observed_frequency": 0.5,
+            "upper": 0.6000000000000001
+          },
+          {
+            "bin": 6,
+            "lower": 0.6000000000000001,
+            "mean_probability": 0.6616376750420032,
+            "n": 46,
+            "observed_frequency": 0.6304347826086957,
+            "upper": 0.7000000000000001
+          },
+          {
+            "bin": 7,
+            "lower": 0.7000000000000001,
+            "mean_probability": 0.7596517205817417,
+            "n": 271,
+            "observed_frequency": 0.6789667896678967,
+            "upper": 0.8
+          },
+          {
+            "bin": 8,
+            "lower": 0.8,
+            "mean_probability": 0.856129495938645,
+            "n": 629,
+            "observed_frequency": 0.7408585055643879,
+            "upper": 0.9
+          },
+          {
+            "bin": 9,
+            "lower": 0.9,
+            "mean_probability": 0.9917930684152356,
+            "n": 523942,
+            "observed_frequency": 0.9096121326406358,
+            "upper": 1.0
+          }
+        ]
+      },
+      "roc_auc": 0.7800385556056417,
+      "support": [
+        47627,
+        477268
+      ]
+    },
+    "opportunity_threshold": 0.5
+  },
+  "model": "LightGBM direction, opportunity, and paired three-class barrier heads",
+  "purge": {
+    "minutes_each_side": 60,
+    "random_temporal_split": false
+  },
+  "result": {
+    "D_improves_C": false,
+    "status": "EMPIRICALLY VALIDATED"
+  },
+  "seed": 7,
+  "target": "tp20bp_sl20bph15m",
+  "threshold": {
+    "minimum_edge_over_cost": 2.0
+  },
+  "trade_count": 0,
+  "train_period": [
+    "2021-01-01",
+    "2022-01-01)"
+  ],
+  "validation_period": [
+    "2022-01-01",
+    "2023-01-01)"
+  ]
+}
