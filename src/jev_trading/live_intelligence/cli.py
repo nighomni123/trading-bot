@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from .config import load_settings
 from .frontier.client import DisabledFrontierClient
@@ -11,6 +12,7 @@ from .jev.client import DisabledJevClient
 from .runner import ShadowRunner
 from jev_trading.data.normalization import BinancePerpAdapter
 from jev_trading.replay import ReplayEngine
+from jev_trading.research import ResearchMemory
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,10 +26,18 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
     replay = sub.add_parser("replay", help="verify and summarize a recorded ledger")
     replay.add_argument("ledger")
+    research = sub.add_parser("research", help="generate immutable research memory")
+    research.add_argument("period", choices=("hourly", "daily", "weekly"))
+    research.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
+    research.add_argument("--root", default="research")
     args = parser.parse_args(argv)
     if args.command == "replay":
         records = ReplayEngine(args.ledger).records()
         print(json.dumps({"records": len(records), "decisions": [record.decision_id for record in records]}, indent=2))
+        return 0
+    if args.command == "research":
+        report = ResearchMemory(args.root).generate(ReplayEngine(args.ledger), args.period)
+        print(report)
         return 0
     settings = load_settings(args.config)
     if args.command == "status":
