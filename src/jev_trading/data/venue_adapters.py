@@ -280,7 +280,7 @@ class BinanceLiveState:
         if not self.generation or self.event_ms is None:
             return None
         age = int(now.timestamp() * 1000) - self.event_ms
-        if age < -1_000 or age > max_age_ms:
+        if age < 0 or age > max_age_ms:
             return None
         _prune(self.trades, self.event_ms)
         _prune(self.liquidations, self.event_ms)
@@ -480,7 +480,7 @@ class BybitLiveState:
         if not self.generation or self.event_ms is None:
             return None
         age = int(now.timestamp() * 1000) - self.event_ms
-        if age < -1_000 or age > max_age_ms:
+        if age < 0 or age > max_age_ms:
             return None
         _prune(self.trades, self.event_ms)
         _prune(self.liquidations, self.event_ms)
@@ -663,14 +663,13 @@ def _live_tick(adapter: Any, fields: dict[str, Any], received: datetime) -> Mark
 
 def _live_health(source: str, role: str, fields: dict[str, Any], now: datetime) -> DataQuality:
     event = fields["event_timestamp"]
-    now = max(now, event)
     age = int((now - event).total_seconds() * 1000)
-    healthy = age <= 15_000
+    healthy = 0 <= age <= 15_000
     return DataQuality(
-        safe_for_trading=healthy, stale=not healthy, timestamp_lag_ms=age,
+        safe_for_trading=healthy, stale=not healthy, timestamp_lag_ms=max(0, age),
         source_health={source: SourceHealth(
             source=source, role=role, healthy=healthy,
-            last_event_timestamp=event, last_received_timestamp=now, age_ms=age,
+            last_event_timestamp=event, last_received_timestamp=now, age_ms=max(0, age),
         )},
     )
 
@@ -737,14 +736,7 @@ class BinanceLivePerpAdapter(BinancePerpAdapter):
         fields = self._state.fields(received)
         if fields is not None:
             if fields["event_timestamp"] > received:
-                fields = {
-                    **fields,
-                    "event_timestamp": received,
-                    "metadata": {
-                        **fields["metadata"],
-                        "source_event_timestamp": fields["event_timestamp"].isoformat(),
-                    },
-                }
+                return []
             self._live_seen = True
             return [_live_tick(self, fields, received)]
         return [] if self._live_seen else super().snapshot(now=received)
@@ -754,7 +746,7 @@ class BinanceLivePerpAdapter(BinancePerpAdapter):
         fields = self._state.fields(current)
         if fields is not None:
             return _live_health(self.source, self.source_role, fields, current)
-        if self._live_seen:
+        if self._live_seen or (self._state.generation and self._state.event_ms is not None):
             return DataQuality(
                 safe_for_trading=False, stale=True, missing_sources=(self.source,),
                 source_health={self.source: SourceHealth(
@@ -836,14 +828,7 @@ class BybitPerpAdapter:
         fields = self._state.fields(received)
         if fields is not None:
             if fields["event_timestamp"] > received:
-                fields = {
-                    **fields,
-                    "event_timestamp": received,
-                    "metadata": {
-                        **fields["metadata"],
-                        "source_event_timestamp": fields["event_timestamp"].isoformat(),
-                    },
-                }
+                return []
             self._live_seen = True
             return [_live_tick(self, fields, received)]
         if self._live_seen:
@@ -877,7 +862,7 @@ class BybitPerpAdapter:
         fields = self._state.fields(current)
         if fields is not None:
             return _live_health(self.source, self.source_role, fields, current)
-        if self._live_seen:
+        if self._live_seen or (self._state.generation and self._state.event_ms is not None):
             return DataQuality(
                 safe_for_trading=False, stale=True, missing_sources=(self.source,),
             )

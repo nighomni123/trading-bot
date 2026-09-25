@@ -2,14 +2,13 @@
 
 Corrective implementation commit: `e9bc0e933e516e1d3e71921d1e8a062bb99d0737`
 Environment support commit: `f6afd851c7fa68e1fdf150047124a8cd8ee6c2ed`
-Audit baseline: `dcb618a6675941b98db777cb1766eac0bae1ee73`
-Remote `origin/main`: `f8a3a5af5a58215a188eaf262624a94be94d92d3`
+Live data source commit: `ba3e64e2d571faa13b268d9cd02588f24b1b39fc`
 
 ## Executive status
 
 **NOT SHADOW READY**
 
-The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable, and real OpenRouter smoke verification is blocked because `OPENROUTER_API_KEY` is absent. The local ignored `.env` now contains the supplied base URL and `thinkingmachines/inkling-small:free` for both Frontier and Jev. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key; direct OpenRouter Frontier and Jev requests both returned HTTP 403, so provider E2E remains blocked by provider access rather than missing local configuration. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
 
 No live-money execution path was introduced. The active system remains PAPER-only.
 
@@ -23,12 +22,24 @@ process variables. The local `.env` contains:
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 FRONTIER_MODEL=thinkingmachines/inkling-small:free
 JEV_MODEL=thinkingmachines/inkling-small:free
-OPENROUTER_API_KEY=
+OPENROUTER_API_KEY=<present locally; never committed>
 ```
 
-The API key is intentionally blank and is not present in Git. The providers remain
+The key is present only in the ignored local `.env` and is not present in Git. The providers remain
 configured as `disabled` in `configs/live.json` until an operator deliberately
 changes the provider mode to `openai_compatible`.
+
+## Live market-data verification
+
+The live-feed commit adds public Binance and Bybit adapters only:
+
+- Binance primary WebSocket: aggregate trades, ticker, mark/index, liquidations, and top-of-book depth.
+- Bybit secondary WebSocket: ticker, order book, trades, and liquidations.
+- REST backfill remains available for closed bars and enrichment.
+- `CompositeMarketDataAdapter` keeps Binance as the executable price source; Bybit is secondary/cross-market context only.
+- No private WebSocket, authenticated request, order endpoint, or exchange trading method is present.
+
+The one-iteration live smoke connected both venues, recorded healthy source-health entries and cross-market observations, and returned `NO_TRADE` with no fill. The full live-feed test file passed `9` tests. Future-dated exchange events are now rejected rather than clamped into a healthy receive-time observation.
 
 ## Architecture verification
 
@@ -150,7 +161,7 @@ No profitability interpretation is made.
 ### Full suite
 
 ```text
-302 passed
+311 passed
 0 failed
 0 skipped
 ```
@@ -218,7 +229,7 @@ No tested critical mutation survived.
 
 ### OpenRouter smoke
 
-**BLOCKED.** The local ignored `.env` has the supplied base URL and model, but its `OPENROUTER_API_KEY` is blank. No credential was requested or exposed.
+**BLOCKED.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. Direct provider-only requests to both Frontier and Jev returned HTTP `403`; no key or model response was printed. The request did not start the paper runner or any order path.
 
 ## Repository cleanup status
 
@@ -276,6 +287,8 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 - [x] Fake-provider E2E
 - [x] Mutation tests
 - [x] Full pytest
+- [x] Public Binance/Bybit live-feed adapters and paper-only source isolation
+- [x] Future-dated exchange events fail closed
 - [x] Project-root `.env` loading, precedence, `.env.example`, and secret-ignore tests
 - [ ] Remote archive branch pushed and verified
 - [ ] OpenRouter live-configuration smoke
@@ -285,7 +298,7 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. Add the real `OPENROUTER_API_KEY` to the ignored local `.env`; the base URL and model are already configured there. Run the conservative OpenRouter smoke without exposing the secret.
+2. Resolve the OpenRouter HTTP `403` for the configured model/key, then rerun the conservative provider smoke. The local key and model are already present; do not print or commit the key.
 3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
 4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
 

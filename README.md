@@ -129,7 +129,7 @@ All arms use the same market data, execution, accounting, and ledger contracts. 
 
 ## Public market-data smoke
 
-The Binance Futures adapter uses public REST data for closed 1m bars, funding, OI, mark/index, and top-of-book depth. Missing or stale data is not replaced with favorable defaults. A paper run with providers disabled should remain flat.
+The active market-data layer supports a Binance primary feed and an optional Bybit secondary feed using public REST backfill plus public WebSocket updates. It carries trades/flow, depth, mark/index, funding, open interest, and liquidation observations when the venue supplies them. Secondary observations are never used to price the primary executable path, and a stale optional venue does not override Binance. Missing or stale data is not replaced with favorable defaults. A paper run with providers disabled should remain flat.
 
 ## Research provenance
 

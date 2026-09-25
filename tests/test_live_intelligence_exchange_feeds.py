@@ -255,6 +255,16 @@ def test_binance_bar_backfill_is_cached(monkeypatch):
     assert calls["klines"] == 1
 
 
+def test_future_exchange_event_is_not_clamped_to_receive_time():
+    state = BinanceLiveState()
+    state.apply({"e": "ticker", "E": T0 + 500, "s": "BTCUSDT", "c": "100"}, 1)
+    assert state.fields(at(T0)) is None
+    adapter = BinanceLivePerpAdapter()
+    adapter._state = state
+    assert adapter.snapshot(now=at(T0)) == []
+    assert adapter.health(now=at(T0)).safe_for_trading is False
+
+
 def test_optional_stale_bybit_is_visible_without_poisoning_binance():
     decision = at(T0 + 300 * MINUTE)
     primary = tick(decision)
@@ -306,6 +316,5 @@ def test_bybit_adapter_and_default_config_are_wired():
             "bid1Price": "99", "ask1Price": "101", "bid1Size": "1", "ask1Size": "1",
         },
     }, 1)
-    normalized = skewed.snapshot(now=at(T0))[0]
-    assert normalized.event_timestamp == at(T0)
-    assert normalized.metadata["source_event_timestamp"] == at(T0 + 500).isoformat()
+    assert skewed.snapshot(now=at(T0)) == []
+    assert skewed.health(now=at(T0)).safe_for_trading is False
