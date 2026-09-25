@@ -89,6 +89,17 @@ def test_openai_transport_retries_and_does_not_expose_key(monkeypatch):
     assert all(call["headers"]["Authorization"] == "Bearer secret-test-value" for call in calls)
 
 
+def test_openai_transport_accepts_fenced_json_content(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "secret-test-value")
+    env = environment()
+    payload = _valid_payload(env)
+    response = _Response(payload)
+    response.json = lambda: {"choices": [{"message": {"content": "```json\n" + __import__("json").dumps(payload) + "\n```"}}]}
+    monkeypatch.setattr("jev_trading.live_intelligence.frontier.client.requests.post", lambda *args, **kwargs: response)
+    client = OpenAICompatibleFrontierClient(base_url="https://example.invalid/v1", model="test/model")
+    assert client.complete(system_prompt="system", payload={})["hypothesis_id"] == "request-1"
+
+
 def test_openai_transport_fails_closed_after_bounded_retries(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "secret-test-value")
     client = OpenAICompatibleFrontierClient(

@@ -19,6 +19,29 @@ class FrontierClient(Protocol):
     def complete(self, *, system_prompt: str, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
+def _parse_json_object(content: Any) -> dict[str, Any]:
+    if not isinstance(content, str):
+        raise ValueError("provider response content is not text")
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        parsed = json.loads(text[start:end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("provider response must be a JSON object")
+    return parsed
+
+
 class FrontierUnavailable(RuntimeError):
     pass
 
@@ -104,7 +127,6 @@ class OpenAICompatibleFrontierClient:
                     json={
                         "model": self.model,
                         "temperature": self.temperature,
-                        "response_format": {"type": "json_object"},
                         "max_tokens": self.max_output_tokens,
                         "messages": [
                             {"role": "system", "content": system_prompt},
@@ -115,10 +137,7 @@ class OpenAICompatibleFrontierClient:
                 )
                 response.raise_for_status()
                 content = response.json()["choices"][0]["message"]["content"]
-                parsed = json.loads(content)
-                if not isinstance(parsed, dict):
-                    raise ValueError("Frontier response must be a JSON object")
-                return parsed
+                return _parse_json_object(content)
             except (requests.RequestException, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
                 if attempt < self.max_retries:

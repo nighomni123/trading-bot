@@ -9,7 +9,7 @@ Live-feed safety fix commit: `716ef53ac4f9a79a3debbb74437faa38f0379b9c`
 
 **NOT SHADOW READY**
 
-The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key; direct OpenRouter Frontier and Jev requests both returned HTTP 403, so provider E2E remains blocked by provider access rather than missing local configuration. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key. The new model is reachable through OpenRouter, but its full structured Frontier response is not schema-conforming; strict validation therefore abstains rather than trading. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
 
 No live-money execution path was introduced. The active system remains PAPER-only.
 
@@ -21,14 +21,16 @@ process variables. The local `.env` contains:
 
 ```text
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-FRONTIER_MODEL=thinkingmachines/inkling-small:free
-JEV_MODEL=thinkingmachines/inkling-small:free
+FRONTIER_MODEL=inclusionai/ling-3.0-flash-fin:free
+JEV_MODEL=inclusionai/ling-3.0-flash-fin:free
 OPENROUTER_API_KEY=<present locally; never committed>
 ```
 
-The key is present only in the ignored local `.env` and is not present in Git. The providers remain
-configured as `disabled` in `configs/live.json` until an operator deliberately
-changes the provider mode to `openai_compatible`.
+The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The client therefore omits `response_format`, safely tolerates a Markdown JSON fence, and still requires strict Pydantic validation. The current model returned HTTP 200 but a non-conforming Frontier hypothesis, so the system correctly failed closed.
+
+The key is present only in the ignored local `.env` and is not present in Git. The providers remain configured as `disabled` in `configs/live.json` until an operator deliberately changes the provider mode to `openai_compatible`.
+
+
 
 ## Live market-data verification
 
@@ -69,7 +71,7 @@ Binance/public or Replay data
 - `B`: Quant + Frontier + Policy + Risk
 - `C`: Quant + Frontier + Jev + Policy + Risk
 
-The real AI path remains disabled in the checked-in configuration. No external provider was called during this audit.
+The real AI path remains disabled in the checked-in configuration. Provider-only OpenRouter validation was run; no paper order path or external execution provider was called.
 
 ## Frontier verification
 
@@ -84,7 +86,7 @@ The real AI path remains disabled in the checked-in configuration. No external p
 | Retry | Bounded retries/backoff; provider failure becomes abstention |
 | Validation | Request ID, timestamp, prompt version/hash, structured output |
 | Authority | No order, sizing, leverage, or risk override fields/API |
-| Runtime smoke | Blocked by blank `OPENROUTER_API_KEY`; no secret was requested or printed |
+| Runtime smoke | HTTP 200 transport, but model output failed strict `StrategyHypothesis` validation; safe abstention |
 
 ## Jev verification
 
@@ -162,7 +164,7 @@ No profitability interpretation is made.
 ### Full suite
 
 ```text
-311 passed
+313 passed
 0 failed
 0 skipped
 ```
@@ -230,7 +232,7 @@ No tested critical mutation survived.
 
 ### OpenRouter smoke
 
-**BLOCKED.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. Direct provider-only requests to both Frontier and Jev returned HTTP `403`; no key or model response was printed. The request did not start the paper runner or any order path.
+**BLOCKED.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. The model endpoint returned HTTP `200`, but the full Frontier request returned a schema-incompatible hypothesis and strict validation correctly abstained. The client omits unsupported `response_format` and safely tolerates Markdown-fenced JSON; schema validation remains mandatory. No key or model response was printed, and no paper runner or order path was started.
 
 ## Repository cleanup status
 
@@ -299,7 +301,7 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. Resolve the OpenRouter HTTP `403` for the configured model/key, then rerun the conservative provider smoke. The local key and model are already present; do not print or commit the key.
+2. Resolve the model/provider structured-output compatibility issue, then rerun the conservative smoke. The local key/model are present; do not print or commit the key.
 3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
 4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
 

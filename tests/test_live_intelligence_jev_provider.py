@@ -136,6 +136,17 @@ def test_jev_transport_retries_and_parses(monkeypatch):
     assert len(calls) == 3
 
 
+def test_jev_transport_accepts_fenced_json_content(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "secret")
+    request, _ = _request()
+    payload = _enter_response(request).model_dump(mode="json")
+    response = _Response(payload)
+    response.json = lambda: {"choices": [{"message": {"content": "```json\n" + __import__("json").dumps(payload) + "\n```"}}]}
+    monkeypatch.setattr("jev_trading.live_intelligence.jev.client.requests.post", lambda *args, **kwargs: response)
+    client = OpenAICompatibleJevClient(base_url="https://example.invalid/v1", model="test/model", prompt="system")
+    assert client.evaluate(request).request_id == request.request_id
+
+
 def test_jev_transport_fails_closed_after_retries(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "secret")
     request, _ = _request()

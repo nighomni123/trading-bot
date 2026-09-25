@@ -97,9 +97,11 @@ To enable OpenRouter, also set the provider mode in `configs/live.json`:
 ```
 
 `OPENROUTER_BASE_URL`, `FRONTIER_MODEL`, and `JEV_MODEL` are used when the JSON
-model/base URL is left at its deployment placeholder. The default provider mode
-is `disabled` and fails closed. Execution mode is always `PAPER`; live orders are
-disabled.
+model/base URL is left at its deployment placeholder. The current Ling model
+page reports that it does not support `response_format` or structured outputs;
+the client therefore relies on the prompt plus strict schema validation and
+fails closed on non-conforming output. The default provider mode is `disabled`
+and fails closed. Execution mode is always `PAPER`; live orders are disabled.
 
 ## CLI
 

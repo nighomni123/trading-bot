@@ -6,7 +6,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 import requests
 
@@ -22,6 +22,29 @@ class JevClient(Protocol):
 
 class JevUnavailable(RuntimeError):
     pass
+
+
+def _parse_json_object(content: Any) -> dict[str, Any]:
+    if not isinstance(content, str):
+        raise ValueError("provider response content is not text")
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        parsed = json.loads(text[start:end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("provider response must be a JSON object")
+    return parsed
 
 
 @dataclass
@@ -74,7 +97,6 @@ class OpenAICompatibleJevClient:
                     json={
                         "model": self.model,
                         "temperature": self.temperature,
-                        "response_format": {"type": "json_object"},
                         "max_tokens": self.max_output_tokens,
                         "messages": [
                             {"role": "system", "content": self.prompt},
@@ -85,7 +107,7 @@ class OpenAICompatibleJevClient:
                 )
                 response.raise_for_status()
                 content = response.json()["choices"][0]["message"]["content"]
-                return JevEvaluation.model_validate(json.loads(content))
+                return JevEvaluation.model_validate(_parse_json_object(content))
             except (requests.RequestException, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
                 if attempt < self.max_retries:
