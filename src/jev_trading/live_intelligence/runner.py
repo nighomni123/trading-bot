@@ -139,6 +139,8 @@ class ShadowRunner:
         intent = None
         if risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
             intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=candidate.side, quantity=risk.approved_quantity, reference_price=environment.price.last, stop=candidate.stop, target=candidate.target, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=candidate.strategy_id)
+        elif risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.EXIT, PolicyAction.REDUCE} and self.position.side != Side.FLAT:
+            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=self.position.side, quantity=risk.approved_quantity, reference_price=environment.price.last, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=self.position.strategy_id or "unknown")
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,

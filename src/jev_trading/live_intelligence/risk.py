@@ -96,6 +96,22 @@ class ActiveRiskKernel:
         if environment.liquidity.top_level_notional is not None and environment.liquidity.top_level_notional < self.limits.minimum_liquidity_notional:
             reasons.append("minimum_liquidity")
 
+        if policy.action in {PolicyAction.EXIT, PolicyAction.REDUCE}:
+            if position.side == Side.FLAT:
+                reasons.append("no_open_position")
+            else:
+                approved_quantity = position.quantity if policy.action == PolicyAction.EXIT else position.quantity / 2
+                if approved_quantity <= 0:
+                    reasons.append("exit_size_zero")
+                elif not reasons:
+                    return RiskDecision(
+                        decision_id=ident, timestamp=timestamp, status=RiskStatus.APPROVED,
+                        approved_quantity=approved_quantity,
+                        approved_notional=approved_quantity * (environment.price.last or position.entry_price),
+                        maximum_loss_usd=0.0, reasons=("risk_reducing_exit_approved",),
+                        risk_config_version=self.version,
+                    )
+
         if policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT} and policy.candidate is not None:
             entry = policy.candidate.entry_reference
             stop_distance = abs(entry - policy.candidate.stop)

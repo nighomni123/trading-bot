@@ -99,8 +99,10 @@ class PaperExecutor:
                 "quantity": quantity,
             }
         else:
+            position_side = self.position.side
+            entry = self._entry or {}
             close_quantity = min(quantity, self.position.quantity)
-            position_sign = 1 if self.position.side == Side.LONG else -1
+            position_sign = 1 if position_side == Side.LONG else -1
             gross = position_sign * close_quantity * (fill_price - self.position.entry_price)
             net = gross - fee
             remaining = self.position.quantity - close_quantity
@@ -109,10 +111,9 @@ class PaperExecutor:
                 self.position = PositionState(realized_pnl=realized)
             else:
                 self.position = self.position.model_copy(update={"quantity": remaining, "realized_pnl": realized})
-            entry = self._entry or {}
             self._last_trade = TradeRecord(
-                trade_id=str(uuid4()), strategy_id=self.position.strategy_id or entry.get("strategy_id", "unknown"),
-                strategy_version=entry.get("strategy_version", "unknown"), side=self.position.side,
+                trade_id=str(uuid4()), strategy_id=position_side.value,
+                strategy_version=entry.get("strategy_version", "unknown"), side=position_side,
                 quantity=close_quantity, entry_price=float(entry.get("entry_price", self.position.entry_price)),
                 exit_price=fill_price, opened_at=entry.get("opened_at", intent.created_at), closed_at=environment.timestamp,
                 gross_pnl_usd=gross, fees_usd=fee, slippage_usd=close_quantity * slip,
