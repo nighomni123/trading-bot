@@ -14,9 +14,12 @@ dependencies = [
     "numpy>=1.26",
     "scikit-learn>=1.4",
     "lightgbm>=4.3",
-    "pydantic>=2.6",
+    "pydantic>=2.6,<3.0",
     "requests>=2.31",
 ]
+
+[project.scripts]
+jev = "jev_trading.live_intelligence.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
