@@ -5,6 +5,8 @@ Environment support commit: `f6afd851c7fa68e1fdf150047124a8cd8ee6c2ed`
 Live data source commit: `ba3e64e2d571faa13b268d9cd02588f24b1b39fc`
 Live-feed safety fix commit: `716ef53ac4f9a79a3debbb74437faa38f0379b9c`
 Provider compatibility commit: `6fe72c8`
+Provider capability/smoke commit: `e6a484f`
+Provider telemetry/replay commit: `77cb692`
 
 ## Executive status
 
