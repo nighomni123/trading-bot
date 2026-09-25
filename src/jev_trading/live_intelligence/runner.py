@@ -150,7 +150,7 @@ class ShadowRunner:
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
-            jev_request=jev_request, jev_evaluation=jev_evaluation, policy_decision=policy, risk_decision=risk,
+            jev_request=jev_request, jev_evaluation=jev_evaluation, economic_value=economic_value, policy_decision=policy, risk_decision=risk,
             execution_intent=intent, position_before=self.position, position_after=self.position,
             versions=Versions(code_version=self.settings.code_version, experiment_id=self.settings.experiment_id, frontier_model=self.frontier.client.model_version, frontier_prompt=self.settings.frontier.prompt_version, jev_model=self.jev.client.model_version, jev_prompt=self.settings.jev.prompt_version, quant_analyzers={name: "quant-v1" for name in self.quant.names()}, policy="policy-v1", risk=self.risk.version, strategy_registry=self.settings.strategy_registry_version),
         )

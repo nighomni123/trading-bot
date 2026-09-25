@@ -655,6 +655,7 @@ class DecisionRecord(FrozenModel):
     quant_analyses: tuple[QuantAnalysisResult, ...] = ()
     jev_request: JevRequest | None = None
     jev_evaluation: JevEvaluation | None = None
+    economic_value: EconomicValue | None = None
     policy_decision: PolicyDecision
     risk_decision: RiskDecision
     execution_intent: ExecutionIntent | None = None
@@ -682,6 +683,8 @@ class DecisionRecord(FrozenModel):
         if self.paper_fill is not None:
             if self.execution_intent is None or self.paper_fill.decision_id != self.execution_intent.decision_id:
                 raise ValueError("paper fill requires matching execution intent")
+        if self.economic_value is not None and self.economic_value.sample_size < 0:
+            raise ValueError("economic value sample size cannot be negative")
         return self
 
 
