@@ -45,6 +45,7 @@ class ResearchMemory:
                 "events": [event.event_type for event in record.market_environment.events],
                 "quant_versions": record.versions.quant_analyzers,
                 "data_safe": record.market_environment.data_quality.safe_for_trading,
+                "provider_failures": [failure.model_dump(mode="json") for failure in record.provider_failures],
             },
             source_versions={
                 "frontier_model": record.versions.frontier_model,

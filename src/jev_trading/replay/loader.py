@@ -52,6 +52,7 @@ class ReplayEngine:
                 "frontier_hypothesis": record.frontier_hypothesis.model_dump(mode="json") if record.frontier_hypothesis else None,
                 "quant_evidence": record.quant_evidence.model_dump(mode="json") if record.quant_evidence else None,
                 "jev_evaluation": record.jev_evaluation.model_dump(mode="json") if record.jev_evaluation else None,
+                "provider_failures": [failure.model_dump(mode="json") for failure in record.provider_failures],
             },
             "deterministic_decision": {
                 "policy": record.policy_decision.model_dump(mode="json"),
