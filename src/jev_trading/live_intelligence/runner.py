@@ -96,7 +96,7 @@ class ShadowRunner:
         else:
             try:
                 hypothesis = self.frontier.generate(environment, request_id=request_id, regime=regime.trend)
-            except FrontierUnavailable as exc:
+            except Exception as exc:
                 hypothesis = StrategyHypothesis(
                     hypothesis_id=request_id, timestamp=environment.decision_timestamp, regime=regime.trend,
                     regime_confidence=regime.confidence, thesis="Frontier unavailable", abstain=True,
@@ -138,9 +138,9 @@ class ShadowRunner:
         risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
         intent = None
         if risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
-            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=candidate.side, quantity=risk.approved_quantity, reference_price=environment.price.last, stop=candidate.stop, target=candidate.target, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=candidate.strategy_id)
+            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=candidate.side, quantity=risk.approved_quantity, reference_price=environment.price.last, stop=candidate.stop, target=candidate.target, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=candidate.strategy_id, strategy_version=candidate.strategy_version)
         elif risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.EXIT, PolicyAction.REDUCE} and self.position.side != Side.FLAT:
-            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=self.position.side, quantity=risk.approved_quantity, reference_price=environment.price.last, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=self.position.strategy_id or "unknown")
+            intent = ExecutionIntent(intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER", action=policy.action, side=self.position.side, quantity=risk.approved_quantity, reference_price=environment.price.last, created_at=environment.decision_timestamp, earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1), strategy_id=self.position.strategy_id or "unknown", strategy_version=self.position.strategy_version or "unknown")
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
@@ -154,7 +154,19 @@ class ShadowRunner:
             self._pending_risk = risk
             self._pending_decision_id = policy.decision_id
         self._last_frontier_call = environment.decision_timestamp
+        self._persist_metrics(record)
         return record
+
+    def _persist_metrics(self, record: DecisionRecord) -> None:
+        from .metrics import Metrics
+        metrics = getattr(self, "_metrics", None)
+        if metrics is None:
+            metrics = Metrics(self.settings.observability.metrics_file)
+            self._metrics = metrics
+        metrics.increment("decisions_total")
+        metrics.increment(f"policy_{record.policy_decision.action.value.lower()}")
+        metrics.increment(f"risk_{record.risk_decision.status.value.lower()}")
+        metrics.flush()
 
     def add_completed_path_sample(self, sample: PathSample) -> None:
         if sample.timestamp > datetime.now(tz=timezone.utc):

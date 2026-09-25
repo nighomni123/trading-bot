@@ -92,7 +92,7 @@ class PaperExecutor:
             )
             self._entry = {
                 "strategy_id": intent.strategy_id,
-                "strategy_version": "recorded-in-ledger",
+                "strategy_version": intent.strategy_version,
                 "entry_decision_id": intent.decision_id,
                 "opened_at": intent.created_at,
                 "entry_price": fill_price,

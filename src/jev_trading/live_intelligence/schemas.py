@@ -579,6 +579,7 @@ class ExecutionIntent(FrozenModel):
     created_at: datetime
     earliest_execution_at: datetime
     strategy_id: str
+    strategy_version: str = "unknown"
 
     @model_validator(mode="after")
     def validate_intent(self) -> "ExecutionIntent":
