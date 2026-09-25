@@ -3,6 +3,7 @@
 Corrective implementation commit: `e9bc0e933e516e1d3e71921d1e8a062bb99d0737`
 Environment support commit: `f6afd851c7fa68e1fdf150047124a8cd8ee6c2ed`
 Live data source commit: `ba3e64e2d571faa13b268d9cd02588f24b1b39fc`
+Live-feed safety fix commit: `716ef53ac4f9a79a3debbb74437faa38f0379b9c`
 
 ## Executive status
 
