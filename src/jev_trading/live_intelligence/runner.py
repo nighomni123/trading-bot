@@ -28,6 +28,7 @@ from jev_trading.live_intelligence.schemas import (
     PolicyAction,
     PositionState,
     RiskStatus,
+    Side,
     StrategyHypothesis,
     Versions,
     PathSample,
@@ -54,6 +55,9 @@ class ShadowRunner:
         self._last_frontier_call: datetime | None = None
         self._path_samples: list[PathSample] = []
         self._path_sample_keys: set[tuple[datetime, Side, bool, bool, bool]] = set()
+        self._pending_intent = None
+        self._pending_risk = None
+        self._pending_decision_id = None
 
     def should_call_frontier(self, events) -> bool:
         now = datetime.now(tz=timezone.utc)
@@ -69,6 +73,15 @@ class ShadowRunner:
         self.fabric.ingest(observations)
         quality = self.fabric.quality()
         environment = build_market_environment(bars, ticks=self.fabric.latest(), quality=quality, decision_timestamp=datetime.now(tz=timezone.utc))
+        if self._pending_intent is not None and environment.timestamp >= self._pending_intent.earliest_execution_at:
+            fill = self.paper.execute(self._pending_intent, self._pending_risk, environment)
+            self.ledger.append_fill(fill)
+            self.position = self.paper.position
+            if self.paper.last_trade is not None:
+                self.ledger.append_trade(self.paper.last_trade)
+            self._pending_intent = None
+            self._pending_risk = None
+            self._pending_decision_id = None
         events = detect_events(environment, self.settings.quant)
         regime = assess_regime(environment)
         request_id = str(uuid4())
@@ -135,10 +148,9 @@ class ShadowRunner:
         )
         self.ledger.append_decision(record)
         if intent is not None:
-            execution_environment = environment.model_copy(update={"timestamp": intent.earliest_execution_at})
-            fill = self.paper.execute(intent, risk, execution_environment)
-            self.ledger.append_fill(fill)
-            self.position = self.paper.position
+            self._pending_intent = intent
+            self._pending_risk = risk
+            self._pending_decision_id = policy.decision_id
         self._last_frontier_call = environment.decision_timestamp
         return record
 
