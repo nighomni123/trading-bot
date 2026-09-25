@@ -129,3 +129,5 @@ Data lands in `data/` (gitignored), models in `models/`, event logs in `events/`
 Experiment artifacts in `experiments/EXP-xxx/`.
 
 > **Clone with LFS (seamless)**: This repo uses Git LFS for large `.jsonl` experiment files (`experiments/EXP-*/arm_*.jsonl`, ~200 MB each). To clone and get full files automatically, install [`git-lfs`](https://git-lfs.com) first (`brew install git-lfs` or download), run `git lfs install` once globally, then clone: `git clone https://github.com/nighomni123/trading-bot.git`. Without LFS configured, clone only downloads small pointer files (3 lines) instead of the real data.
+
+> Note (2026-09-24): Kaggle remote bench completed — smoke (v3 PASS), Phase 0 (v4 PASS), Phase 1 (v7 PASS, mode=phase1, base=2abb4d4, STOP, no specialist promotion). Private dataset `jev-trading-research-bundle`; notebook `kaggle/notebook.ipynb`; wrapper `scripts/run_kaggle_benchmark.sh`. Laya/fine-tuning deferred per docs (`docs/phase2-audit.md`: no Laya/Frontier/Jev until positive cost-surviving edge + new untouched holdout); see `kaggle/README.md` and `artifacts/kaggle/phase1-current/`.

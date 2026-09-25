@@ -1,0 +1,16 @@
+{
+  "id": "nighomni/jev-trading-research-benchmarks",
+  "title": "JEV Trading Research Benchmarks",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "false",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "machine_shape": "",
+  "dataset_sources": ["nighomni/jev-trading-research-bundle"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

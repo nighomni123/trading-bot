@@ -40,3 +40,9 @@ Rules:
 Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
 
 Canonical install: `.tools/ponytail` (update with `git pull`; source of the six `/ponytail*` skills — review, audit, debt, gain, help — and of this ruleset). When asked to review a diff or repo for over-engineering, follow `skills/ponytail-review/SKILL.md` and `skills/ponytail-audit/SKILL.md` there.
+
+---
+Agent work (2026-09-24):
+- Kaggle remote benchmark workflow built (`kaggle/notebook.ipynb`, `build_kaggle_kernel.py`, `run_kaggle_benchmark.sh`) with private dataset `jev-trading-research-bundle`, dataset-version guard (`wait_for_dataset`), and embedded mode/hash guard (`EXPECTED_MODE`, `EXPECTED_SOURCE_SHA256`, `EXPECTED_DATA_SHA256`).
+- Remote results: smoke PASS, Phase 0 PASS (v4, base 67be354), Phase 1 PASS (v6 old base, v7 current commit 2abb4d4 — STOP/NO_EDGE). Device load avoided; heavy compute stayed remote.
+- Laya fine-tuning plan: not implemented; docs/code show stub only (`frontier/laya.py`). Original design preserved in historical transcript (`src/jev_trading/risk/exp003 tests`: 2830-3812) from deleted `chatgpt-conversations.md` (commit 51461c82...). Plan requires positive specialist gate + new untouched OOS before any LLM/LoRA adapter. See `kaggle/README.md`.
