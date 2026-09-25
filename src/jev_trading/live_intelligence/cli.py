@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"records": len(records), "decisions": [record.decision_id for record in records]}, indent=2))
         return 0
     if args.command == "research":
-        report = ResearchMemory(args.root).generate(ReplayEngine(args.ledger), args.period)
+        report = ResearchMemory(args.root).generate(ReplayEngine(args.ledger).ledger, args.period)
         print(report)
         return 0
     settings = load_settings(args.config)
