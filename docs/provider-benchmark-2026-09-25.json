@@ -1,0 +1,27 @@
+{
+  "model": "inclusionai/ling-3.0-flash-fin:free",
+  "cases_per_component": 12,
+  "summary": {
+    "total": 24,
+    "valid": 24,
+    "validation_failures": 0,
+    "tool_call_successes": 24,
+    "latency_p50_ms": 10345.298867003294,
+    "latency_p95_ms": 18500.524745992152,
+    "trading_execution": "NOT_INVOKED"
+  },
+  "frontier": {
+    "tool": "submit_strategy_hypothesis",
+    "cases": 12,
+    "valid": 12,
+    "interface": "tool_call"
+  },
+  "jev": {
+    "tool": "submit_jev_evaluation",
+    "cases": 12,
+    "valid": 12,
+    "interface": "tool_call"
+  },
+  "authority_violations": 0,
+  "execution_orders": 0
+}

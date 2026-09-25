@@ -374,6 +374,8 @@ class StrategyHypothesis(FrozenModel):
     temperature: float | None = None
     max_output_tokens: int | None = Field(default=None, gt=0)
     capabilities: dict[str, bool] = Field(default_factory=dict)
+    interface_mode: str | None = None
+    tool_name: str | None = None
 
     @model_validator(mode="after")
     def validate_authority_boundary(self) -> "StrategyHypothesis":
@@ -578,6 +580,8 @@ class JevEvaluation(FrozenModel):
     temperature: float | None = None
     max_output_tokens: int | None = Field(default=None, gt=0)
     capabilities: dict[str, bool] = Field(default_factory=dict)
+    interface_mode: str | None = None
+    tool_name: str | None = None
 
     @model_validator(mode="after")
     def validate_evaluation(self) -> "JevEvaluation":

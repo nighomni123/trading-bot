@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 
 from .client import JevClient
+from ..model_contracts import JevModelDecision, jev_to_domain
 from ..schemas import JevEvaluation, JevRequest
 
 
@@ -14,6 +15,7 @@ class JevEvaluator:
         client: JevClient,
         *,
         prompt: str,
+        settings=None,
         max_validity_seconds: int = 60,
         prompt_version: str = "jev-evaluator-v1",
         minimum_target_probability: float = 0.55,
@@ -23,6 +25,7 @@ class JevEvaluator:
         minimum_liquidity_quality: float = 0.0,
     ):
         self.client = client
+        self.settings = settings
         self.max_validity_seconds = max_validity_seconds
         self.prompt_version = prompt_version
         self.prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
@@ -37,7 +40,24 @@ class JevEvaluator:
             raise ValueError("Jev prompt version mismatch")
         if request.timestamp.tzinfo is None:
             raise ValueError("Jev request timestamp must be timezone-aware")
-        response = self.client.evaluate(request)
+        raw_response = self.client.evaluate(request)
+        if isinstance(raw_response, JevEvaluation):
+            response = raw_response
+        else:
+            if getattr(self.client, "last_interface", "json") == "tool_call":
+                from ..config import load_settings
+                settings = self.settings or load_settings()
+                decision = JevModelDecision.model_validate(raw_response)
+                response = jev_to_domain(
+                    decision, request, settings=settings,
+                    provider=getattr(self.client, "provider", "openai_compatible"),
+                    model=getattr(self.client, "model", self.client.model_version),
+                    model_version=self.client.model_version, prompt_version=self.prompt_version,
+                    prompt_hash=self.prompt_hash,
+                    interface_mode="tool_call", tool_name=getattr(self.client, "last_tool_name", None),
+                )
+            else:
+                response = JevEvaluation.model_validate(raw_response)
         if response.request_id != request.request_id or response.decision_id != request.request_id:
             raise ValueError("Jev response identifiers do not match request")
         if response.prompt_version != self.prompt_version:

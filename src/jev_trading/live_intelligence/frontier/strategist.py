@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .client import FrontierClient, FrontierUnavailable
+from ..model_contracts import FrontierModelDecision, frontier_to_domain
 from ..schemas import MarketEnvironment, QuantEvidence, StrategyHypothesis
 
 
@@ -42,10 +43,11 @@ def _json_payload(
 
 
 class FrontierStrategist:
-    def __init__(self, client: FrontierClient, *, prompt: str, prompt_version: str):
+    def __init__(self, client: FrontierClient, *, prompt: str, prompt_version: str, settings=None):
         self.client = client
         self.prompt = prompt
         self.prompt_version = prompt_version
+        self.settings = settings
         self.prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
     def generate(
@@ -75,6 +77,19 @@ class FrontierStrategist:
             raw = self.client.complete(system_prompt=self.prompt, payload=payload)
             if not isinstance(raw, dict):
                 raise ValueError("Frontier response must be an object")
+            interface = getattr(self.client, "last_interface", "json")
+            if interface == "tool_call":
+                from ..config import load_settings
+                settings = self.settings or load_settings()
+                decision = FrontierModelDecision.model_validate(raw)
+                return frontier_to_domain(
+                    decision, environment=environment, settings=settings, request_id=request_id,
+                    provider=getattr(self.client, "provider", "openai_compatible"),
+                    model=getattr(self.client, "model", self.client.model_version),
+                    model_version=self.client.model_version, prompt_version=self.prompt_version,
+                    prompt_hash=self.prompt_hash, interface_mode=interface,
+                    tool_name=getattr(self.client, "last_tool_name", None),
+                )
             if raw.get("hypothesis_id") != request_id:
                 raise ValueError("Frontier hypothesis_id does not match request")
             if raw.get("prompt_version") not in (None, self.prompt_version):
@@ -95,6 +110,8 @@ class FrontierStrategist:
                     "reasoning": getattr(self.client, "supports_reasoning", False),
                     "vision": getattr(self.client, "supports_vision", False),
                 },
+                "interface_mode": interface,
+                "tool_name": None,
             })
         except FrontierUnavailable:
             raise

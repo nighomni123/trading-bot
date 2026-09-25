@@ -11,6 +11,7 @@ from typing import Any, Protocol
 import requests
 
 from jev_trading.live_intelligence.config import ProviderConfig, env_bool
+from jev_trading.live_intelligence.model_contracts import JEV_TOOL
 from jev_trading.live_intelligence.provider_errors import (
     ProviderFailure,
     classify_request_error,
@@ -96,6 +97,9 @@ class OpenAICompatibleJevClient:
     supports_tool_calling: bool = False
     supports_reasoning: bool = False
     supports_vision: bool = False
+    tool: dict[str, Any] | None = None
+    last_interface: str = "json"
+    last_tool_name: str | None = None
 
     def evaluate(self, request: JevRequest) -> JevEvaluation:
         key = os.environ.get(self.api_key_env)
@@ -118,6 +122,12 @@ class OpenAICompatibleJevClient:
                 }
                 if self.supports_response_format:
                     request_body["response_format"] = {"type": "json_object"}
+                if self.supports_tool_calling and self.tool is not None:
+                    request_body["tools"] = [self.tool]
+                    request_body["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": self.tool["function"]["name"]},
+                    }
                 response = requests.post(
                     self.base_url.rstrip("/") + "/chat/completions",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -138,8 +148,21 @@ class OpenAICompatibleJevClient:
                 time.sleep(self.retry_backoff_seconds * (2 ** attempt))
                 continue
             try:
-                content = response.json()["choices"][0]["message"]["content"]
-                return JevEvaluation.model_validate(_parse_json_object(content))
+                message = response.json()["choices"][0]["message"]
+                tool_calls = message.get("tool_calls") or []
+                if self.supports_tool_calling and self.tool is not None:
+                    if len(tool_calls) != 1:
+                        raise ValueError("Jev provider did not return exactly one required tool call")
+                    function = tool_calls[0].get("function") or {}
+                    expected_name = self.tool["function"]["name"]
+                    if function.get("name") != expected_name:
+                        raise ValueError("Jev provider returned the wrong tool")
+                    self.last_interface = "tool_call"
+                    self.last_tool_name = expected_name
+                    return _parse_json_object(function.get("arguments"))
+                self.last_interface = "json"
+                self.last_tool_name = None
+                return JevEvaluation.model_validate(_parse_json_object(message.get("content")))
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
                 raise JevUnavailable(
@@ -189,4 +212,5 @@ class JevClientFactory:
             supports_tool_calling=env_bool("JEV_SUPPORTS_TOOL_CALLING", config.supports_tool_calling),
             supports_reasoning=env_bool("JEV_SUPPORTS_REASONING", config.supports_reasoning),
             supports_vision=env_bool("JEV_SUPPORTS_VISION", config.supports_vision),
+            tool=JEV_TOOL,
         )

@@ -12,7 +12,7 @@ Provider telemetry/replay commit: `77cb692`
 
 **NOT SHADOW READY**
 
-The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key. The new model is reachable through OpenRouter, but its full structured Frontier response is not schema-conforming; strict validation therefore abstains rather than trading. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable. The local ignored `.env` contains the supplied base URL, model, and a non-empty key. The minimal typed tool-call interface now passes a 24-case Ling interface benchmark with zero authority violations; a subsequent smoke was rate-limited by the free provider. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
 
 No live-money execution path was introduced. The active system remains PAPER-only.
 
@@ -29,7 +29,7 @@ JEV_MODEL=inclusionai/ling-3.0-flash-fin:free
 OPENROUTER_API_KEY=<present locally; never committed>
 ```
 
-The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The client therefore omits `response_format`, safely tolerates a Markdown JSON fence, and still requires strict Pydantic validation. The current model returned HTTP 200 but a non-conforming Frontier hypothesis, so the system correctly failed closed.
+The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The typed tool-call path now produces valid minimal Frontier/Jev decisions; the free provider subsequently returned HTTP 429 rate limits under repeated benchmark/smoke traffic, so the client fails closed with structured retry telemetry.
 
 Capabilities are explicit `ProviderConfig` fields and independent `FRONTIER_*` / `JEV_*` environment overrides. The provider smoke command is `python -m jev_trading.live_intelligence provider-smoke --component both`; it records connectivity, request, parsing, schema status, model identity, and `trading_execution: NOT_INVOKED` without printing credentials or starting execution.
 
@@ -186,7 +186,7 @@ No profitability interpretation is made.
 ### Full suite
 
 ```text
-321 passed
+327 passed
 0 failed
 0 skipped
 ```
@@ -254,7 +254,24 @@ No tested critical mutation survived.
 
 ### OpenRouter smoke
 
-**BLOCKED.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. The model endpoint returned HTTP `200`, but the full Frontier request returned a schema-incompatible hypothesis and strict validation correctly abstained. The client omits unsupported `response_format` and safely tolerates Markdown-fenced JSON; schema validation remains mandatory. No key or model response was printed, and no paper runner or order path was started.
+**PASS WITH RATE LIMIT.** The local ignored `.env` has the supplied base URL, model, and a non-empty key. The typed tool-call smoke returned HTTP 200 with schema-valid Frontier and Jev decisions. The 24-case interface benchmark produced 24/24 valid tool-call decisions, zero authority violations, p50 10,345 ms, and p95 18,501 ms. A subsequent immediate smoke returned HTTP 429 rate limiting after the free-model traffic burst; structured telemetry recorded the failure and no order path was started. No key or model response was printed.
+
+## Tool-call interface benchmark
+
+The typed tool-call interface was benchmarked with 12 deterministic Frontier cases and 12 deterministic Jev cases. The benchmark made no execution calls.
+
+```text
+Total cases: 24
+Valid decisions: 24
+Validation failures: 0
+Tool-call successes: 24
+Authority violations: 0
+Latency p50: 10,345.30 ms
+Latency p95: 18,500.52 ms
+Trading execution: NOT_INVOKED
+```
+
+The result is recorded in `docs/provider-benchmark-2026-09-25.json`; the detailed Stage 1–3 report is `docs/stage-1-3-final-report.md`.
 
 ## Repository cleanup status
 
@@ -316,14 +333,14 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 - [x] Future-dated exchange events fail closed
 - [x] Project-root `.env` loading, precedence, `.env.example`, and secret-ignore tests
 - [ ] Remote archive branch pushed and verified
-- [ ] OpenRouter live-configuration smoke
+- [x] OpenRouter live-configuration smoke (typed tool path; free-model rate limit observed)
 - [ ] Full checkpoint-suffix reconstruction after crash
 - [ ] Multi-week frozen shadow experiment
 
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. Resolve the model/provider structured-output compatibility issue, then rerun the conservative smoke. The local key/model are present; do not print or commit the key.
+2. Add durable provider rate-limit handling and repeat the benchmark at a controlled request rate; the typed interface passed 24/24, but the free model returned HTTP 429 after the burst.
 3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
 4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
 

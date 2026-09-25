@@ -71,10 +71,11 @@ class ShadowRunner:
         frontier_prompt = load_prompt(Path(__file__).parent / settings.frontier.prompt_file)
         self.frontier = FrontierStrategist(
             frontier_client, prompt=frontier_prompt, prompt_version=settings.frontier.prompt_version,
+            settings=settings,
         )
         jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
         self.jev = JevEvaluator(
-            jev_client, prompt=jev_prompt,
+            jev_client, prompt=jev_prompt, settings=settings,
             max_validity_seconds=settings.jev.validity_seconds,
             prompt_version=settings.jev.prompt_version,
             minimum_target_probability=settings.jev.minimum_target_probability,

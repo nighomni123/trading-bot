@@ -10,6 +10,7 @@ from .config import load_project_env, load_settings
 from .frontier.client import FrontierClientFactory
 from .frontier.strategist import load_prompt
 from .jev.client import JevClientFactory
+from .provider_benchmark import run_benchmark
 from .provider_smoke import run_provider_smoke
 from .runner import ShadowRunner
 from jev_trading.data.venue_adapters import (
@@ -42,7 +43,15 @@ def main(argv: list[str] | None = None) -> int:
     smoke = sub.add_parser("provider-smoke", help="test configured AI providers without trading")
     smoke.add_argument("--component", choices=("frontier", "jev", "both"), default="both")
     smoke.add_argument("--config", default="configs/live.json")
+    benchmark = sub.add_parser("provider-benchmark", help="run interface-only provider fixtures; never trades")
+    benchmark.add_argument("--config", default="configs/live.json")
+    benchmark.add_argument("--cases", type=int, default=12)
+    benchmark.add_argument("--workers", type=int, default=4)
     args = parser.parse_args(argv)
+    if args.command == "provider-benchmark":
+        payload = run_benchmark(load_settings(args.config), cases=args.cases, workers=args.workers)
+        print(json.dumps(payload, indent=2))
+        return 0
     if args.command == "provider-smoke":
         results = run_provider_smoke(load_settings(args.config), args.component)
         print(json.dumps({"provider_smoke": results, "trading_execution": "NOT_INVOKED"}, indent=2))
