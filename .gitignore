@@ -18,6 +18,7 @@ artifacts/
 *.log
 events/
 models/
+research/runtime/
 
 # OS
 .DS_Store
