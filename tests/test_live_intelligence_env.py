@@ -57,3 +57,29 @@ def test_load_settings_automatically_loads_project_env(tmp_path: Path, monkeypat
     settings = config.load_settings(config_file)
     assert settings.experiment_id == "ENV-LOAD-TEST"
     assert __import__("os").environ["JEV_TEST_KEY"] == "loaded-by-settings"
+
+
+def test_provider_environment_overrides_are_applied_to_settings(tmp_path: Path, monkeypatch):
+    from jev_trading.live_intelligence import config
+
+    monkeypatch.setattr(config, "project_root", lambda: tmp_path)
+    monkeypatch.setenv("FRONTIER_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("JEV_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("FRONTIER_BASE_URL", "https://frontier.example/v1")
+    monkeypatch.setenv("JEV_BASE_URL", "https://jev.example/v1")
+    monkeypatch.setenv("FRONTIER_MODEL", "frontier/model")
+    monkeypatch.setenv("JEV_MODEL", "jev/model")
+    monkeypatch.setenv("FRONTIER_SUPPORTS_RESPONSE_FORMAT", "true")
+    monkeypatch.setenv("JEV_SUPPORTS_RESPONSE_FORMAT", "false")
+    config_file = tmp_path / "configs" / "live.json"
+    config_file.parent.mkdir()
+    config_file.write_text('{"experiment_id":"ENV-LOAD-TEST"}\n')
+    settings = config.load_settings(config_file)
+    assert settings.frontier.provider.provider == "openai_compatible"
+    assert settings.jev.provider.provider == "openai_compatible"
+    assert settings.frontier.provider.base_url == "https://frontier.example/v1"
+    assert settings.jev.provider.base_url == "https://jev.example/v1"
+    assert settings.frontier.provider.model == "frontier/model"
+    assert settings.jev.provider.model == "jev/model"
+    assert settings.frontier.provider.supports_response_format is True
+    assert settings.jev.provider.supports_response_format is False

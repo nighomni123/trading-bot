@@ -28,7 +28,11 @@
       "max_output_tokens": 1800,
       "temperature": 0.2,
       "max_retries": 2,
-      "retry_backoff_seconds": 0.5
+      "retry_backoff_seconds": 0.5,
+      "supports_response_format": false,
+      "supports_tool_calling": false,
+      "supports_reasoning": false,
+      "supports_vision": false
     }
   },
   "jev": {
@@ -50,7 +54,11 @@
       "max_output_tokens": 900,
       "temperature": 0.0,
       "max_retries": 2,
-      "retry_backoff_seconds": 0.5
+      "retry_backoff_seconds": 0.5,
+      "supports_response_format": false,
+      "supports_tool_calling": false,
+      "supports_reasoning": false,
+      "supports_vision": false
     }
   },
   "quant": {

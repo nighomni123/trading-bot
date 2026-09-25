@@ -9,7 +9,13 @@ from typing import Any, Protocol
 
 import requests
 
-from jev_trading.live_intelligence.config import ProviderConfig
+from jev_trading.live_intelligence.config import ProviderConfig, env_bool
+from jev_trading.live_intelligence.provider_errors import (
+    ProviderFailure,
+    classify_request_error,
+    http_status,
+    retryable_request_error,
+)
 from jev_trading.live_intelligence.schemas import Direction
 
 
@@ -42,8 +48,10 @@ def _parse_json_object(content: Any) -> dict[str, Any]:
     return parsed
 
 
-class FrontierUnavailable(RuntimeError):
-    pass
+class FrontierUnavailable(ProviderFailure):
+    def __init__(self, message: str, **kwargs) -> None:
+        kwargs.setdefault("component", "frontier")
+        super().__init__(message, **kwargs)
 
 
 @dataclass
@@ -107,42 +115,74 @@ class OpenAICompatibleFrontierClient:
     base_url: str
     model: str
     api_key_env: str = "OPENROUTER_API_KEY"
+    provider: str = "openai_compatible"
     model_version: str = "openai-compatible-frontier-v1"
     timeout_seconds: float = 30.0
     max_output_tokens: int = 1800
     temperature: float = 0.2
     max_retries: int = 2
     retry_backoff_seconds: float = 0.5
+    supports_response_format: bool = False
+    supports_tool_calling: bool = False
+    supports_reasoning: bool = False
+    supports_vision: bool = False
 
     def complete(self, *, system_prompt: str, payload: dict[str, Any]) -> dict[str, Any]:
         key = os.environ.get(self.api_key_env)
         if not key:
-            raise FrontierUnavailable(f"missing credential environment variable {self.api_key_env}")
+            raise FrontierUnavailable(
+                f"missing credential environment variable {self.api_key_env}",
+                provider=self.provider, model=self.model, category="authentication",
+            )
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                request_body = {
+                    "model": self.model,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_output_tokens,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": json.dumps(payload, sort_keys=True)},
+                    ],
+                }
+                if self.supports_response_format:
+                    request_body["response_format"] = {"type": "json_object"}
                 response = requests.post(
                     self.base_url.rstrip("/") + "/chat/completions",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json={
-                        "model": self.model,
-                        "temperature": self.temperature,
-                        "max_tokens": self.max_output_tokens,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": json.dumps(payload, sort_keys=True)},
-                        ],
-                    },
+                    json=request_body,
                     timeout=self.timeout_seconds,
                 )
                 response.raise_for_status()
+            except requests.RequestException as exc:
+                last_error = exc
+                category = classify_request_error(exc)
+                if not retryable_request_error(exc) or attempt >= self.max_retries:
+                    raise FrontierUnavailable(
+                        f"OpenAI-compatible Frontier request failed: {category}",
+                        provider=self.provider, model=self.model, category=category,
+                        http_status=http_status(exc), retry_count=attempt + 1,
+                        request_id=payload.get("request_id"),
+                    ) from exc
+                time.sleep(self.retry_backoff_seconds * (2 ** attempt))
+                continue
+            try:
                 content = response.json()["choices"][0]["message"]["content"]
                 return _parse_json_object(content)
-            except (requests.RequestException, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
-                if attempt < self.max_retries:
-                    time.sleep(self.retry_backoff_seconds * (2 ** attempt))
-        raise FrontierUnavailable(f"OpenAI-compatible Frontier request failed: {type(last_error).__name__}") from last_error
+                raise FrontierUnavailable(
+                    "OpenAI-compatible Frontier response validation failed",
+                    provider=self.provider, model=self.model, category="validation",
+                    http_status=response.status_code, retry_count=attempt + 1,
+                    request_id=payload.get("request_id"),
+                ) from exc
+        raise FrontierUnavailable(
+            "OpenAI-compatible Frontier request failed",
+            provider=self.provider, model=self.model, category="unknown",
+            retry_count=self.max_retries + 1, request_id=payload.get("request_id"),
+        ) from last_error
 
 
 class FrontierClientFactory:
@@ -152,15 +192,23 @@ class FrontierClientFactory:
             return DisabledFrontierClient()
         if config.provider == "replay":
             return ReplayFrontierClient(allow_trade=replay_allow_trade)
-        base_url = config.base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        base_url = (
+            config.base_url
+            or os.getenv("FRONTIER_BASE_URL")
+            or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        )
         model = config.model
         if model == "configured-at-deployment":
             model = os.getenv("FRONTIER_MODEL", "")
         if not model:
-            raise FrontierUnavailable("FRONTIER_MODEL is required for OpenAI-compatible Frontier")
+            raise FrontierUnavailable(
+                "FRONTIER_MODEL is required for OpenAI-compatible Frontier",
+                provider=config.provider, category="configuration",
+            )
         return OpenAICompatibleFrontierClient(
             base_url=base_url,
             model=model,
+            provider=config.provider,
             api_key_env=config.api_key_env,
             model_version=f"openai-compatible-frontier:{model}",
             timeout_seconds=config.timeout_seconds,
@@ -168,4 +216,8 @@ class FrontierClientFactory:
             temperature=config.temperature,
             max_retries=config.max_retries,
             retry_backoff_seconds=config.retry_backoff_seconds,
+            supports_response_format=env_bool("FRONTIER_SUPPORTS_RESPONSE_FORMAT", config.supports_response_format),
+            supports_tool_calling=env_bool("FRONTIER_SUPPORTS_TOOL_CALLING", config.supports_tool_calling),
+            supports_reasoning=env_bool("FRONTIER_SUPPORTS_REASONING", config.supports_reasoning),
+            supports_vision=env_bool("FRONTIER_SUPPORTS_VISION", config.supports_vision),
         )

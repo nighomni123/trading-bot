@@ -37,6 +37,10 @@ class ProviderConfig(StrictConfig):
     temperature: float = Field(default=0.2, ge=0, le=2)
     max_retries: int = Field(default=2, ge=0, le=5)
     retry_backoff_seconds: float = Field(default=0.5, ge=0, le=10)
+    supports_response_format: bool = False
+    supports_tool_calling: bool = False
+    supports_reasoning: bool = False
+    supports_vision: bool = False
 
 
 class FrontierConfig(StrictConfig):
@@ -184,6 +188,18 @@ def project_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean value")
+
+
 def _unquote_env_value(value: str) -> str:
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
@@ -217,9 +233,30 @@ def load_project_env(path: str | Path | None = None) -> dict[str, str]:
     return loaded
 
 
+def _apply_provider_env(payload: dict) -> dict:
+    shared_base = os.getenv("OPENROUTER_BASE_URL")
+    for component, prefix in (("frontier", "FRONTIER"), ("jev", "JEV")):
+        section = payload.setdefault(component, {})
+        provider = section.setdefault("provider", {})
+        if value := os.getenv(f"{prefix}_PROVIDER"):
+            provider["provider"] = value
+        if value := os.getenv(f"{prefix}_MODEL"):
+            provider["model"] = value
+        if value := os.getenv(f"{prefix}_BASE_URL") or shared_base:
+            provider["base_url"] = value
+        if value := os.getenv(f"{prefix}_API_KEY_ENV"):
+            provider["api_key_env"] = value
+        for capability in ("RESPONSE_FORMAT", "TOOL_CALLING", "REASONING", "VISION"):
+            name = f"{prefix}_SUPPORTS_{capability}"
+            if name in os.environ:
+                provider[f"supports_{capability.lower()}"] = env_bool(name)
+    return payload
+
+
 def load_settings(path: str | Path = "configs/live.json") -> LiveSettings:
     load_project_env()
     candidate = Path(path)
     if not candidate.is_absolute():
         candidate = project_root() / candidate
-    return LiveSettings.model_validate(json.loads(candidate.read_text()))
+    payload = _apply_provider_env(json.loads(candidate.read_text()))
+    return LiveSettings.model_validate(payload)

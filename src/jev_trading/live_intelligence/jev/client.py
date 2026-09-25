@@ -10,7 +10,13 @@ from typing import Any, Protocol
 
 import requests
 
-from jev_trading.live_intelligence.config import ProviderConfig
+from jev_trading.live_intelligence.config import ProviderConfig, env_bool
+from jev_trading.live_intelligence.provider_errors import (
+    ProviderFailure,
+    classify_request_error,
+    http_status,
+    retryable_request_error,
+)
 from jev_trading.live_intelligence.schemas import JevEvaluation, JevRequest
 
 
@@ -20,8 +26,10 @@ class JevClient(Protocol):
     def evaluate(self, request: JevRequest) -> JevEvaluation: ...
 
 
-class JevUnavailable(RuntimeError):
-    pass
+class JevUnavailable(ProviderFailure):
+    def __init__(self, message: str, **kwargs) -> None:
+        kwargs.setdefault("component", "jev")
+        super().__init__(message, **kwargs)
 
 
 def _parse_json_object(content: Any) -> dict[str, Any]:
@@ -77,42 +85,74 @@ class OpenAICompatibleJevClient:
     model: str
     prompt: str
     api_key_env: str = "OPENROUTER_API_KEY"
+    provider: str = "openai_compatible"
     model_version: str = "openai-compatible-jev-v1"
     timeout_seconds: float = 20.0
     max_output_tokens: int = 900
     temperature: float = 0.0
     max_retries: int = 2
     retry_backoff_seconds: float = 0.5
+    supports_response_format: bool = False
+    supports_tool_calling: bool = False
+    supports_reasoning: bool = False
+    supports_vision: bool = False
 
     def evaluate(self, request: JevRequest) -> JevEvaluation:
         key = os.environ.get(self.api_key_env)
         if not key:
-            raise JevUnavailable(f"missing credential environment variable {self.api_key_env}")
+            raise JevUnavailable(
+                f"missing credential environment variable {self.api_key_env}",
+                provider=self.provider, model=self.model, category="authentication",
+            )
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                request_body = {
+                    "model": self.model,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_output_tokens,
+                    "messages": [
+                        {"role": "system", "content": self.prompt},
+                        {"role": "user", "content": json.dumps(request.model_dump(mode="json"), sort_keys=True)},
+                    ],
+                }
+                if self.supports_response_format:
+                    request_body["response_format"] = {"type": "json_object"}
                 response = requests.post(
                     self.base_url.rstrip("/") + "/chat/completions",
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json={
-                        "model": self.model,
-                        "temperature": self.temperature,
-                        "max_tokens": self.max_output_tokens,
-                        "messages": [
-                            {"role": "system", "content": self.prompt},
-                            {"role": "user", "content": json.dumps(request.model_dump(mode="json"), sort_keys=True)},
-                        ],
-                    },
+                    json=request_body,
                     timeout=self.timeout_seconds,
                 )
                 response.raise_for_status()
+            except requests.RequestException as exc:
+                last_error = exc
+                category = classify_request_error(exc)
+                if not retryable_request_error(exc) or attempt >= self.max_retries:
+                    raise JevUnavailable(
+                        f"OpenAI-compatible Jev request failed: {category}",
+                        provider=self.provider, model=self.model, category=category,
+                        http_status=http_status(exc), retry_count=attempt + 1,
+                        request_id=request.request_id,
+                    ) from exc
+                time.sleep(self.retry_backoff_seconds * (2 ** attempt))
+                continue
+            try:
                 content = response.json()["choices"][0]["message"]["content"]
                 return JevEvaluation.model_validate(_parse_json_object(content))
-            except (requests.RequestException, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
-                if attempt < self.max_retries:
-                    time.sleep(self.retry_backoff_seconds * (2 ** attempt))
-        raise JevUnavailable(f"OpenAI-compatible Jev request failed: {type(last_error).__name__}") from last_error
+                raise JevUnavailable(
+                    "OpenAI-compatible Jev response validation failed",
+                    provider=self.provider, model=self.model, category="validation",
+                    http_status=response.status_code, retry_count=attempt + 1,
+                    request_id=request.request_id,
+                ) from exc
+        raise JevUnavailable(
+            "OpenAI-compatible Jev request failed",
+            provider=self.provider, model=self.model, category="unknown",
+            retry_count=self.max_retries + 1, request_id=request.request_id,
+        ) from last_error
 
 
 class JevClientFactory:
@@ -122,14 +162,22 @@ class JevClientFactory:
             return DisabledJevClient()
         if config.provider == "replay":
             return ReplayJevClient()
-        base_url = config.base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        base_url = (
+            config.base_url
+            or os.getenv("JEV_BASE_URL")
+            or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        )
         model = config.model
         if model == "configured-at-deployment":
             model = os.getenv("JEV_MODEL", "")
         if not model:
-            raise JevUnavailable("JEV_MODEL is required for OpenAI-compatible Jev")
+            raise JevUnavailable(
+                "JEV_MODEL is required for OpenAI-compatible Jev",
+                provider=config.provider, category="configuration",
+            )
         return OpenAICompatibleJevClient(
             base_url=base_url, model=model, prompt=prompt,
+            provider=config.provider,
             api_key_env=config.api_key_env,
             model_version=f"openai-compatible-jev:{model}",
             timeout_seconds=config.timeout_seconds,
@@ -137,4 +185,8 @@ class JevClientFactory:
             temperature=config.temperature,
             max_retries=config.max_retries,
             retry_backoff_seconds=config.retry_backoff_seconds,
+            supports_response_format=env_bool("JEV_SUPPORTS_RESPONSE_FORMAT", config.supports_response_format),
+            supports_tool_calling=env_bool("JEV_SUPPORTS_TOOL_CALLING", config.supports_tool_calling),
+            supports_reasoning=env_bool("JEV_SUPPORTS_REASONING", config.supports_reasoning),
+            supports_vision=env_bool("JEV_SUPPORTS_VISION", config.supports_vision),
         )

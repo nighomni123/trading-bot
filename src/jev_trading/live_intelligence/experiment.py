@@ -46,8 +46,24 @@ def make_versions(
     jev_prompt_hash: str,
     quant_versions: dict[str, str],
     arm: str = "C",
+    frontier_provider: str | None = None,
+    frontier_capabilities: dict[str, bool] | None = None,
+    jev_provider: str | None = None,
+    jev_capabilities: dict[str, bool] | None = None,
 ) -> Versions:
     root = Path(__file__).resolve().parent
+    frontier_caps = frontier_capabilities or {
+        "response_format": settings.frontier.provider.supports_response_format,
+        "tool_calling": settings.frontier.provider.supports_tool_calling,
+        "reasoning": settings.frontier.provider.supports_reasoning,
+        "vision": settings.frontier.provider.supports_vision,
+    }
+    jev_caps = jev_capabilities or {
+        "response_format": settings.jev.provider.supports_response_format,
+        "tool_calling": settings.jev.provider.supports_tool_calling,
+        "reasoning": settings.jev.provider.supports_reasoning,
+        "vision": settings.jev.provider.supports_vision,
+    }
     return Versions(
         code_version=f"{settings.code_version}@{git_commit()[:12]}",
         experiment_id=settings.experiment_id,
@@ -67,6 +83,14 @@ def make_versions(
         policy_hash=file_hash(root / "policy/finalizer.py"),
         risk_hash=file_hash(root / "risk.py"),
         strategy_registry_hash=file_hash(settings.research.strategy_registry),
+        frontier_provider=frontier_provider or settings.frontier.provider.provider,
+        jev_provider=jev_provider or settings.jev.provider.provider,
+        frontier_capabilities=frontier_caps,
+        jev_capabilities=jev_caps,
+        frontier_temperature=settings.frontier.provider.temperature,
+        frontier_max_output_tokens=settings.frontier.provider.max_output_tokens,
+        jev_temperature=settings.jev.provider.temperature,
+        jev_max_output_tokens=settings.jev.provider.max_output_tokens,
     )
 
 

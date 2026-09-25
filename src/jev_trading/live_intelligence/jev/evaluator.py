@@ -51,7 +51,19 @@ class JevEvaluator:
         now = datetime.now(tz=timezone.utc)
         if response.valid_until <= max(now, request.timestamp):
             raise ValueError("Jev response is expired")
-        response = response.model_copy(update={"prompt_hash": self.prompt_hash})
+        response = response.model_copy(update={
+            "prompt_hash": self.prompt_hash,
+            "provider": getattr(self.client, "provider", "replay"),
+            "model": getattr(self.client, "model", self.client.model_version),
+            "temperature": getattr(self.client, "temperature", None),
+            "max_output_tokens": getattr(self.client, "max_output_tokens", None),
+            "capabilities": {
+                "response_format": getattr(self.client, "supports_response_format", False),
+                "tool_calling": getattr(self.client, "supports_tool_calling", False),
+                "reasoning": getattr(self.client, "supports_reasoning", False),
+                "vision": getattr(self.client, "supports_vision", False),
+            },
+        })
         if response.recommended_state == "ENTER":
             required = {"target", "stop", "timeout"}
             if not required.issubset(response.probabilities):

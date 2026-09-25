@@ -96,6 +96,8 @@ To enable OpenRouter, also set the provider mode in `configs/live.json`:
 }
 ```
 
+Capability profiles for Ling, Nemotron, and the non-comparable `openrouter/free` router are documented in `configs/openrouter_profiles.json`. Capabilities are explicit configuration, not inferred from model names.
+
 `OPENROUTER_BASE_URL`, `FRONTIER_MODEL`, and `JEV_MODEL` are used when the JSON
 model/base URL is left at its deployment placeholder. The current Ling model
 page reports that it does not support `response_format` or structured outputs;
@@ -123,9 +125,9 @@ and fails closed. Execution mode is always `PAPER`; live orders are disabled.
 
 `--arm` selects a reproducible ablation:
 
-- `A`: Quant + deterministic Policy + Risk
-- `B`: Quant + Frontier + Policy + Risk
-- `C`: Quant + Frontier + Jev + Policy + Risk
+- `A` / `QUANT_ONLY` / `QUANT_POLICY`: Quant + deterministic Policy + Risk
+- `B` / `QUANT_FRONTIER`: Quant + Frontier + Policy + Risk
+- `C` / `QUANT_FRONTIER_JEV`: Quant + Frontier + Jev + Policy + Risk
 
 All arms use the same market data, execution, accounting, and ledger contracts. A is not a profitability claim.
 

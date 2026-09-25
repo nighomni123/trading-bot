@@ -185,5 +185,5 @@ def test_mismatched_frontier_id_is_rejected():
     strategist = FrontierStrategist(
         WrongId(allow_trade=True), prompt="prompt", prompt_version="frontier-strategist-v1",
     )
-    with pytest.raises(ValueError, match="hypothesis_id"):
+    with pytest.raises(FrontierUnavailable, match="hypothesis_id"):
         strategist.generate(env, request_id="request-1")

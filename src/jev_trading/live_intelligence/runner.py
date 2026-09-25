@@ -23,6 +23,7 @@ from jev_trading.live_intelligence.policy import PolicyFinalizer, make_candidate
 from jev_trading.live_intelligence.quant import QuantRegistry, analyze_path, build_completed_path_samples, calculate_economic_value
 from jev_trading.live_intelligence.risk import ActiveRiskKernel
 from jev_trading.research import ResearchMemory, StrategyRegistry
+from jev_trading.live_intelligence.provider_errors import ProviderFailure
 from jev_trading.live_intelligence.schemas import (
     AccountState,
     DataQuality,
@@ -37,19 +38,34 @@ from jev_trading.live_intelligence.schemas import (
     Side,
     StrategyHypothesis,
     PendingIntentState,
+    ProviderFailureRecord,
 )
+
+
+def _provider_failure_label(exc: Exception) -> str:
+    if isinstance(exc, ProviderFailure):
+        status = f":{exc.http_status}" if exc.http_status is not None else ""
+        return f"{exc.category}{status}:retries={exc.retry_count}"
+    return type(exc).__name__
 
 
 class ShadowRunner:
     """One-process paper runner; every external dependency is injectable."""
 
     def __init__(self, settings: LiveSettings, adapter: MarketDataAdapter, frontier_client: FrontierClient, jev_client: JevClient, *, arm: str = "C", ledger_path: str | Path = "research/runtime/ledger/decisions.jsonl", checkpoint_path: str | Path | None = None, clock: Callable[[], datetime] | None = None):
-        if arm not in {"A", "B", "C"}:
-            raise ValueError("arm must be A, B, or C")
+        aliases = {
+            "QUANT_ONLY": "A", "QUANT_POLICY": "A",
+            "QUANT_FRONTIER": "B", "QUANT_FRONTIER_JEV": "C",
+        }
+        requested_arm = arm
+        canonical_arm = aliases.get(arm, arm)
+        if canonical_arm not in {"A", "B", "C"}:
+            raise ValueError("arm must be A/B/C or an explicit experiment mode")
         self.settings = settings
         self._clock = clock or (lambda: datetime.now(tz=timezone.utc))
-        self.arm = arm
-        self.require_jev = arm == "C"
+        self.arm = canonical_arm
+        self.experiment_mode = requested_arm
+        self.require_jev = canonical_arm == "C"
         self.adapter = adapter
         self.quant = QuantRegistry()
         frontier_prompt = load_prompt(Path(__file__).parent / settings.frontier.prompt_file)
@@ -338,6 +354,7 @@ class ShadowRunner:
             analyzer_versions={result.analysis_name: result.analyzer_version for result in analyses},
         )
         request_id = str(uuid4())
+        provider_failures: list[ProviderFailureRecord] = []
         hypothesis: StrategyHypothesis
         if not quality.safe_for_trading:
             hypothesis = StrategyHypothesis(
@@ -368,10 +385,16 @@ class ShadowRunner:
                     },
                 )
             except Exception as exc:
+                provider_failures.append(ProviderFailureRecord.from_exception(
+                    component="frontier",
+                    provider=getattr(self.frontier.client, "provider", self.settings.frontier.provider.provider),
+                    model=getattr(self.frontier.client, "model", self.settings.frontier.provider.model),
+                    exc=exc,
+                ))
                 hypothesis = StrategyHypothesis(
                     hypothesis_id=request_id, timestamp=environment.decision_timestamp, regime=regime.trend,
                     regime_confidence=regime.confidence, thesis="Frontier unavailable", abstain=True,
-                    reason=f"frontier_unavailable:{type(exc).__name__}", model_version=self.frontier.client.model_version,
+                    reason=f"frontier_unavailable:{_provider_failure_label(exc)}", model_version=self.frontier.client.model_version,
                     prompt_version=self.settings.frontier.prompt_version, prompt_hash=self.frontier.prompt_hash,
                 )
         candidate = make_candidate(
@@ -437,7 +460,13 @@ class ShadowRunner:
                 try:
                     jev_evaluation = self.jev.evaluate(jev_request)
                 except Exception as exc:
-                    hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{type(exc).__name__}"})
+                    provider_failures.append(ProviderFailureRecord.from_exception(
+                        component="jev",
+                        provider=getattr(self.jev.client, "provider", self.settings.jev.provider.provider),
+                        model=getattr(self.jev.client, "model", self.settings.jev.provider.model),
+                        exc=exc,
+                    ))
+                    hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{_provider_failure_label(exc)}"})
                     candidate = None
         policy = self.policy.finalize(
             environment, hypothesis, economic_value, jev_evaluation,
@@ -469,6 +498,7 @@ class ShadowRunner:
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
             quant_evidence=quant_evidence, jev_request=jev_request, jev_evaluation=jev_evaluation, economic_value=economic_value, policy_decision=policy, risk_decision=risk,
+            provider_failures=tuple(provider_failures),
             execution_intent=intent, position_before=position_before, position_after=self.position,
             versions=make_versions(
                 self.settings,
@@ -477,7 +507,21 @@ class ShadowRunner:
                 jev_model=self.jev.client.model_version,
                 jev_prompt_hash=self.jev.prompt_hash,
                 quant_versions=quant_evidence.analyzer_versions,
-                arm=self.arm,
+                arm=self.experiment_mode,
+                frontier_provider=getattr(self.frontier.client, "provider", self.settings.frontier.provider.provider),
+                jev_provider=getattr(self.jev.client, "provider", self.settings.jev.provider.provider),
+                frontier_capabilities={
+                    "response_format": getattr(self.frontier.client, "supports_response_format", self.settings.frontier.provider.supports_response_format),
+                    "tool_calling": getattr(self.frontier.client, "supports_tool_calling", self.settings.frontier.provider.supports_tool_calling),
+                    "reasoning": getattr(self.frontier.client, "supports_reasoning", self.settings.frontier.provider.supports_reasoning),
+                    "vision": getattr(self.frontier.client, "supports_vision", self.settings.frontier.provider.supports_vision),
+                },
+                jev_capabilities={
+                    "response_format": getattr(self.jev.client, "supports_response_format", self.settings.jev.provider.supports_response_format),
+                    "tool_calling": getattr(self.jev.client, "supports_tool_calling", self.settings.jev.provider.supports_tool_calling),
+                    "reasoning": getattr(self.jev.client, "supports_reasoning", self.settings.jev.provider.supports_reasoning),
+                    "vision": getattr(self.jev.client, "supports_vision", self.settings.jev.provider.supports_vision),
+                },
             ),
         )
         self.ledger.append_decision(record)

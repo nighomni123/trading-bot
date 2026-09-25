@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .client import FrontierClient
+from .client import FrontierClient, FrontierUnavailable
 from ..schemas import MarketEnvironment, QuantEvidence, StrategyHypothesis
 
 
@@ -84,6 +84,25 @@ class FrontierStrategist:
             result = StrategyHypothesis.model_validate(raw)
             if result.timestamp != environment.decision_timestamp:
                 raise ValueError("Frontier timestamp does not match decision time")
-            return result
+            return result.model_copy(update={
+                "provider": getattr(self.client, "provider", "replay"),
+                "model": getattr(self.client, "model", self.client.model_version),
+                "temperature": getattr(self.client, "temperature", None),
+                "max_output_tokens": getattr(self.client, "max_output_tokens", None),
+                "capabilities": {
+                    "response_format": getattr(self.client, "supports_response_format", False),
+                    "tool_calling": getattr(self.client, "supports_tool_calling", False),
+                    "reasoning": getattr(self.client, "supports_reasoning", False),
+                    "vision": getattr(self.client, "supports_vision", False),
+                },
+            })
+        except FrontierUnavailable:
+            raise
         except (ValidationError, ValueError, TypeError, KeyError) as exc:
-            raise ValueError(f"invalid Frontier output: {exc}") from exc
+            raise FrontierUnavailable(
+                f"invalid Frontier output: {exc}",
+                provider=getattr(self.client, "provider", "openai_compatible"),
+                model=getattr(self.client, "model", "unknown"),
+                category="validation",
+                request_id=request_id,
+            ) from exc

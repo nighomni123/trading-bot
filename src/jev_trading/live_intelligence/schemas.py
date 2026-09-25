@@ -368,6 +368,12 @@ class StrategyHypothesis(FrozenModel):
     model_version: str
     prompt_version: str
     prompt_hash: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    schema_version: str = "strategy-hypothesis-v1"
+    temperature: float | None = None
+    max_output_tokens: int | None = Field(default=None, gt=0)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_authority_boundary(self) -> "StrategyHypothesis":
@@ -566,6 +572,12 @@ class JevEvaluation(FrozenModel):
     model_version: str
     prompt_version: str
     prompt_hash: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    schema_version: str = "jev-evaluation-v1"
+    temperature: float | None = None
+    max_output_tokens: int | None = Field(default=None, gt=0)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_evaluation(self) -> "JevEvaluation":
@@ -750,6 +762,37 @@ class Versions(FrozenModel):
     risk_hash: str = ""
     strategy_registry_hash: str = ""
     data_schema_version: str = "live-intelligence-v1"
+    frontier_provider: str = ""
+    jev_provider: str = ""
+    frontier_capabilities: dict[str, bool] = Field(default_factory=dict)
+    jev_capabilities: dict[str, bool] = Field(default_factory=dict)
+    frontier_temperature: float | None = None
+    frontier_max_output_tokens: int | None = Field(default=None, gt=0)
+    jev_temperature: float | None = None
+    jev_max_output_tokens: int | None = Field(default=None, gt=0)
+    intelligence_schema_version: str = "live-intelligence-v1"
+
+
+class ProviderFailureRecord(FrozenModel):
+    component: str
+    provider: str
+    model: str
+    category: str
+    http_status: int | None = None
+    retry_count: int = Field(default=0, ge=0)
+    request_id: str | None = None
+    message: str
+
+    @classmethod
+    def from_exception(cls, component: str, provider: str, model: str, exc: Exception) -> "ProviderFailureRecord":
+        return cls(
+            component=component, provider=provider, model=model,
+            category=str(getattr(exc, "category", type(exc).__name__)),
+            http_status=getattr(exc, "http_status", None),
+            retry_count=int(getattr(exc, "retry_count", 0) or 0),
+            request_id=getattr(exc, "request_id", None),
+            message=type(exc).__name__,
+        )
 
 
 class DecisionRecord(FrozenModel):
@@ -771,6 +814,7 @@ class DecisionRecord(FrozenModel):
     paper_fill: PaperFill | None = None
     eventual_outcome: dict[str, Any] | None = None
     counterfactual_without_jev: PolicyAction | None = None
+    provider_failures: tuple[ProviderFailureRecord, ...] = ()
     versions: Versions
 
     @model_validator(mode="after")

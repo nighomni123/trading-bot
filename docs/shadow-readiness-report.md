@@ -29,8 +29,27 @@ OPENROUTER_API_KEY=<present locally; never committed>
 
 The selected model is documented on the [OpenRouter model page](https://openrouter.ai/inclusionai/ling-3.0-flash-fin:free) as a text-only, finance-focused reasoning model with a 262,144-token context window, up to 32,768 output tokens, free pricing, and two upstream providers. It supports tools, but explicitly excludes `response_format` and structured outputs. The client therefore omits `response_format`, safely tolerates a Markdown JSON fence, and still requires strict Pydantic validation. The current model returned HTTP 200 but a non-conforming Frontier hypothesis, so the system correctly failed closed.
 
+Capabilities are explicit `ProviderConfig` fields and independent `FRONTIER_*` / `JEV_*` environment overrides. The provider smoke command is `python -m jev_trading.live_intelligence provider-smoke --component both`; it records connectivity, request, parsing, schema status, model identity, and `trading_execution: NOT_INVOKED` without printing credentials or starting execution.
+
 The key is present only in the ignored local `.env` and is not present in Git. The providers remain configured as `disabled` in `configs/live.json` until an operator deliberately changes the provider mode to `openai_compatible`.
 
+
+
+
+## Provider capability and experiment controls
+
+`ProviderConfig` now carries explicit `supports_response_format`, `supports_tool_calling`, `supports_reasoning`, and `supports_vision` flags. Frontier and Jev have independent base URL, model, provider, and capability overrides. `configs/openrouter_profiles.json` records the verified Ling, Nemotron, and `openrouter/free` profiles; the free router is explicitly non-comparable for model-quality experiments.
+
+Provider clients now:
+
+- omit `response_format` when unsupported;
+- preserve strict Pydantic validation;
+- normalize only safe JSON fences/prose wrappers;
+- classify transport, authentication, rate-limit, invalid-request, provider, and validation failures;
+- record bounded retry count, HTTP status, request ID, provider, and model without storing credentials;
+- expose `provider-smoke` without starting paper execution.
+
+Experiment modes accept the explicit aliases `QUANT_ONLY`, `QUANT_POLICY`, `QUANT_FRONTIER`, and `QUANT_FRONTIER_JEV` in addition to A/B/C. Every `Versions` record now carries provider/model identity, capabilities, temperature, output-token limits, prompt/schema versions, and experiment mode.
 
 
 ## Live market-data verification
@@ -165,7 +184,7 @@ No profitability interpretation is made.
 ### Full suite
 
 ```text
-313 passed
+321 passed
 0 failed
 0 skipped
 ```

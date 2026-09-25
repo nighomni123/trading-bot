@@ -10,6 +10,7 @@ from .config import load_project_env, load_settings
 from .frontier.client import FrontierClientFactory
 from .frontier.strategist import load_prompt
 from .jev.client import JevClientFactory
+from .provider_smoke import run_provider_smoke
 from .runner import ShadowRunner
 from jev_trading.data.venue_adapters import (
     BinanceLivePerpAdapter,
@@ -29,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("paper", help="run the paper shadow loop")
     run.add_argument("--config", default="configs/live.json")
     run.add_argument("--iterations", type=int, default=1)
-    run.add_argument("--arm", choices=("A", "B", "C"), default="C")
+    run.add_argument("--arm", choices=("A", "B", "C", "QUANT_ONLY", "QUANT_POLICY", "QUANT_FRONTIER", "QUANT_FRONTIER_JEV"), default="C")
     run.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
     replay = sub.add_parser("replay", help="verify and summarize a recorded ledger")
     replay.add_argument("ledger")
@@ -38,7 +39,14 @@ def main(argv: list[str] | None = None) -> int:
     research.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
     research.add_argument("--root", default="research")
     research.add_argument("--config", default="configs/live.json")
+    smoke = sub.add_parser("provider-smoke", help="test configured AI providers without trading")
+    smoke.add_argument("--component", choices=("frontier", "jev", "both"), default="both")
+    smoke.add_argument("--config", default="configs/live.json")
     args = parser.parse_args(argv)
+    if args.command == "provider-smoke":
+        results = run_provider_smoke(load_settings(args.config), args.component)
+        print(json.dumps({"provider_smoke": results, "trading_execution": "NOT_INVOKED"}, indent=2))
+        return 0 if all(item["request"] == "PASS" for item in results) else 1
     if args.command == "replay":
         engine = ReplayEngine(args.ledger)
         records = engine.records()
