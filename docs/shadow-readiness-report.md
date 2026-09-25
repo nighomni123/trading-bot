@@ -1,16 +1,34 @@
 # Shadow-readiness report
 
-Corrective implementation commit: `e9bc0e933e516e1d3e71921d1e8a062bb99d0737`  
-Audit baseline: `dcb618a6675941b98db777cb1766eac0bae1ee73`  
+Corrective implementation commit: `e9bc0e933e516e1d3e71921d1e8a062bb99d0737`
+Environment support commit: `f6afd851c7fa68e1fdf150047124a8cd8ee6c2ed`
+Audit baseline: `dcb618a6675941b98db777cb1766eac0bae1ee73`
 Remote `origin/main`: `2db1d573a2c202aa5453275796fa5a7ebb76f166`
 
 ## Executive status
 
 **NOT SHADOW READY**
 
-The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable, and real OpenRouter smoke verification is blocked because `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, and `JEV_MODEL` are absent. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
+The paper architecture is materially safer and the deterministic fake-provider path now reaches a paper fill, but the acceptance gate is not complete. The remote archive branch could not be pushed because GitHub credentials are unavailable, and real OpenRouter smoke verification is blocked because `OPENROUTER_API_KEY` is absent. The local ignored `.env` now contains the supplied base URL and `thinkingmachines/inkling-small:free` for both Frontier and Jev. Crash recovery currently fails closed on missing or mismatched checkpoints rather than rebuilding every ledger suffix.
 
 No live-money execution path was introduced. The active system remains PAPER-only.
+
+## Environment configuration
+
+The repository now loads a project-root `.env` automatically. `.env` is ignored,
+`.env.example` is tracked, and the loader gives precedence to already-exported
+process variables. The local `.env` contains:
+
+```text
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+FRONTIER_MODEL=thinkingmachines/inkling-small:free
+JEV_MODEL=thinkingmachines/inkling-small:free
+OPENROUTER_API_KEY=
+```
+
+The API key is intentionally blank and is not present in Git. The providers remain
+configured as `disabled` in `configs/live.json` until an operator deliberately
+changes the provider mode to `openai_compatible`.
 
 ## Architecture verification
 
@@ -39,7 +57,7 @@ Binance/public or Replay data
 - `B`: Quant + Frontier + Policy + Risk
 - `C`: Quant + Frontier + Jev + Policy + Risk
 
-The real AI path is not configured in the default environment. No external provider was called during this audit.
+The real AI path remains disabled in the checked-in configuration. No external provider was called during this audit.
 
 ## Frontier verification
 
@@ -54,7 +72,7 @@ The real AI path is not configured in the default environment. No external provi
 | Retry | Bounded retries/backoff; provider failure becomes abstention |
 | Validation | Request ID, timestamp, prompt version/hash, structured output |
 | Authority | No order, sizing, leverage, or risk override fields/API |
-| Runtime smoke | Blocked by absent OpenRouter credentials; no secret was requested or printed |
+| Runtime smoke | Blocked by blank `OPENROUTER_API_KEY`; no secret was requested or printed |
 
 ## Jev verification
 
@@ -68,7 +86,7 @@ The real AI path is not configured in the default environment. No external provi
 | Thresholds | Target probability, stop probability, entry quality, failure risk, and optional liquidity quality enforced |
 | Failure behavior | Provider/validation failure becomes abstention and no trade |
 | Authority | Evaluator has no order/size/leverage/risk interface |
-| Runtime smoke | Blocked by absent OpenRouter credentials |
+| Runtime smoke | Blocked by blank `OPENROUTER_API_KEY` |
 
 ## Risk verification
 
@@ -132,7 +150,7 @@ No profitability interpretation is made.
 ### Full suite
 
 ```text
-298 passed
+302 passed
 0 failed
 0 skipped
 ```
@@ -200,7 +218,7 @@ No tested critical mutation survived.
 
 ### OpenRouter smoke
 
-**BLOCKED.** The environment has no `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, or `JEV_MODEL`. No credential was requested or exposed.
+**BLOCKED.** The local ignored `.env` has the supplied base URL and model, but its `OPENROUTER_API_KEY` is blank. No credential was requested or exposed.
 
 ## Repository cleanup status
 
@@ -258,6 +276,7 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 - [x] Fake-provider E2E
 - [x] Mutation tests
 - [x] Full pytest
+- [x] Project-root `.env` loading, precedence, `.env.example`, and secret-ignore tests
 - [ ] Remote archive branch pushed and verified
 - [ ] OpenRouter live-configuration smoke
 - [ ] Full checkpoint-suffix reconstruction after crash
@@ -266,7 +285,7 @@ Therefore no obsolete documentation or experiment material was deleted. Active-m
 ## Exact remaining blockers
 
 1. Provide GitHub push credentials and verify `archive/pre-live-intelligence-cleanup-2026-09-25` remotely before deleting any historical material.
-2. Provide `OPENROUTER_API_KEY`, `FRONTIER_MODEL`, and optionally `JEV_MODEL`; run the conservative OpenRouter smoke without exposing secrets.
+2. Add the real `OPENROUTER_API_KEY` to the ignored local `.env`; the base URL and model are already configured there. Run the conservative OpenRouter smoke without exposing the secret.
 3. Implement ledger-suffix checkpoint reconstruction for checkpoints that lag behind an otherwise valid ledger, then add crash-boundary equivalence tests.
 4. Re-run the final full suite and Git hygiene checks after the archive push and provider smoke.
 
