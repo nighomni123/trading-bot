@@ -30,12 +30,14 @@ def main(argv: list[str] | None = None) -> int:
     research.add_argument("period", choices=("hourly", "daily", "weekly"))
     research.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
     research.add_argument("--root", default="research")
+    research.add_argument("--config", default="configs/live.json")
     args = parser.parse_args(argv)
     if args.command == "replay":
         records = ReplayEngine(args.ledger).records()
         print(json.dumps({"records": len(records), "decisions": [record.decision_id for record in records]}, indent=2))
         return 0
     if args.command == "research":
+        load_settings(args.config)
         report = ResearchMemory(args.root).generate(ReplayEngine(args.ledger).ledger, args.period)
         print(report)
         return 0
