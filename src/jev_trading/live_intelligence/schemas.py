@@ -385,6 +385,23 @@ class CostAssumptions(FrozenModel):
     holding_seconds: int = Field(gt=0)
 
 
+class PathSample(FrozenModel):
+    timestamp: datetime
+    side: Side
+    target_first: bool
+    stop_first: bool
+    timeout: bool
+    favorable_excursion: float
+    adverse_excursion: float
+    duration_seconds: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> "PathSample":
+        if sum((self.target_first, self.stop_first, self.timeout)) != 1:
+            raise ValueError("path sample must have exactly one outcome")
+        return self
+
+
 class QuantAnalysisResult(FrozenModel):
     analysis_name: str
     analyzer_version: str
@@ -399,6 +416,19 @@ class QuantAnalysisResult(FrozenModel):
     cost_assumptions: CostAssumptions | None = None
     evidence: dict[str, Any] = Field(default_factory=dict)
     limitations: tuple[str, ...] = ()
+    path_probabilities: dict[str, float] | None = None
+    empirical_sample_size: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_path_probabilities(self) -> "QuantAnalysisResult":
+        if self.path_probabilities is not None:
+            if set(self.path_probabilities) != {"target", "stop", "timeout"}:
+                raise ValueError("path probabilities must contain target, stop, timeout")
+            if any(not math.isfinite(value) or not 0 <= value <= 1 for value in self.path_probabilities.values()):
+                raise ValueError("path probabilities must be finite and in [0, 1]")
+            if abs(sum(self.path_probabilities.values()) - 1.0) > 1e-8:
+                raise ValueError("path probabilities must sum to one")
+        return self
 
 
 class EconomicValue(FrozenModel):

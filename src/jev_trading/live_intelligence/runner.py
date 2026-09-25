@@ -15,7 +15,7 @@ from jev_trading.live_intelligence.frontier.strategist import FrontierStrategist
 from jev_trading.live_intelligence.jev.client import JevClient
 from jev_trading.live_intelligence.jev.evaluator import JevEvaluator
 from jev_trading.live_intelligence.policy import PolicyFinalizer, make_candidate
-from jev_trading.live_intelligence.quant import QuantRegistry
+from jev_trading.live_intelligence.quant import QuantRegistry, analyze_path, calculate_economic_value
 from jev_trading.live_intelligence.risk import ActiveRiskKernel
 from jev_trading.live_intelligence.schemas import (
     AccountState,
@@ -29,6 +29,7 @@ from jev_trading.live_intelligence.schemas import (
     RiskStatus,
     StrategyHypothesis,
     Versions,
+    PathSample,
 )
 
 
@@ -49,6 +50,7 @@ class ShadowRunner:
         self.account = AccountState(capital_usd=settings.paper.capital_usd, peak_equity_usd=settings.paper.capital_usd)
         self.execution = ExecutionState()
         self._last_frontier_call: datetime | None = None
+        self._path_samples: list[PathSample] = []
 
     def should_call_frontier(self, events) -> bool:
         now = datetime.now(tz=timezone.utc)
@@ -85,18 +87,26 @@ class ShadowRunner:
                     reason=f"frontier_unavailable:{exc}", model_version=self.frontier.client.model_version,
                     prompt_version=self.settings.frontier.prompt_version,
                 )
-        analyses = self.quant.run_all(environment)
+        analyses = list(self.quant.run_all(environment))
         candidate = make_candidate(environment, hypothesis, settings=self.settings)
+        path_result = None
+        economic_value = None
+        if candidate is not None and self._path_samples:
+            path_result = analyze_path(environment, self._path_samples, side=candidate.side, horizon_seconds=candidate.max_holding_seconds)
+            analyses.append(path_result)
+            if path_result.path_probabilities is not None:
+                economic_value = calculate_economic_value(candidate, path_result.path_probabilities, self.settings.costs.assumptions(candidate.max_holding_seconds, environment.derivatives.funding or 0.0))
+        jev_request = None
         jev_evaluation = None
         if candidate is not None and not hypothesis.abstain and quality.safe_for_trading:
             questions = hypothesis.jev_questions or ()
-            jev_request = JevRequest(request_id=request_id, timestamp=environment.decision_timestamp, environment=environment, frontier_hypothesis=hypothesis, quant_evidence=analyses, candidate_trade=candidate, questions=questions, prompt_version=self.settings.jev.prompt_version)
+            jev_request = JevRequest(request_id=request_id, timestamp=environment.decision_timestamp, environment=environment, frontier_hypothesis=hypothesis, quant_evidence=tuple(analyses), candidate_trade=candidate, questions=questions, prompt_version=self.settings.jev.prompt_version)
             try:
                 jev_evaluation = self.jev.evaluate(jev_request)
             except Exception as exc:
                 hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{type(exc).__name__}"})
                 candidate = None
-        policy = self.policy.finalize(environment, hypothesis, None, jev_evaluation, position=self.position, candidate=candidate)
+        policy = self.policy.finalize(environment, hypothesis, economic_value, jev_evaluation, position=self.position, candidate=candidate)
         risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
         intent = None
         if risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
@@ -104,13 +114,18 @@ class ShadowRunner:
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
-            jev_request=None, jev_evaluation=jev_evaluation, policy_decision=policy, risk_decision=risk,
+            jev_request=jev_request, jev_evaluation=jev_evaluation, policy_decision=policy, risk_decision=risk,
             execution_intent=intent, position_before=self.position, position_after=self.position,
             versions=Versions(code_version=self.settings.code_version, experiment_id=self.settings.experiment_id, frontier_model=self.frontier.client.model_version, frontier_prompt=self.settings.frontier.prompt_version, jev_model=self.jev.client.model_version, jev_prompt=self.settings.jev.prompt_version, quant_analyzers={name: "quant-v1" for name in self.quant.names()}, policy="policy-v1", risk=self.risk.version, strategy_registry=self.settings.strategy_registry_version),
         )
         self.ledger.append_decision(record)
         self._last_frontier_call = environment.decision_timestamp
         return record
+
+    def add_completed_path_sample(self, sample: PathSample) -> None:
+        if sample.timestamp > datetime.now(tz=timezone.utc):
+            raise ValueError("path sample cannot be from the future")
+        self._path_samples.append(sample)
 
     def run_forever(self, *, iterations: int | None = None) -> None:
         count = 0
