@@ -1,26 +1,27 @@
 # EXP-001 — P3 label gate on real data (docs/label-spec.md exit gate)
-# Question: do the spec labels on real BTC data have sane distribution/balance?
+# Phase 3 syntax-only repair: scalar quoting preserves the historical values and verdict.
 experiment_id: EXP-001
-data_version: btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)
-  rows: 2629440, contiguous 1m, 0 dupes
-feature_version: n/a (labels only use close/high/low + timestamp)
-label_version: 9e58dc0, H=15, threshold=0.0014 (2*(taker 0.05% + slippage 0.02%))
-model_version: n/a
-policy_version: n/a
-cost_model: n/a
-train_period: n/a
-validation_period: n/a
-test_period: n/a
-embargo_bars: n/a
+data_version: "btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)"
+data_rows: 2629440
+data_notes: "contiguous 1m, 0 dupes"
+feature_version: "n/a (labels only use close/high/low + timestamp)"
+label_version: "9e58dc0, H=15, threshold=0.0014 (2*(taker 0.05% + slippage 0.02%))"
+model_version: "n/a"
+policy_version: "n/a"
+cost_model: "n/a"
+train_period: "n/a"
+validation_period: "n/a"
+test_period: "n/a"
+embargo_bars: "n/a"
 parameters:
   probe_thresholds: [0.0010, 0.0015, 0.0025, 0.0050]
 results:
   n_labeled: 2629425
   fr15m_percentiles: {min: -0.1349, p1: -0.0095, p25: -0.0012, med: 0.0, p75: 0.0012, p99: 0.0096, max: 0.1194}
   class_balance:
-    thr_0.0010: {up: 28.429%, dn: 28.075%}
-    thr_0.0015: {up: 21.214%, dn: 20.907%}
-    thr_0.0025: {up: 12.249%, dn: 12.077%}
-    thr_0.0050: {up: 4.050%, dn: 4.024%}
-verdict: PASS — symmetric up/dn (no directional bias), median ~0, no degenerate skew.
-  Frozen P4 threshold: 0.0014 (cost-derived default).
+    thr_0.0010: {up: "28.429%", dn: "28.075%"}
+    thr_0.0015: {up: "21.214%", dn: "20.907%"}
+    thr_0.0025: {up: "12.249%", dn: "12.077%"}
+    thr_0.0050: {up: "4.050%", dn: "4.024%"}
+  verdict: "PASS — symmetric up/dn (no directional bias), median ~0, no degenerate skew."
+  "Frozen P4 threshold": 0.0014

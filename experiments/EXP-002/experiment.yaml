@@ -1,17 +1,18 @@
 # EXP-002 — P4 quant gate on real data (docs/evaluation-protocol.md)
-# Question: does ML add information over dumb baselines OOS?
+# Phase 3 syntax-only repair: scalar quoting preserves the historical values and verdict.
 experiment_id: EXP-002
-data_version: btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)
-  rows: 2629440, contiguous 1m, 0 dupes (same file as EXP-001)
-feature_version: c647d68 + uncommitted state/features.py (oi_change_1d zero-OI -> null guard)
-label_version: c647d68 + uncommitted quant/train.py, H=15, threshold=0.0014 (frozen by EXP-001)
-model_version: baselines A-E, lgbm {num_leaves: 31, n_estimators: 200, lr: 0.05}, logreg {max_iter: 1000}
-policy_version: n/a
-cost_model: taker 0.05% + slippage 0.02% per side, round-trip 0.0014/trade
-train_period: [2021-01-01, 2024-01-01)
-validation_period: [2024-01-01, 2025-01-01)
-test_period: [2025-01-01, 2026-01-01) FROZEN — untouched, never trained or evaluated
-embargo_bars: 15 (purge train tail + embargo valid head/tail at every boundary)
+data_version: "btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)"
+data_rows: 2629440
+data_notes: "contiguous 1m, 0 dupes (same file as EXP-001)"
+feature_version: "c647d68 + uncommitted state/features.py (oi_change_1d zero-OI -> null guard)"
+label_version: "c647d68 + uncommitted quant/train.py, H=15, threshold=0.0014 (frozen by EXP-001)"
+model_version: "baselines A-E, lgbm {num_leaves: 31, n_estimators: 200, lr: 0.05}, logreg {max_iter: 1000}"
+policy_version: "n/a"
+cost_model: "taker 0.05% + slippage 0.02% per side, round-trip 0.0014/trade"
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01)"]
+test_period: "[2025-01-01, 2026-01-01) FROZEN — untouched, never trained or evaluated"
+embargo_bars: "15 (purge train tail + embargo valid head/tail at every boundary)"
 parameters: {}
 results:
   n_train: 1574601
@@ -23,10 +24,6 @@ results:
   D_logreg: {auc: 0.6127, logloss: 0.5331, ece: 0.1030}
   E_lgbm: {auc: 0.6372, logloss: 0.5171, ece: 0.0104}
   naive_always_long_pnl_valid: -48.1576
-verdict: PASS — ML adds information. LGBM beats every dumb baseline OOS with
-  n=525k (auc 0.637 vs 0.50 prior / 0.488 momentum / 0.482 trend; logloss 0.5171
-  vs 0.5388 prior) and is well calibrated (ece 0.01). Dumb rules rank WORSE than
-  coin-flip (B/C auc < 0.5); always-long loses money after costs. Caveats: valid
-  is 2024 only (possible regime luck); test stays frozen for the final check.
-  P4 gate answers "does ML add information" — YES. Cost survival is P7's gate.
-  Next: P7 event simulator (test period enters only via the P7 ablation arms).
+  verdict: "PASS — ML adds information. LGBM beats every dumb baseline OOS with n=525k (auc 0.637 vs 0.50 prior / 0.488 momentum / 0.482 trend; logloss 0.5171 vs 0.5388 prior) and is well calibrated (ece 0.01). Dumb rules rank WORSE than coin-flip (B/C auc < 0.5); always-long loses money after costs. Caveats: valid is 2024 only (possible regime luck); test stays frozen for the final check."
+  gate_answer: "P4 gate answers does ML add information — YES. Cost survival is P7's gate."
+  next: "P7 event simulator (test period enters only via the P7 ablation arms)."

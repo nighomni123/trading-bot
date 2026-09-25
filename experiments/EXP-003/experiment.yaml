@@ -1,42 +1,33 @@
 # EXP-003 — P7 ablation arms on valid 2024 (docs/evaluation-protocol.md)
-# Question: does the quant edge survive costs, and does mock-Jev add anything?
+# Phase 3 syntax-only repair: scalar quoting preserves the historical values and verdict.
 experiment_id: EXP-003
-data_version: btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)
-feature_version: c647d68 + uncommitted (oi div-zero guard; simulator hoists prepare)
-label_version: H=15, threshold=0.0014 (frozen EXP-001)
-model_version: EXP-002 lgbm (auc 0.637 valid) — p_up only, no p_dn producer
-policy_version: default cfg, C/D p_up_15=0.40 (P7 starting grid); edge-check wired, skipped (no expected_return_15)
-cost_model: taker 0.05% + slippage 0.02% per side, next-open fills, funding on print change; hostile fee_mult 2x/3x
-train_period: [2021-01-01, 2024-01-01)
-validation_period: [2024-01-01, 2025-01-01) — all runs below
-test_period: [2025-01-01, 2026-01-01) FROZEN — untouched
-embargo_bars: 15 (train/valid); sim skips bars with undefined features (next valid open = next tradeable moment)
-parameters: {capital: 10000, size_btc: 0.01 (risk-clamped), spread_bps: 1.0, seed: 7}
+data_version: "btcusdt_1m sha256:3025fc122228fc1d [2021-01-01, 2026-01-01)"
+feature_version: "c647d68 + uncommitted (oi div-zero guard; simulator hoists prepare)"
+label_version: "H=15, threshold=0.0014 (frozen EXP-001)"
+model_version: "EXP-002 lgbm (auc 0.637 valid) — p_up only, no p_dn producer"
+policy_version: "default cfg, C/D p_up_15=0.40 (P7 starting grid); edge-check wired, skipped (no expected_return_15)"
+cost_model: "taker 0.05% + slippage 0.02% per side, next-open fills, funding on print change; hostile fee_mult 2x/3x"
+train_period: ["2021-01-01", "2024-01-01)"]
+validation_period: ["2024-01-01", "2025-01-01) — all runs below"]
+test_period: "[2025-01-01, 2026-01-01) FROZEN — untouched"
+embargo_bars: "15 (train/valid); sim skips bars with undefined features (next valid open = next tradeable moment)"
+parameters: {capital: 10000, size_btc: "0.01 (risk-clamped)", spread_bps: 1.0, seed: 7}
 results_base_fee1x:
-  A_random:   {entries: 10221, win: 0.211, net: -1434.94, ret_pct: -14.35, dd_pct: 14.35, fees: 1022.10}
-  B_thr0.40:  {entries: 4897,  win: 0.489, net: -625.88,  ret_pct: -6.26,  dd_pct: 6.26,  fees: 489.73}
-  C_policy:   {identical to B (gates-neutralized policy == raw threshold + audit)}
-  D_full:     {entries: 656,   win: 0.483, net: -83.77,   ret_pct: -0.84,  dd_pct: 0.84,  fees: 65.60}
-  E_nojev:    {entries: 0, net: 0.00 — neutral Jev never clears policy gates, by design}
-  jev_delta_D_minus_C: {net: +542.11 (less negative), win: -0.005 — exposure cut 87%, NO selectivity gain}
+  A_random: {entries: 10221, win: 0.211, net: -1434.94, ret_pct: -14.35, dd_pct: 14.35, fees: 1022.10}
+  B_thr0.40: {entries: 4897, win: 0.489, net: -625.88, ret_pct: -6.26, dd_pct: 6.26, fees: 489.73}
+  C_policy: "identical to B (gates-neutralized policy == raw threshold + audit)"
+  D_full: {entries: 656, win: 0.483, net: -83.77, ret_pct: -0.84, dd_pct: 0.84, fees: 65.60}
+  E_nojev: "entries 0, net 0.00 — neutral Jev never clears policy gates, by design"
+  jev_delta_D_minus_C: "net +542.11 (less negative), win -0.005 — exposure cut 87%, NO selectivity gain"
 results_threshold_sweep_B:
   thr0.45: {entries: 2374, win: 0.521, net: -274.03}
-  thr0.50: {entries: 927,  win: 0.525, net: -100.96}
-  thr0.55: {entries: 335,  win: 0.558, net: -34.87}
-  # win rate rises with confidence (ranking signal is real) but avg/exit ~= -$0.11:
-  # gross/trade ~= -$0.01, round-trip costs ~= $0.10 on ~$93 notionals.
+  thr0.50: {entries: 927, win: 0.525, net: -100.96}
+  thr0.55: {entries: 335, win: 0.558, net: -34.87}
 results_hostile:
-  B_thr0.40_x2: {net: -1115.60}  B_thr0.40_x3: {net: -1605.33}
-  D_x2: {net: -149.37}  D_x3: {net: -214.98}
-  # same trades, fees scale linearly, gross unchanged (negative).
-verdict: GATE FAIL (honest) — the P4 probabilistic edge does NOT survive costs at any
-  tested threshold: even the most selective band (thr 0.55, win 55.8%) is ~breakeven
-  gross and fee-negative net. Mock-Jev adds no precision (win 48.3 vs 48.9), only
-  exposure reduction. Per gates: STOP/ITERATE — do not proceed to P8.
-  Iteration directions (untested, in order): larger size per trade is NOT the fix
-  (costs scale with notional); candidates are lower-turnover holding (exit only on
-  opposite strong signal vs every NO_ACTION), cost-aware threshold on EXPECTED gross
-  (needs a return regressor, not just P(up)), or admitting the 15m edge is below the
-  fee floor at this size. Test period stays frozen until an iterate shows valid profit.
-logs: events/p7_2024-01-01_{random,threshold,policy,full,nojev}_x1.0_p0.4.jsonl
-  (header + 525515 records each; replay-checked: all fills == next-open + slippage)
+  B_thr0.40_x2: {net: -1115.60}
+  B_thr0.40_x3: {net: -1605.33}
+  D_x2: {net: -149.37}
+  D_x3: {net: -214.98}
+verdict: "GATE FAIL (honest) — the P4 probabilistic edge does NOT survive costs at any tested threshold: even the most selective band (thr 0.55, win 55.8%) is ~breakeven gross and fee-negative net. Mock-Jev adds no precision (win 48.3 vs 48.9), only exposure reduction. Per gates: STOP/ITERATE — do not proceed to P8."
+iteration_directions: "untested, in order: larger size per trade is NOT the fix (costs scale with notional); candidates are lower-turnover holding, cost-aware threshold on EXPECTED gross (needs a return regressor, not just P(up)), or admitting the 15m edge is below the fee floor at this size. Test period stays frozen until an iterate shows valid profit."
+logs: "events/p7_2024-01-01_{random,threshold,policy,full,nojev}_x1.0_p0.4.jsonl (header + 525515 records each; replay-checked: all fills == next-open + slippage)"
