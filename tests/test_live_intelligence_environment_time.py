@@ -8,11 +8,11 @@ import polars as pl
 from jev_trading.contracts import BAR_COLUMNS
 from jev_trading.environment import build_market_environment
 from jev_trading.live_intelligence.schemas import DataQuality
-from tests.test_live_intelligence import T0, bars
+from tests.test_live_intelligence import DECISION_MS, T0, bars
 
 
 def _decision() -> datetime:
-    return datetime.fromtimestamp((T0 + 300 * 60_000 + 30_000) / 1000, tz=timezone.utc)
+    return datetime.fromtimestamp((DECISION_MS + 30_000) / 1000, tz=timezone.utc)
 
 
 def test_all_timeframe_timestamps_are_at_or_before_decision():

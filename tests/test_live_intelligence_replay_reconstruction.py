@@ -14,12 +14,13 @@ from jev_trading.live_intelligence.jev.client import DisabledJevClient
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.schemas import DataEventType, MarketTick, MarketType
 from jev_trading.replay import ReplayEngine
+from tests.test_live_intelligence import aligned_start_ms
 
 
 def test_replay_reconstructs_recorded_state_and_decision(tmp_path: Path):
     count = 300
     now = datetime.now(timezone.utc)
-    start = int(now.timestamp() * 1000) - count * 60_000
+    start = aligned_start_ms(now, count)
     rows = []
     for index in range(count):
         close = 100 + index * 0.1

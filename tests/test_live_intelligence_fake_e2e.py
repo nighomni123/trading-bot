@@ -14,6 +14,7 @@ from jev_trading.live_intelligence.jev.client import JevClient
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.schemas import DataEventType, JevEvaluation, MarketTick, MarketType
 from jev_trading.replay import ReplayEngine
+from tests.test_live_intelligence import aligned_start_ms
 
 UTC = timezone.utc
 
@@ -33,12 +34,15 @@ class FakeJev(JevClient):
 
 
 def test_fake_providers_execute_full_shadow_path_to_paper_ledger(tmp_path: Path):
-    base = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=61)
-    count = 300
+    # A minute-aligned instant that is already closed, so the fabric's
+    # wall-clock freshness check and the runner clock agree.
+    base = (datetime.now(UTC) - timedelta(seconds=61)).replace(second=0, microsecond=0)
+    start_ms = aligned_start_ms(base, 300)
+    count = (int(base.timestamp() * 1000) - start_ms) // 60_000
     rows = []
     for index in range(count):
         price = 100 + index * 0.01 + (2 if index % 20 == 0 else 0)
-        timestamp = base - timedelta(minutes=count - index)
+        timestamp = datetime.fromtimestamp((start_ms + index * 60_000) / 1000, tz=UTC)
         rows.append({
             "timestamp": int(timestamp.timestamp() * 1000), "open": price,
             "high": price + 0.2, "low": price - 0.2, "close": price,

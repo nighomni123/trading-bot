@@ -13,6 +13,7 @@ from jev_trading.live_intelligence.frontier.client import ReplayFrontierClient
 from jev_trading.live_intelligence.jev.client import ReplayJevClient
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.schemas import DataEventType, MarketTick, MarketType
+from tests.test_live_intelligence import aligned_start_ms
 
 
 class CountingFrontier(ReplayFrontierClient):
@@ -37,7 +38,7 @@ class CountingJev(ReplayJevClient):
 def _adapter():
     count = 300
     now = datetime.now(timezone.utc)
-    start = int(now.timestamp() * 1000) - count * 60_000
+    start = aligned_start_ms(now, count)
     rows = []
     for index in range(count):
         close = 100 + index * 0.1

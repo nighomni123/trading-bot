@@ -154,6 +154,9 @@ class DataQuality(FrozenModel):
     timestamp_lag_ms: int | None = Field(default=None, ge=0)
     sequence_problems: tuple[str, ...] = ()
     duplicate_events: int = Field(default=0, ge=0)
+    # A repeated observation of the same event is a benign retransmission, not
+    # corruption; it is counted for telemetry but never blocks trading.
+    historical_bar_gaps: int = Field(default=0, ge=0)
     gaps: int = Field(default=0, ge=0)
     inconsistent_prices: tuple[str, ...] = ()
     event_time_problems: tuple[str, ...] = ()
@@ -176,6 +179,11 @@ class PriceState(FrozenModel):
 
 class TimeframeState(FrozenModel):
     timeframe: str
+    # Canonical bucket contract: an observation is always one *completed*
+    # bucket, so consumers never have to guess whether it is in progress.
+    bucket_start: datetime
+    bucket_end: datetime
+    completed: bool
     timestamp: datetime
     open: float
     high: float
@@ -198,6 +206,16 @@ class TimeframeState(FrozenModel):
     previous_trend_direction: str | None = None
     trend_persistence: float | None = Field(default=None, ge=0, le=1)
     trend_acceleration: float | None = None
+
+    @model_validator(mode="after")
+    def validate_bucket(self) -> "TimeframeState":
+        if self.bucket_start >= self.bucket_end:
+            raise ValueError("timeframe bucket_start must precede bucket_end")
+        if self.timestamp != self.bucket_end:
+            raise ValueError("timeframe timestamp must equal the bucket end")
+        if not self.completed:
+            raise ValueError("only completed timeframe buckets may be materialized")
+        return self
 
 
 class MarketStructureState(FrozenModel):
@@ -723,6 +741,15 @@ class PaperFill(FrozenModel):
     funding_usd: float = 0.0
     status: str
     mode: ExecutionMode = ExecutionMode.PAPER
+    # Provenance: which experiment, which instrument, which side, and which
+    # market observation actually produced this price.
+    experiment_id: str = ""
+    symbol: str = ""
+    side: Side = Side.FLAT
+    price_source: str = "unknown"
+    bar_timestamp: datetime | None = None
+    execution_model_version: str = "paper-next-open-v1"
+    funding_model: str = "DISABLED"
 
 
 class TradeRecord(FrozenModel):

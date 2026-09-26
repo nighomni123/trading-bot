@@ -48,6 +48,7 @@ def aggregate_timeframe(bars: pl.DataFrame, timeframe: str) -> pl.DataFrame:
         frame.with_columns((pl.col("timestamp") // interval * interval).alias("bucket"))
         .group_by("bucket", maintain_order=True)
         .agg(
+            pl.len().alias("bars"),
             pl.col("open").first().alias("open"),
             pl.col("high").max().alias("high"),
             pl.col("low").min().alias("low"),

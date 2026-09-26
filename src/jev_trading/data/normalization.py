@@ -22,6 +22,7 @@ from jev_trading.data.fetch import (
     merge_enrichment,
     MINUTE_MS,
 )
+from jev_trading.environment.features import TIMEFRAME_MS
 from jev_trading.live_intelligence.schemas import (
     DataEventType,
     DataQuality,
@@ -232,6 +233,7 @@ class DataFabric:
         self._seen_event_keys: set[tuple] = set()
         self._last_by_source: dict[tuple[str, str, str], MarketTick] = {}
         self._duplicates = 0
+        self._historical_bar_gaps = 0
         self._sequence_problems: list[str] = []
         self._inconsistent: list[str] = []
         self._incoherent: list[str] = []
@@ -240,9 +242,15 @@ class DataFabric:
         self._last_bar_timestamp: int | None = None
 
     def ingest_bars(self, bars: pl.DataFrame) -> None:
-        """Validate the current closed-bar frame before environment construction."""
+        """Validate the current closed-bar frame before environment construction.
+
+        A missing minute inside the decision window (the longest timeframe the
+        environment builds) makes the feed unsafe. Older holes cannot affect the
+        buckets that are still in use, so they are counted, not fatal.
+        """
         self._bar_problems = []
         self._last_bar_timestamp = None
+        self._historical_bar_gaps = 0
         if bars is None or bars.is_empty():
             self._bar_problems.append("bars_empty")
             return
@@ -253,9 +261,13 @@ class DataFabric:
             return
         frame = bars.select(["timestamp", "open", "high", "low", "close", "volume"]).sort("timestamp")
         timestamps = [int(value) for value in frame["timestamp"].to_list()]
+        decision_window_start = timestamps[-1] - (max(TIMEFRAME_MS.values()) * MINUTE_MS)
         for left, right in zip(timestamps, timestamps[1:]):
             if right - left != MINUTE_MS:
-                self._bar_problems.append(f"bar_gap:{left}->{right}")
+                if right >= decision_window_start:
+                    self._bar_problems.append(f"bar_gap:{left}->{right}")
+                else:
+                    self._historical_bar_gaps += 1
         for row in frame.iter_rows(named=True):
             try:
                 open_price = float(row["open"])
@@ -271,6 +283,13 @@ class DataFabric:
         self._last_bar_timestamp = timestamps[-1] + MINUTE_MS
 
     def ingest(self, observations: list[MarketTick]) -> None:
+        """Absorb observations, dropping exact retransmissions of a known event.
+
+        A repeat of an event the fabric already holds is a benign retransmission
+        (a quiet tape, a REST bootstrap polled twice), so it is deduplicated and
+        counted rather than treated as corruption. Out-of-order, sequence-gap,
+        crossed-book and incoherent observations remain fatal.
+        """
         for tick in observations:
             key = (
                 tick.source,
@@ -349,12 +368,12 @@ class DataFabric:
             and not self._incoherent
             and not event_time_problems
             and not self._bar_problems
-            and self._duplicates == 0
         )
         return DataQuality(
             safe_for_trading=safe, stale=stale, missing_sources=tuple(missing),
             timestamp_lag_ms=max((item.age_ms or 0 for item in health.values()), default=None),
             sequence_problems=tuple(self._sequence_problems), duplicate_events=self._duplicates,
+            historical_bar_gaps=self._historical_bar_gaps,
             gaps=sum("gap" in item for item in self._sequence_problems) + sum("bar_gap" in item for item in self._bar_problems),
             inconsistent_prices=tuple(self._inconsistent), event_time_problems=tuple(event_time_problems),
             bar_timestamp_problems=tuple(self._bar_problems), incoherent_data=tuple(self._incoherent),

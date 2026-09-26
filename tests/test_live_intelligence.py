@@ -46,10 +46,14 @@ from jev_trading.research import HypothesisRegistry, ResearchMemory
 from jev_trading.live_intelligence.schemas import ResearchHypothesis, ResearchObservation
 
 UTC = timezone.utc
-T0 = 1_700_000_000_000
+T0 = 1_700_000_000_000 // (240 * 60_000) * (240 * 60_000)  # 4h bucket boundary
+# Long enough to contain a whole completed 4h bucket, so no timeframe has to be
+# inferred from a partial history.
+BAR_COUNT = 540
+DECISION_MS = T0 + BAR_COUNT * 60_000
 
 
-def bars(n: int = 300) -> pl.DataFrame:
+def bars(n: int = BAR_COUNT) -> pl.DataFrame:
     rows = []
     for i in range(n):
         close = 100.0 + i * 0.01
@@ -59,6 +63,16 @@ def bars(n: int = 300) -> pl.DataFrame:
             "funding_rate": 0.0001, "open_interest": 1000.0,
         })
     return pl.DataFrame(rows, schema={c: pl.Int64 if c == "timestamp" else pl.Float64 for c in BAR_COLUMNS})
+
+
+def aligned_start_ms(now: datetime, count: int) -> int:
+    """Start a synthetic frame on a 4h boundary so it spans a whole bucket.
+
+    Timeframes are only built from complete buckets, so a fixture shorter than
+    one 4h bucket aligned to its own start could not produce an environment.
+    """
+    boundary = 240 * 60_000
+    return (int(now.timestamp() * 1000) - count * 60_000) // boundary * boundary
 
 
 def tick(now: datetime, **overrides) -> MarketTick:
@@ -78,12 +92,12 @@ def safe_quality() -> DataQuality:
 
 
 def environment(*, quality: DataQuality | None = None, now: datetime | None = None) -> MarketEnvironment:
-    decision = now or datetime.fromtimestamp((T0 + 300 * 60_000) / 1000, tz=UTC)
+    decision = now or datetime.fromtimestamp(DECISION_MS / 1000, tz=UTC)
     return build_market_environment(bars(), ticks=[tick(decision)], quality=quality or safe_quality(), decision_timestamp=decision)
 
 
 def hypothesis(*, abstain: bool = False) -> StrategyHypothesis:
-    now = datetime.fromtimestamp((T0 + 300 * 60_000) / 1000, tz=UTC)
+    now = datetime.fromtimestamp(DECISION_MS / 1000, tz=UTC)
     return StrategyHypothesis(
         hypothesis_id="hyp-test", timestamp=now, regime="BULLISH", regime_confidence=0.7,
         primary_strategy=None if abstain else "momentum", direction="NONE" if abstain else "LONG",

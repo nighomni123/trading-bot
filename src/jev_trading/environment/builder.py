@@ -126,7 +126,9 @@ def build_market_environment(
         if aggregated.is_empty():
             continue
         bucket_end = pl.col("bucket") + minutes * MINUTE_MS
-        aggregated = aggregated.filter(bucket_end <= cutoff_ms)
+        # Only a bucket whose full set of 1m bars is present is a completed
+        # observation; a short bucket would be an inferred state, not a fact.
+        aggregated = aggregated.filter((bucket_end <= cutoff_ms) & (pl.col("bars") == minutes))
         if aggregated.is_empty():
             continue
         row = aggregated.row(-1, named=True)
@@ -140,6 +142,9 @@ def build_market_environment(
         )
         timeframes[timeframe] = TimeframeState(
             timeframe=timeframe,
+            bucket_start=utc_from_ms(int(row["bucket"])),
+            bucket_end=utc_from_ms(int(row["bucket"]) + minutes * MINUTE_MS),
+            completed=True,
             timestamp=utc_from_ms(int(row["bucket"]) + minutes * MINUTE_MS),
             open=float(row["open"]), high=float(row["high"]), low=float(row["low"]), close=float(row["close"]),
             volume=float(row["volume"]), trend_direction=trend,
@@ -155,7 +160,14 @@ def build_market_environment(
     if required - set(timeframes):
         raise ValueError(f"insufficient history for timeframes: {sorted(required - set(timeframes))}")
 
-    tick_list = [tick for tick in ticks if tick.event_timestamp <= decision_time]
+    # Source isolation: only observations of the executable instrument/market
+    # type may enter. A spot tick or a different symbol is not comparable data.
+    tick_list = [
+        tick for tick in ticks
+        if tick.instrument == instrument
+        and tick.market_type == market_type
+        and tick.event_timestamp <= decision_time
+    ]
     latest_tick = next((tick for tick in tick_list if tick.source_role == "primary"), tick_list[0] if tick_list else None)
     close = float(latest_tick.last) if latest_tick and latest_tick.last is not None else float(latest["close"])
     bid = latest_tick.bid if latest_tick else None
@@ -193,12 +205,24 @@ def build_market_environment(
     flow = FlowState(volume=float(latest["volume"]), buy_volume=buy_volume, sell_volume=sell_volume, imbalance=imbalance)
     depth_bid = latest_tick.bid_depth if latest_tick else None
     depth_ask = latest_tick.ask_depth if latest_tick else None
+    # Prefer the depth notional the venue adapter already measured; fall back to
+    # top-of-book only when the adapter did not supply it.
+    depth_metadata = latest_tick.metadata if latest_tick else {}
+    measured_notional = (
+        depth_metadata.get("bid_depth_notional"), depth_metadata.get("ask_depth_notional")
+    )
+    if all(isinstance(value, (int, float)) for value in measured_notional):
+        top_level_notional = float(measured_notional[0]) + float(measured_notional[1])
+    elif bid and ask and depth_bid is not None and depth_ask is not None:
+        top_level_notional = bid * depth_bid + ask * depth_ask
+    else:
+        top_level_notional = None
     liquidity = LiquidityState(
         spread=price.spread_fraction, bid_depth=depth_bid, ask_depth=depth_ask,
         depth=(depth_bid + depth_ask) if depth_bid is not None and depth_ask is not None else None,
         imbalance=((depth_bid - depth_ask) / (depth_bid + depth_ask)
                    if depth_bid is not None and depth_ask is not None and depth_bid + depth_ask > 0 else None),
-        top_level_notional=(bid * depth_bid + ask * depth_ask) if bid and ask and depth_bid is not None and depth_ask is not None else None,
+        top_level_notional=top_level_notional,
     )
     liquidations: dict[str, float] = {}
     if latest_tick is not None and latest_tick.liquidation_long is not None:

@@ -26,14 +26,44 @@ def test_freshness_uses_event_time_not_receive_time():
     assert quality.source_health["primary"].age_ms >= 60_000
 
 
-def test_fresh_duplicate_is_unsafe():
+def test_duplicate_observation_is_deduplicated_not_fatal():
+    """A retransmitted event is idempotent; a quiet tape must not halt the run."""
     now = datetime.now(UTC)
     fabric = DataFabric(max_age_ms=15_000)
     event = tick(now)
     fabric.ingest([event, event])
     quality = fabric.quality(now=now)
     assert quality.duplicate_events == 1
-    assert quality.safe_for_trading is False
+    assert quality.safe_for_trading is True
+    assert len(fabric.latest()) == 1
+
+
+def test_historical_bar_gap_is_counted_but_decision_window_gap_is_fatal():
+    now = datetime.now(UTC)
+    frame = pl.DataFrame({
+        "timestamp": [index * 60_000 for index in range(600)],
+        "open": [100.0] * 600,
+        "high": [101.0] * 600,
+        "low": [99.0] * 600,
+        "close": [100.5] * 600,
+        "volume": [1.0] * 600,
+    })
+    holed = frame.filter(pl.col("timestamp") != 5 * 60_000)
+    fabric = DataFabric(max_age_ms=15_000)
+    fabric.ingest_bars(holed)
+    fabric.ingest([tick(now)])
+    quality = fabric.quality(now=now)
+    assert quality.safe_for_trading is True
+    assert quality.historical_bar_gaps == 1
+    assert quality.bar_timestamp_problems == ()
+
+    recent = frame.filter(pl.col("timestamp") != 597 * 60_000)
+    fabric = DataFabric(max_age_ms=15_000)
+    fabric.ingest_bars(recent)
+    fabric.ingest([tick(now)])
+    unsafe = fabric.quality(now=now)
+    assert unsafe.safe_for_trading is False
+    assert any("bar_gap" in item for item in unsafe.bar_timestamp_problems)
 
 
 def test_bar_gap_is_recorded_as_unsafe():

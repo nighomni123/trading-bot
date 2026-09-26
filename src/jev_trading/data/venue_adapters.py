@@ -202,8 +202,10 @@ class BinanceLiveState:
     book_event_ms: int | None = None
     mark: float | None = None
     index: float | None = None
+    mark_event_ms: int | None = None
     funding_rate: float | None = None
     open_interest: float | None = None
+    trade_event_ms: int | None = None
     trade_active: bool = False
     liquidation_active: bool = False
     last_trade_id: int | None = None
@@ -219,6 +221,7 @@ class BinanceLiveState:
         self.bid_depth = self.ask_depth = self.bid_notional = self.ask_notional = None
         self.book_update_id = self.book_event_ms = None
         self.mark = self.index = self.funding_rate = None
+        self.mark_event_ms = self.trade_event_ms = None
         self.open_interest = self.last_trade_id = None
         self.trade_active = self.liquidation_active = False
         self.trades.clear()
@@ -236,6 +239,7 @@ class BinanceLiveState:
         timestamp = int(event.get("E", event.get("T", 0)))
         if kind == "aggTrade":
             self.last = _positive(event.get("p")) or self.last
+            self.trade_event_ms = timestamp or self.trade_event_ms
             _trade(
                 self.trades,
                 int(event.get("T", timestamp)),
@@ -266,6 +270,7 @@ class BinanceLiveState:
         elif kind in {"markPrice", "markPriceUpdate"}:
             self.mark, self.index = _positive(event.get("p")), _positive(event.get("i"))
             self.funding_rate = _number(event.get("r"))
+            self.mark_event_ms = timestamp or self.mark_event_ms
         elif kind == "forceOrder":
             order = event.get("o") or {}
             at = int(order.get("T", timestamp))
@@ -298,6 +303,14 @@ class BinanceLiveState:
         ask_depth = self.ask_depth if book_fresh else None
         bid_notional = self.bid_notional if book_fresh else None
         ask_notional = self.ask_notional if book_fresh else None
+        # The market and book sockets are independent, so every field group
+        # carries its own event time and is nulled when it goes stale.
+        now_ms = int(now.timestamp() * 1000)
+        mark_age = now_ms - self.mark_event_ms if self.mark_event_ms is not None else None
+        mark_fresh = mark_age is not None and -1_000 <= mark_age <= max_age_ms
+        mark = self.mark if mark_fresh else None
+        index = self.index if mark_fresh else None
+        funding_rate = self.funding_rate if mark_fresh else None
         return {
             "event_timestamp": _utc(self.event_ms),
             "last": self.last,
@@ -306,10 +319,10 @@ class BinanceLiveState:
             "bid_depth": bid_depth,
             "ask_depth": ask_depth,
             "mid": (bid + ask) / 2 if bid and ask else None,
-            "mark": self.mark,
-            "index": self.index,
+            "mark": mark,
+            "index": index,
             "open_interest": self.open_interest,
-            "funding_rate": self.funding_rate,
+            "funding_rate": funding_rate,
             "buy_volume": buy if self.trade_active else None,
             "sell_volume": sell if self.trade_active else None,
             "liquidation_long": long_liq if self.liquidation_active else None,
@@ -319,6 +332,12 @@ class BinanceLiveState:
                 "transport": "websocket",
                 "depth_levels": 5 if book_fresh else 0,
                 "book_last_update_id": self.book_update_id if book_fresh else None,
+                "last_event_timestamp": self.event_ms,
+                "book_event_timestamp": self.book_event_ms if book_fresh else None,
+                "book_event_age_ms": book_age if book_fresh else None,
+                "mark_event_timestamp": self.mark_event_ms if mark_fresh else None,
+                "mark_event_age_ms": mark_age if mark_fresh else None,
+                "trade_event_timestamp": self.trade_event_ms,
                 "last_trade_id": self.last_trade_id,
                 "bid_depth_notional": bid_notional,
                 "ask_depth_notional": ask_notional,

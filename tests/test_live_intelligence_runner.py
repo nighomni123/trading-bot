@@ -15,6 +15,7 @@ from jev_trading.live_intelligence.quant import build_completed_path_samples
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.config import load_settings
 from jev_trading.live_intelligence.schemas import DataQuality, DataEventType, MarketTick, MarketType, Side
+from tests.test_live_intelligence import aligned_start_ms
 
 UTC = timezone.utc
 T0 = int(datetime.now(UTC).timestamp() * 1000) - 300 * 60_000
@@ -38,7 +39,7 @@ def test_completed_path_builder_excludes_incomplete_tail_and_is_causal():
 def test_runner_records_request_and_fails_closed_with_disabled_providers(tmp_path: Path):
     settings = load_settings()
     n = 300
-    base = int(datetime.now(UTC).timestamp() * 1000) - n * 60_000
+    base = aligned_start_ms(datetime.now(UTC), n)
     rows = []
     for i in range(n):
         close = 100 + i * 0.01

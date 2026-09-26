@@ -13,12 +13,13 @@ from jev_trading.live_intelligence.frontier.client import ReplayFrontierClient
 from jev_trading.live_intelligence.jev.client import ReplayJevClient
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.schemas import DataEventType, MarketTick, MarketType
+from tests.test_live_intelligence import aligned_start_ms
 
 
 def test_runner_ledger_and_jev_share_one_coherent_quant_evidence(tmp_path: Path):
     count = 300
     now = datetime.now(timezone.utc)
-    start_ms = int(now.timestamp() * 1000) - count * 60_000
+    start_ms = aligned_start_ms(now, count)
     rows = []
     for index in range(count):
         close = 100 + index * 0.1

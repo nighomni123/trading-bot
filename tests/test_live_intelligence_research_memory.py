@@ -14,12 +14,13 @@ from jev_trading.live_intelligence.jev.client import DisabledJevClient
 from jev_trading.live_intelligence.runner import ShadowRunner
 from jev_trading.live_intelligence.schemas import DataEventType, MarketTick, MarketType
 from jev_trading.research import ResearchMemory
+from tests.test_live_intelligence import aligned_start_ms
 
 
 def test_decision_observation_feeds_frontier_context_and_report(tmp_path: Path):
     count = 300
     now = datetime.now(timezone.utc)
-    start_ms = int(now.timestamp() * 1000) - count * 60_000
+    start_ms = aligned_start_ms(now, count)
     rows = []
     for index in range(count):
         close = 100 + index * 0.1
