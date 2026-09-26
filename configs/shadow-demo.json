@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "experiment_id": "SHADOW-BTCUSDT-DEMO-001",
+  "execution_mode": "PAPER",
+  "code_version": "live-intelligence-v1",
+  "market": {
+    "instrument": "BTCUSDT_PERP",
+    "venue": "binance-futures",
+    "market_type": "PERPETUAL",
+    "primary_source": "binance",
+    "primary_source_role": "primary",
+    "secondary_source": "bybit",
+    "required_source_roles": ["primary"],
+    "warmup_bars": 3000,
+    "poll_seconds": 15.0
+  },
+  "frontier": {
+    "prompt_version": "frontier-strategist-v1",
+    "prompt_file": "frontier/prompts/strategist_v1.txt",
+    "periodic_seconds": 900,
+    "min_call_interval_seconds": 900,
+    "event_severity_threshold": 0.6,
+    "max_calls_per_hour": 4,
+    "provider": {
+      "provider": "disabled",
+      "model": "configured-at-deployment",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "timeout_seconds": 30.0,
+      "max_output_tokens": 4096,
+      "temperature": 0.2,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5,
+      "max_retry_delay_seconds": 30.0,
+      "supports_response_format": false,
+      "supports_tool_calling": false,
+      "supports_reasoning": false,
+      "supports_vision": false
+    }
+  },
+  "jev": {
+    "prompt_version": "jev-evaluator-v1",
+    "prompt_file": "jev/prompts/evaluator_v1.txt",
+    "validity_seconds": 60,
+    "min_call_interval_seconds": 0,
+    "max_calls_per_hour": 60,
+    "minimum_target_probability": 0.55,
+    "maximum_stop_probability": 0.45,
+    "minimum_entry_quality": 0.55,
+    "maximum_failure_probability": 0.45,
+    "minimum_liquidity_quality": 0.0,
+    "provider": {
+      "provider": "disabled",
+      "model": "configured-at-deployment",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "timeout_seconds": 20.0,
+      "max_output_tokens": 4096,
+      "temperature": 0.0,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5,
+      "max_retry_delay_seconds": 30.0,
+      "supports_response_format": false,
+      "supports_tool_calling": false,
+      "supports_reasoning": false,
+      "supports_vision": false
+    }
+  },
+  "quant": {
+    "volatility_expansion_ratio": 1.5,
+    "volume_shock_z": 2.0,
+    "return_shock_sigma": 3.0,
+    "oi_shock_fraction": 0.03,
+    "funding_extreme": 0.0005,
+    "trend_acceleration_threshold": 0.001,
+    "path_minimum_samples": 30
+  },
+  "policy": {
+    "minimum_net_expected_value": 0.0,
+    "minimum_path_sample_size": 30,
+    "minimum_liquidity_notional": 100.0,
+    "maximum_failure_probability": 0.45,
+    "target_atr_multiple": 2.0,
+    "stop_atr_multiple": 1.0,
+    "minimum_distance_bps": 5.0,
+    "maximum_holding_seconds": 900
+  },
+  "risk": {
+    "maximum_position_notional_usd": 1000.0,
+    "maximum_leverage": 2.0,
+    "maximum_capital_at_risk_usd": 50.0,
+    "maximum_trade_loss_usd": 20.0,
+    "maximum_daily_loss_usd": 50.0,
+    "maximum_drawdown_pct": 10.0,
+    "maximum_open_positions": 1,
+    "maximum_correlated_exposure_usd": 1000.0,
+    "maximum_spread_bps": 5.0,
+    "maximum_slippage_bps": 5.0,
+    "minimum_liquidity_notional": 100.0,
+    "maximum_orders_per_minute": 12,
+    "stale_data_ms": 15000,
+    "cooldown_seconds": 0,
+    "kill_switch": false,
+    "risk_per_trade_pct": 0.5
+  },
+  "costs": {
+    "fee_bps_per_side": 5.0,
+    "slippage_bps_per_side": 2.0,
+    "latency_bps": 1.0,
+    "fee_multiplier": 1.0
+  },
+  "paper": {
+    "capital_usd": 10000.0,
+    "funding_interval_hours": 8,
+    "funding_model": "DISABLED"
+  },
+  "research": {
+    "root": "research/runtime/shadow-demo",
+    "hourly": true,
+    "daily": true,
+    "weekly": true,
+    "strategy_registry": "research/strategies/registry.json",
+    "hypothesis_registry": "research/hypotheses",
+    "observations_file": "research/runtime/shadow-demo/observations.jsonl",
+    "postmortems": "research/runtime/shadow-demo/postmortems"
+  },
+  "observability": {
+    "log_file": "research/runtime/shadow-demo/components.jsonl",
+    "metrics_file": "research/runtime/shadow-demo/metrics.json",
+    "retain_component_logs_days": 30
+  },
+  "ledger_root": "research/runtime/shadow-demo",
+  "pending_intent_ttl_seconds": 120,
+  "strategy_registry_version": "strategy-registry-v1"
+}

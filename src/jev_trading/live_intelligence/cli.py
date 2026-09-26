@@ -15,6 +15,7 @@ from .jev.client import JevClientFactory
 from .provider_benchmark import run_benchmark
 from .provider_smoke import run_provider_smoke
 from .runner import ShadowRunner
+from .shadow import inspect_run, run_doctor
 from jev_trading.data.venue_adapters import (
     BinanceLivePerpAdapter,
     BybitPerpAdapter,
@@ -22,6 +23,130 @@ from jev_trading.data.venue_adapters import (
 )
 from jev_trading.replay import ReplayEngine
 from jev_trading.research import ResearchMemory
+
+
+def _build_live_components(settings, arm: str):
+    """Construct exactly what the configuration asks for; no hidden defaults."""
+    frontier_client = FrontierClientFactory.create(settings.frontier.provider, replay_allow_trade=True)
+    jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
+    jev_client = JevClientFactory.create(settings.jev.provider, prompt=jev_prompt)
+    primary = BinanceLivePerpAdapter(source_role=settings.market.primary_source_role)
+    secondary = (BybitPerpAdapter(),) if settings.market.secondary_source == "bybit" else ()
+    adapter = CompositeMarketDataAdapter(primary, secondary)
+    del arm  # arms are selected by the runner, not by transport construction
+    return adapter, frontier_client, jev_client
+
+
+def _shadow_status(settings) -> dict:
+    return {
+        "experiment_id": settings.experiment_id,
+        "execution_mode": settings.execution_mode,
+        "live_orders": "DISABLED",
+        "run_mode": "LIVE_DATA_PAPER",
+        "instrument": settings.market.instrument,
+        "market_type": settings.market.market_type,
+        "primary_source": settings.market.primary_source,
+        "secondary_source": settings.market.secondary_source,
+        "poll_seconds": settings.market.poll_seconds,
+        "warmup_bars": settings.market.warmup_bars,
+        "frontier": {
+            "provider": settings.frontier.provider.provider,
+            "model": settings.frontier.provider.model,
+            "periodic_seconds": settings.frontier.periodic_seconds,
+            "min_call_interval_seconds": settings.frontier.min_call_interval_seconds,
+            "max_calls_per_hour": settings.frontier.max_calls_per_hour,
+        },
+        "jev": {
+            "provider": settings.jev.provider.provider,
+            "model": settings.jev.provider.model,
+            "validity_seconds": settings.jev.validity_seconds,
+            "max_calls_per_hour": settings.jev.max_calls_per_hour,
+        },
+        "paper": settings.paper.model_dump(mode="json"),
+        "costs": settings.costs.model_dump(mode="json"),
+        "kill_switch": settings.risk.kill_switch,
+        "stale_data_ms": settings.risk.stale_data_ms,
+    }
+
+
+def _run_paper(args, *, demo: bool) -> int:
+    settings = load_settings(args.config)
+    ledger_path = args.ledger or f"{settings.ledger_root}/decisions.jsonl"
+    runtime_root = getattr(args, "runtime_root", None) or (
+        f"{settings.ledger_root}" if demo else None
+    )
+    adapter, frontier_client, jev_client = _build_live_components(settings, args.arm)
+    telemetry = None
+    if runtime_root:
+        from .shadow import ShadowTelemetry
+        telemetry = ShadowTelemetry(runtime_root, settings, arm=args.arm, console=not getattr(args, "no_console", False))
+    adapter.start()
+    try:
+        runner = ShadowRunner(
+            settings, adapter, frontier_client, jev_client,
+            arm=args.arm, ledger_path=ledger_path,
+            checkpoint_path=(f"{runtime_root}/runtime-state.json" if runtime_root else None),
+            telemetry=telemetry, run_mode="LIVE_DATA_PAPER",
+        )
+        if telemetry is not None:
+            telemetry.write_manifest(
+                frontier_model=runner.frontier.client.model_version,
+                jev_model=runner.jev.client.model_version,
+                quant_versions={name: "pending" for name in runner.quant.names()},
+            )
+        iterations = args.iterations if args.iterations is not None else (1 if not demo else None)
+        summary = runner.run_forever(iterations=iterations)
+        print(json.dumps({
+            **summary,
+            "latency": runner.latency_report(),
+            "execution_mode": "PAPER",
+            "live_orders": "DISABLED",
+        }, indent=2, default=str))
+    finally:
+        adapter.close()
+    return 0
+
+
+def _shadow(args) -> int:
+    if args.shadow_command == "status":
+        print(json.dumps(_shadow_status(load_settings(args.config)), indent=2))
+        return 0
+    if args.shadow_command == "inspect":
+        print(json.dumps(inspect_run(args.ledger), indent=2, default=str))
+        return 0
+    settings = load_settings(args.config)
+    ledger_path = args.ledger or f"{settings.ledger_root}/decisions.jsonl"
+    runtime_root = getattr(args, "runtime_root", None) or settings.ledger_root
+    adapter, frontier_client, jev_client = _build_live_components(settings, args.arm)
+    adapter.start()
+    try:
+        if args.shadow_command == "doctor":
+            report = run_doctor(
+                settings, adapter, arm=args.arm,
+                frontier_client=frontier_client, jev_client=jev_client,
+                ledger_path=ledger_path,
+                checkpoint_path=f"{runtime_root}/runtime-state.json",
+            )
+            print(json.dumps(report, indent=2, default=str))
+            return 0 if report["ready"] else 1
+        from .shadow import ShadowTelemetry
+        telemetry = ShadowTelemetry(runtime_root, settings, arm=args.arm, console=not args.no_console)
+        runner = ShadowRunner(
+            settings, adapter, frontier_client, jev_client,
+            arm=args.arm, ledger_path=ledger_path,
+            checkpoint_path=f"{runtime_root}/runtime-state.json",
+            telemetry=telemetry, run_mode="LIVE_DATA_PAPER",
+        )
+        telemetry.write_manifest(
+            frontier_model=runner.frontier.client.model_version,
+            jev_model=runner.jev.client.model_version,
+            quant_versions={name: "pending" for name in runner.quant.names()},
+        )
+        summary = runner.run_forever(iterations=args.iterations)
+        print(json.dumps({**summary, "latency": runner.latency_report()}, indent=2, default=str))
+    finally:
+        adapter.close()
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,7 +159,26 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--config", default="configs/live.json")
     run.add_argument("--iterations", type=int, default=1)
     run.add_argument("--arm", choices=("A", "B", "C", "QUANT_ONLY", "QUANT_POLICY", "QUANT_FRONTIER", "QUANT_FRONTIER_JEV"), default="C")
-    run.add_argument("--ledger", default="research/runtime/ledger/decisions.jsonl")
+    run.add_argument("--ledger", default=None, help="default: <ledger_root>/decisions.jsonl from the config")
+    run.add_argument("--demo", action="store_true", help="stream heartbeat/dashboard telemetry for a shadow demo")
+    run.add_argument("--runtime-root", default=None, help="telemetry/manifest root for a shadow demo")
+    shadow = sub.add_parser("shadow", help="shadow-demo operations")
+    shadow_sub = shadow.add_subparsers(dest="shadow_command", required=True)
+    shadow_status = shadow_sub.add_parser("status", help="show resolved shadow configuration and safety state")
+    shadow_status.add_argument("--config", default="configs/shadow-demo.json")
+    shadow_doctor = shadow_sub.add_parser("doctor", help="run pre-flight checks before a shadow run")
+    shadow_doctor.add_argument("--config", default="configs/shadow-demo.json")
+    shadow_doctor.add_argument("--arm", choices=("A", "B", "C"), default="C")
+    shadow_doctor.add_argument("--ledger", default=None)
+    shadow_run = shadow_sub.add_parser("run", help="run a continuous shadow demo against live public data")
+    shadow_run.add_argument("--config", default="configs/shadow-demo.json")
+    shadow_run.add_argument("--arm", choices=("A", "B", "C"), default="C")
+    shadow_run.add_argument("--iterations", type=int, default=None, help="stop after N polls (default: run until interrupted)")
+    shadow_run.add_argument("--ledger", default=None)
+    shadow_run.add_argument("--runtime-root", default=None)
+    shadow_run.add_argument("--no-console", action="store_true", help="write telemetry only")
+    shadow_inspect = shadow_sub.add_parser("inspect", help="verify and summarize a finished shadow run")
+    shadow_inspect.add_argument("--ledger", default="research/runtime/shadow-demo/decisions.jsonl")
     replay = sub.add_parser("replay", help="verify and summarize a recorded ledger")
     replay.add_argument("ledger")
     research = sub.add_parser("research", help="generate immutable research memory")
@@ -64,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
     economics.add_argument("--samples", type=int, default=40)
     economics.add_argument("--notional", type=float, default=1000.0)
     args = parser.parse_args(argv)
+    if args.command == "shadow":
+        return _shadow(args)
     if args.command == "execution-costs":
         from jev_trading.quant.execution_economics import build_profiles, measure_book, profile_total_bps
         measurement = measure_book(symbol=args.symbol, samples=args.samples, notional_usd=args.notional)
@@ -116,25 +262,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     settings = load_settings(args.config)
     if args.command == "status":
-        print(json.dumps({"execution_mode": settings.execution_mode, "live_orders": "DISABLED", "instrument": settings.market.instrument, "primary_source": settings.market.primary_source, "secondary_source": settings.market.secondary_source, "experiment_id": settings.experiment_id, "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider}, indent=2))
+        print(json.dumps({
+            "execution_mode": settings.execution_mode, "live_orders": "DISABLED",
+            "instrument": settings.market.instrument, "primary_source": settings.market.primary_source,
+            "secondary_source": settings.market.secondary_source, "experiment_id": settings.experiment_id,
+            "frontier_provider": settings.frontier.provider.provider, "jev_provider": settings.jev.provider.provider,
+            "run_mode": "LIVE_DATA_PAPER", "funding_model": settings.paper.funding_model,
+        }, indent=2))
         return 0
-    frontier_client = FrontierClientFactory.create(settings.frontier.provider, replay_allow_trade=True)
-    jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
-    jev_client = JevClientFactory.create(settings.jev.provider, prompt=jev_prompt)
-    primary = BinanceLivePerpAdapter(source_role=settings.market.primary_source_role)
-    secondary = (BybitPerpAdapter(),) if settings.market.secondary_source == "bybit" else ()
-    adapter = CompositeMarketDataAdapter(primary, secondary)
-    adapter.start()
-    try:
-        runner = ShadowRunner(
-            settings, adapter, frontier_client, jev_client,
-            arm=args.arm, ledger_path=args.ledger,
-        )
-        runner.run_forever(iterations=args.iterations)
-    finally:
-        adapter.close()
-    print(f"EXECUTION MODE: PAPER\nLIVE ORDERS: DISABLED\nLEDGER: {args.ledger}")
-    return 0
+    if args.command == "paper":
+        return _run_paper(args, demo=args.demo)
+    raise SystemExit(f"unhandled command: {args.command}")
 
 
 if __name__ == "__main__":

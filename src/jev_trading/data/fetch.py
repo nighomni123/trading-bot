@@ -8,14 +8,22 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import time
 import zipfile
 from datetime import datetime, timedelta, timezone
 
 import polars as pl
+
 import requests
 
 from jev_trading.contracts import BAR_COLUMNS
+
+
+def _progress(message: str) -> None:
+    """Fetch progress goes to stderr so CLI stdout stays machine-readable."""
+    print(message, file=sys.stderr, flush=True)
+
 
 SYMBOL = "BTCUSDT"
 KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
@@ -86,13 +94,13 @@ def fetch_klines(start_ms: int, end_ms: int, symbol: str = SYMBOL) -> pl.DataFra
                 )
             )
         except Exception as e:  # noqa: BLE001 — one bad page must not kill the run
-            print(f"WARN: klines page @{cursor}: {e}")
+            _progress(f"WARN: klines page @{cursor}: {e}")
             break
         if not raw:
             break
         page += 1
         rows.extend(raw)
-        print(f"klines page {page}: +{len(raw)} rows (t={raw[-1][0]})")
+        _progress(f"klines page {page}: +{len(raw)} rows (t={raw[-1][0]})")
         nxt = int(raw[-1][0]) + MINUTE_MS
         if nxt <= cursor or len(raw) < KLINES_LIMIT:
             break
@@ -136,13 +144,13 @@ def fetch_funding(start_ms: int, end_ms: int, symbol: str = SYMBOL) -> pl.DataFr
                 )
             )
         except Exception as e:  # noqa: BLE001
-            print(f"WARN: funding page @{cursor}: {e}")
+            _progress(f"WARN: funding page @{cursor}: {e}")
             break
         if not raw:
             break
         page += 1
         events.extend(raw)
-        print(f"funding page {page}: +{len(raw)} events")
+        _progress(f"funding page {page}: +{len(raw)} events")
         nxt = int(raw[-1]["fundingTime"]) + 1
         if nxt <= cursor or len(raw) < FUNDING_LIMIT:
             break
@@ -194,9 +202,9 @@ def fetch_open_interest(start_ms: int, end_ms: int, symbol: str = SYMBOL) -> pl.
         url = OI_URL.format(symbol=symbol, date=day.isoformat())
         try:
             frames.append(_parse_metrics_zip(_get(url)))
-            print(f"OI {day}: ok")
+            _progress(f"OI {day}: ok")
         except Exception as e:  # noqa: BLE001 — missing/not-yet-published day is fine
-            print(f"WARN: OI {day}: {e}")
+            _progress(f"WARN: OI {day}: {e}")
         day += timedelta(days=1)
     if not frames:
         return _empty(_OI_SCHEMA)
@@ -311,10 +319,10 @@ def fetch_bars(start_ms: int, end_ms: int, symbol: str = SYMBOL) -> pl.DataFrame
                 if not bulk.is_empty():
                     frames.append(bulk)
                     covered.append((mstart, mend))
-                    print(f"klines {year:04d}-{month:02d}: bulk ok ({bulk.height} rows)")
+                    _progress(f"klines {year:04d}-{month:02d}: bulk ok ({bulk.height} rows)")
                     continue
             except Exception as e:  # noqa: BLE001 — fall through to fapi
-                print(f"WARN: klines {year:04d}-{month:02d} bulk failed ({e}), using fapi")
+                _progress(f"WARN: klines {year:04d}-{month:02d} bulk failed ({e}), using fapi")
     # fapi-fill everything not bulk-covered: head, tail, failed months.
     gaps: list[tuple[int, int]] = []
     cursor = start_ms

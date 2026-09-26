@@ -94,7 +94,7 @@ def make_versions(
     )
 
 
-def freeze_experiment(settings: LiveSettings, path: str | Path, *, frontier_model: str, jev_model: str, quant_versions: dict[str, str]) -> Path:
+def freeze_experiment(settings: LiveSettings, path: str | Path, *, frontier_model: str, jev_model: str, quant_versions: dict[str, str], details: dict | None = None) -> Path:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
@@ -106,6 +106,6 @@ def freeze_experiment(settings: LiveSettings, path: str | Path, *, frontier_mode
         jev_prompt_hash=file_hash(Path(__file__).parent / settings.jev.prompt_file),
         quant_versions=quant_versions,
     )
-    payload = {"frozen_at": datetime.now(tz=timezone.utc).isoformat(), "versions": versions.model_dump(mode="json"), "execution_mode": settings.execution_mode}
+    payload = {"frozen_at": datetime.now(tz=timezone.utc).isoformat(), "versions": versions.model_dump(mode="json"), "execution_mode": settings.execution_mode, **(details or {})}
     target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return target

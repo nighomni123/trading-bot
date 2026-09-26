@@ -434,13 +434,15 @@ class ShadowRunner:
 
     def _observe(self):
         """Ingest the feed and build the environment for the current clock."""
-        now = self._clock()
         with self._timed("data_fetch"):
             bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
             if bars.is_empty():
                 raise RuntimeError("market adapter returned no closed bars")
             self.fabric.ingest_bars(bars)
             self.fabric.ingest(self.adapter.snapshot())
+        # The decision instant is read after ingestion: observations can only be
+        # received at or before the moment they are judged.
+        now = self._clock()
         quality = self.fabric.quality(now=now)
         with self._timed("environment"):
             environment = build_market_environment(
@@ -770,11 +772,14 @@ class ShadowRunner:
                 "unrealized_pnl": self.position.unrealized_pnl,
                 "funding_pnl": self.position.funding_pnl_usd,
                 "daily_pnl": self.account.daily_realized_pnl_usd,
+                "drawdown": max(
+                    0.0, (self.account.peak_equity_usd or self.account.capital_usd) - self.account.capital_usd,
+                ),
                 "drawdown_pct": max(
                     0.0,
-                    (self.account.peak_equity_usd - self.account.capital_usd)
-                    / self.account.peak_equity_usd * 100,
-                ) if self.account.peak_equity_usd else 0.0,
+                    ((self.account.peak_equity_usd or self.account.capital_usd) - self.account.capital_usd)
+                    / (self.account.peak_equity_usd or self.account.capital_usd) * 100,
+                ),
                 "quant_status": "OK" if record.quant_evidence else "UNAVAILABLE",
                 "frontier_status": _component_status(record.frontier_hypothesis),
                 "jev_status": _component_status(record.jev_evaluation),
@@ -795,9 +800,9 @@ class ShadowRunner:
             }
         )
         for event in environment.events:
-            telemetry.event("market_event", **event.model_dump(mode="json"))
+            telemetry.event("market_event", event=event.model_dump(mode="json"))
         for failure in record.provider_failures:
-            telemetry.event("provider_failure", **failure.model_dump(mode="json"))
+            telemetry.event("provider_failure", failure=failure.model_dump(mode="json"))
 
     def latency_report(self) -> dict[str, dict[str, float]]:
         return {
@@ -843,15 +848,18 @@ class ShadowRunner:
             "ledger_hash": self.ledger.last_hash,
         }
 
-    def run_forever(self, *, iterations: int | None = None) -> dict:
+    def run_forever(self, *, iterations: int | None = None, poll_seconds: float | None = None) -> dict:
+        """Poll until the iteration budget or a signal; always sleeps between polls."""
         self.install_signal_handlers()
+        interval = self.settings.market.poll_seconds if poll_seconds is None else poll_seconds
         count = 0
         try:
             while (iterations is None or count < iterations) and not self._stopping:
                 self.run_once()
                 count += 1
-                if iterations is None and not self._stopping:
-                    time.sleep(self.settings.market.poll_seconds)
+                if self._stopping or (iterations is not None and count >= iterations):
+                    break
+                time.sleep(interval)
         finally:
             summary = self.shutdown()
             if self.telemetry is not None:

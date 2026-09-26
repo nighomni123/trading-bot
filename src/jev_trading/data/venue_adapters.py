@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 import math
 import random
+import sys
 import threading
 import time
 from threading import Lock
@@ -944,7 +945,10 @@ class CompositeMarketDataAdapter:
             try:
                 ticks.extend(adapter.snapshot(now=now))
             except Exception as exc:
-                print(f"WARN: {adapter.source} snapshot unavailable: {type(exc).__name__}")
+                print(
+                    f"WARN: {adapter.source} snapshot unavailable: {type(exc).__name__}",
+                    file=sys.stderr, flush=True,
+                )
         return ticks
 
     def health(self, *, now: datetime | None = None) -> DataQuality:
