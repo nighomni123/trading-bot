@@ -1,5 +1,4 @@
-"""Research memory exports."""
-from .memory import ResearchMemory
-from .registry import HypothesisRegistry, StrategyRegistry
+"""Stage 12 long-horizon structural alpha research. Research only.
 
-__all__ = ["ResearchMemory", "HypothesisRegistry", "StrategyRegistry"]
+Never imports from live_intelligence. Never executes orders. Never calls an LLM.
+"""
