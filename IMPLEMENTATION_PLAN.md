@@ -226,7 +226,7 @@ Stack deferred (Redis/ClickHouse/NATS/Postgres/Grafana/MLflow/Docker/React P0–
 - `frontier/overseer.py`: `Overseer` adversarial review (regime change, cost erosion, calibration drift, Jev no-info, negative edge → KillSignal)
 - `frontier/guardrail.py`: `Guardrail` enforces no-PnL-driven-live-updates; promotion only through experiment pipeline
 - `live/feed.py`: `BarFeed` streaming Binance adapter feeding the WorldModel
-- `dashboard/core.py` + `scripts/dashboard.py`: Streamlit UI dashboard (Status, Experiments, Frontier, Regime, Backtest)
+- `dashboard/`: Next.js + ECharts research dashboard (8 modules: Epistemic Gate, Oracle Grid, Microstructure, Integrity, Execution, Long-Horizon, Shadow Runtime). Replaced the Streamlit UI; reads `docs/*.json` and `research/**` directly as React Server Components.
 
 ### Resume notes for next session
 - **P8 shadow live-verified**: `PaperTrader` + `scripts/paper_trade.py` built and run on

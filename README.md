@@ -150,3 +150,54 @@ The preserved `legacy-main-phase2-phase3` branch and `pre-live-intelligence-rese
 - Frontier and Jev are advisory only and cannot bypass deterministic safety controls.
 - Research memory is read-only context, not an autonomous self-modification channel.
 - A multi-week shadow experiment should begin only after the current shadow-readiness report passes and OpenRouter credentials/provider smoke are available.
+
+## Research dashboard
+
+`dashboard/` is a Next.js + ECharts research telemetry UI. It replaces the
+retired Streamlit dashboard.
+
+```bash
+cd dashboard
+npm install
+npm run dev      # http://localhost:3090
+npm run build && npm run start
+```
+
+**No backend process.** The app is React Server Components that read the
+existing JSON artifacts (`docs/*.json`, `research/stage12/*.json`,
+`research/runtime/*`) directly off disk at request time. There is no API layer
+and no Parquet parsing in the browser.
+
+| Route | Stage | Contents |
+| --- | --- | --- |
+| `/` | — | Research state summary, and a self-audit of contradictions found between the narrative reports and the machine-readable artifacts |
+| `/gate` | 08 | Pipeline node-graph: data → features → parity → train → economic gate → execution |
+| `/geometry` | 10 | 90-cell oracle feasibility grid with click-to-inspect, plus realized-candidate distribution |
+| `/microstructure` | 11 | Event study across 8 event types × 6 horizons against the ±breakeven lines |
+| `/integrity` | 09 | Expanding-window folds, OOS AUC, parity and causality audits |
+| `/execution` | 10 | Assumed vs measured cost, percentiles, cost-stack breakdown, profile admissibility |
+| `/horizon` | 12 | Long-horizon structural alpha: AUC by fold, decile means, per-year stability with ±SE ribbons |
+| `/runtime` | 13 | Shadow runtime: doctor checks, stage latency, ledger integrity, remaining risks |
+
+Design rules the code enforces:
+
+- **Every number is read from an artifact at render time.** None are transcribed
+  by hand. A missing artifact degrades to `—`, which is rendered in neutral grey
+  and never in a semantic colour.
+- **Every chart carries a provenance footer** — artifact path, `generated_at` or
+  mtime, and the active commit.
+- **Colours are semantic, not decorative**: green = pass/feasible, red =
+  fail/gate-block, amber = below-threshold/assumed/unstable, blue = baseline/info,
+  violet = oracle-feasible boundary. An absent value is never coloured.
+- **Nothing is rendered that was not measured.** Where a requested statistic does
+  not exist in any artifact (for example the CVD-divergence R²), the panel says
+  `NOT MEASURED` rather than plotting an estimate.
+
+### Current headline
+
+The system is in `RESEARCH_MODE` and is not trading. Measured round-trip cost is
+**11.006 bps** (40 live book-walked samples), against a largest reproducible
+signal of **+1.98 bps**. The oracle grid marks **42 of 90** geometries viable
+under perfect foresight, so the strategy family is not structurally dead — the
+failure is model capacity, not the cost stack. See the Overview route and
+`docs/stage-12-long-horizon-alpha-report.md`.
