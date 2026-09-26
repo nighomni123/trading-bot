@@ -106,7 +106,7 @@ def test_cvd_is_causal_running_sum():
     # First CVD equals first net aggressive volume.
     first_net = frame["buy_volume"][0] - frame["sell_volume"][0]
     assert frame["cvd"][0] == pytest.approx(first_net)
-    # CVD is monotone in the sense of a cumulative sum of the net column.
+    # CVD is a cumulative sum of the net column.
     manual = np.cumsum((frame["buy_volume"] - frame["sell_volume"]).to_numpy())
     assert np.allclose(frame["cvd"].to_numpy(), manual)
 
@@ -164,3 +164,42 @@ def test_forward_targets_null_at_series_end():
     t = build_forward_targets(bars, horizons=(5,))
     last_valid = t.filter(pl.col("forward_return_5m").is_not_null()).height
     assert last_valid <= bars.height - 5 - 1
+
+
+# --- model feature selection must fail closed on every label column --------
+
+from jev_trading.microstructure.models import is_label_column, select_model_features  # noqa: E402
+
+
+def test_label_columns_are_rejected_from_model_features():
+    assert is_label_column("forward_return_30m")
+    assert is_label_column("mfe_5m")
+    assert is_label_column("mae_60m")
+    assert is_label_column("time_to_mfe_10m")
+    assert is_label_column("outcome")
+    assert not is_label_column("volume_imbalance_5m")
+    assert not is_label_column("cvd")
+
+
+def test_select_model_features_drops_every_label_column():
+    bars = _bars(400)
+    feats = _feature_frame(bars, _trade_bars(bars))
+    targets = build_forward_targets(bars)
+    joined = feats.join(targets, on="timestamp", how="inner")
+    selected = select_model_features(joined)
+    assert selected, "expected non-label features to remain"
+    for name in selected:
+        assert not is_label_column(name), f"label column {name} leaked into the model feature set"
+        assert not name.startswith(("mfe_", "mae_", "time_to_", "forward_return_")), name
+
+
+def test_path_label_columns_present_in_frame_are_never_selected():
+    """The exact Stage 11 regression: targets joined to the frame must not
+    contribute MFE/MAE/time_to columns to the model."""
+    bars = _bars(400)
+    feats = _feature_frame(bars, _trade_bars(bars))
+    targets = build_forward_targets(bars)
+    joined = feats.join(targets, on="timestamp", how="inner")
+    assert any(c.startswith("mfe_") for c in joined.columns), "fixture must contain path labels"
+    selected = select_model_features(joined)
+    assert not any(c.startswith("mfe_") for c in selected)

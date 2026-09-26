@@ -1,0 +1,29 @@
+{
+  "alpha_id": "EXP-11-BOOK-MICROPRICE",
+  "code_version": "alpha-experiment-v1",
+  "created_at": "2026-09-26T04:45:39.566296+00:00",
+  "description": "Microprice deviation from mid predicts short-horizon returns.",
+  "event_definition": {
+    "family": "EXP-11-BOOK-MICROPRICE"
+  },
+  "event_version": "events-v1",
+  "feature_version": "features-v1",
+  "features": [
+    "microprice_mid_deviation_bps",
+    "top_level_imbalance"
+  ],
+  "horizons": [
+    5,
+    10,
+    20,
+    30,
+    60,
+    240
+  ],
+  "name": "Order-book microprice deviation",
+  "status": "RESEARCH",
+  "target_version": "targets-v1",
+  "targets": [
+    "forward_return_30m"
+  ]
+}
