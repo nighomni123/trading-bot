@@ -752,6 +752,12 @@ class ShadowRunner:
             return
         for name, value in self._timings_ms.items():
             self._latency_samples.setdefault(name, []).append(value)
+        # Freshness is reported for the executable source: a slow optional venue
+        # must not be confused with a primary-feed problem, or the reverse.
+        primary_health = next(
+            (health for health in environment.data_quality.source_health.values() if health.role == "primary"),
+            None,
+        )
         telemetry.sample(
             {
                 "timestamp": environment.decision_timestamp.isoformat(),
@@ -760,7 +766,11 @@ class ShadowRunner:
                 "arm": self.arm,
                 "experiment_id": self.settings.experiment_id,
                 "decision_id": record.decision_id,
-                "feed_age_ms": environment.data_quality.timestamp_lag_ms,
+                "feed_age_ms": (
+                    primary_health.age_ms if primary_health is not None
+                    else environment.data_quality.timestamp_lag_ms
+                ),
+                "max_feed_age_ms": environment.data_quality.timestamp_lag_ms,
                 "feed_status": "HEALTHY" if environment.data_quality.safe_for_trading else "UNSAFE",
                 "bar_timestamp": environment.timestamp.isoformat(),
                 "position": self.position.side.value,

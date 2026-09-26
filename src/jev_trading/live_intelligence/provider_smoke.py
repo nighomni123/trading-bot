@@ -27,13 +27,15 @@ from jev_trading.live_intelligence.schemas import (
 
 
 def _smoke_environment(now: datetime):
-    count = 300
+    """A synthetic environment long enough to contain a whole completed 4h bucket."""
+    minutes = 600
+    start = (int(now.timestamp() * 1000) - minutes * 60_000) // (240 * 60_000) * (240 * 60_000)
+    count = (int(now.timestamp() * 1000) - start) // 60_000
     rows = []
     for index in range(count):
         price = 100.0 + index * 0.01
-        timestamp = now - timedelta(minutes=count - index)
         rows.append({
-            "timestamp": int(timestamp.timestamp() * 1000),
+            "timestamp": start + index * 60_000,
             "open": price, "high": price + 0.05, "low": price - 0.05, "close": price,
             "volume": 10.0, "funding_rate": 0.0, "open_interest": 1000.0,
         })

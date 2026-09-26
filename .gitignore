@@ -32,3 +32,4 @@ research/weekly/
 .local/
 # Stage 11 research substrate: large regenerable caches stay out of git.
 research/cache/
+reports/

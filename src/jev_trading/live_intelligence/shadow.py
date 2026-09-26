@@ -202,30 +202,90 @@ class ShadowTelemetry:
         reports.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
         target = reports / f"shadow-demo-{stamp}.md"
-        target.write_text(render_run_report(self.settings, summary, self.arm), encoding="utf-8")
+        target.write_text(
+            render_run_report(self.settings, summary, self.arm, self._run_stats()), encoding="utf-8",
+        )
         return target
 
+    def _run_stats(self) -> dict:
+        """Summarise the streams this run actually wrote; never invent numbers."""
+        samples = [json.loads(line) for line in self.metrics_path.read_text().splitlines() if line.strip()] \
+            if self.metrics_path.exists() else []
+        polls = [row for row in samples if row.get("phase") in {"DECIDED", "REPLAYED"}]
+        healthy = sum(row.get("feed_status") == "HEALTHY" for row in polls)
+        events = [json.loads(line) for line in self.events_path.read_text().splitlines() if line.strip()] \
+            if self.events_path.exists() else []
+        actions: dict[str, int] = {}
+        for row in polls:
+            action = row.get("policy_action", "UNKNOWN")
+            actions[action] = actions.get(action, 0) + 1
+        latencies = [
+            value for row in polls for value in (row.get("latency_ms") or {}).values()
+        ]
+        return {
+            "polls": len(polls),
+            "feed_healthy_polls": healthy,
+            "feed_interruptions": len(polls) - healthy,
+            "events": len(events),
+            "policy_actions": actions,
+            "risk_rejected": sum(row.get("risk_status") == "REJECTED" for row in polls),
+            "provider_failures": sum(int(row.get("provider_failures") or 0) for row in polls),
+            "latency_mean_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0.0,
+            "latency_max_ms": round(max(latencies), 1) if latencies else 0.0,
+        }
 
-def render_run_report(settings: LiveSettings, summary: dict, arm: str) -> str:
+
+def render_run_report(settings: LiveSettings, summary: dict, arm: str, stats: dict | None = None) -> str:
+    stats = stats or {}
     started = summary.get("started_at")
     duration = "unknown"
     if started:
         duration = f"{(datetime.now(tz=timezone.utc) - datetime.fromisoformat(started)).total_seconds() / 60:.1f} minutes"
     return "\n".join([
-        f"# Shadow run {settings.experiment_id} ({arm})",
+        f"# Shadow run {settings.experiment_id} (arm {arm})",
         "",
-        f"- Run start: {started}",
+        "## Run",
+        "",
+        f"- Start: {started}",
         f"- Duration: {duration}",
         f"- Run mode: {summary.get('run_mode')}",
         f"- Execution mode: {settings.execution_mode} (live orders: DISABLED)",
+        f"- Instrument: {settings.market.instrument} via {settings.market.venue}",
+        f"- Funding model: {settings.paper.funding_model}",
+        "",
+        "## Data",
+        "",
+        f"- Polls: {stats.get('polls', 0)}",
+        f"- Polls with a healthy primary feed: {stats.get('feed_healthy_polls', 0)}",
+        f"- Feed interruptions: {stats.get('feed_interruptions', 0)}",
+        f"- Market events emitted: {stats.get('events', 0)}",
+        "",
+        "## Intelligence and decisions",
+        "",
         f"- Decisions: {summary.get('decisions', 0)}",
+        f"- Policy actions: {stats.get('policy_actions', {})}",
+        f"- Risk rejections: {stats.get('risk_rejected', 0)}",
+        f"- Provider failures: {stats.get('provider_failures', 0)}",
         f"- Fills: {summary.get('fills', 0)}",
         f"- Trades: {summary.get('trades', 0)}",
+        "",
+        "## Paper accounting",
+        "",
         f"- Final position: {summary.get('position')}",
         f"- Final equity: {summary.get('equity')}",
         f"- Realized P&L: {summary.get('realized_pnl')}",
-        f"- Cancelled pending intent: {summary.get('cancelled_pending_intent')}",
-        f"- Ledger hash: {summary.get('ledger_hash')}",
+        f"- Cancelled pending intent on shutdown: {summary.get('cancelled_pending_intent')}",
+        "",
+        "## Latency",
+        "",
+        f"- Mean stage latency: {stats.get('latency_mean_ms', 0)} ms",
+        f"- Max stage latency: {stats.get('latency_max_ms', 0)} ms",
+        "",
+        "## Durability",
+        "",
+        f"- Ledger hash chain head: {summary.get('ledger_hash')}",
+        "- Checkpoint: written atomically on every decision and on shutdown",
+        "- Shutdown state: persisted; no executable paper order left behind",
         "",
         "## Paper profitability",
         "",
@@ -410,7 +470,13 @@ def inspect_run(ledger_path: str | Path) -> dict:
         "policy_actions": actions,
         "risk_rejections": sum(record.risk_decision.status.value == "REJECTED" for record in records),
         "provider_calls": {
-            "frontier": sum(record.frontier_hypothesis is not None and "cadence" not in record.frontier_hypothesis.reason for record in records),
+            # A hypothesis carries `provider` only when a client actually answered;
+            # the Arm A deterministic baseline and cadence abstentions do not.
+            "frontier": sum(
+                record.frontier_hypothesis is not None
+                and record.frontier_hypothesis.provider is not None
+                for record in records
+            ),
             "jev": sum(record.jev_evaluation is not None for record in records),
         },
         "provider_failures": sum(len(record.provider_failures) for record in records),

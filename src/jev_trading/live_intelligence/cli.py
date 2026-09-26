@@ -71,10 +71,10 @@ def _shadow_status(settings) -> dict:
 
 def _run_paper(args, *, demo: bool) -> int:
     settings = load_settings(args.config)
-    ledger_path = args.ledger or f"{settings.ledger_root}/decisions.jsonl"
     runtime_root = getattr(args, "runtime_root", None) or (
         f"{settings.ledger_root}" if demo else None
     )
+    ledger_path = args.ledger or f"{runtime_root or settings.ledger_root}/decisions.jsonl"
     adapter, frontier_client, jev_client = _build_live_components(settings, args.arm)
     telemetry = None
     if runtime_root:
@@ -115,8 +115,9 @@ def _shadow(args) -> int:
         print(json.dumps(inspect_run(args.ledger), indent=2, default=str))
         return 0
     settings = load_settings(args.config)
-    ledger_path = args.ledger or f"{settings.ledger_root}/decisions.jsonl"
+    # The ledger lives beside the checkpoint so a run owns one directory.
     runtime_root = getattr(args, "runtime_root", None) or settings.ledger_root
+    ledger_path = args.ledger or f"{runtime_root}/decisions.jsonl"
     adapter, frontier_client, jev_client = _build_live_components(settings, args.arm)
     adapter.start()
     try:
@@ -143,7 +144,10 @@ def _shadow(args) -> int:
             quant_versions={name: "pending" for name in runner.quant.names()},
         )
         summary = runner.run_forever(iterations=args.iterations)
-        print(json.dumps({**summary, "latency": runner.latency_report()}, indent=2, default=str))
+        print(json.dumps({
+            **summary, "latency": runner.latency_report(),
+            "execution_mode": settings.execution_mode, "live_orders": "DISABLED",
+        }, indent=2, default=str))
     finally:
         adapter.close()
     return 0
