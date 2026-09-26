@@ -44,6 +44,7 @@ def flow_features(trade_bars: pl.DataFrame) -> pl.DataFrame:
         _safe_ratio(2 * pl.col("buy_volume"), total_volume).alias("trade_imbalance"),
         _safe_ratio(pl.col("sum_trade_size"), pl.col("trade_count")).alias("average_trade_size"),
         (pl.col("buy_volume") + pl.col("sell_volume")).alias("total_volume"),
+        total_notional.alias("total_notional"),
         pl.col("median_trade_size").alias("median_trade_size"),
         _safe_ratio(pl.col("large_trade_notional"), total_notional).alias("large_trade_fraction"),
     )
@@ -82,16 +83,19 @@ def cvd_features(trade_bars: pl.DataFrame) -> pl.DataFrame:
     exprs = []
     for w in CVD_WINDOWS:
         exprs.append((pl.col("cvd") - pl.col("cvd").shift(w)).alias(f"cvd_change_{w}m"))
-    # Pass 1: the net column itself.
-    frame = frame.with_columns(exprs).with_columns(
+    return frame.with_columns(exprs).with_columns(
         pl.col("_net").alias("net_aggressive_volume")
-    )
-    # Pass 2: divergence flags, which reference the net column created above.
+    ).drop("_net")
+
+
+def price_cvd_divergence(frame: pl.DataFrame) -> pl.DataFrame:
+    """Price/CVD divergence flags. Requires `close` (the bar spine), so it runs
+    after the flow join in build_features, not inside cvd_features."""
     price_change = pl.col("close").pct_change()
     return frame.with_columns(
         ((price_change > 0) & (pl.col("net_aggressive_volume") < 0)).cast(pl.Int8).alias("price_up_cvd_down"),
         ((price_change < 0) & (pl.col("net_aggressive_volume") > 0)).cast(pl.Int8).alias("price_down_cvd_up"),
-    ).drop("_net")
+    )
 
 
 def book_features(frame: pl.DataFrame) -> pl.DataFrame:
@@ -156,5 +160,6 @@ def build_features(bars: pl.DataFrame, trade_bars: pl.DataFrame) -> pl.DataFrame
     # Minutes with no trades are genuine zero-flow, not missing data.
     zero_cols = [c for c in flow.columns if c != "timestamp" and flow.schema[c].is_numeric()]
     joined = joined.with_columns([pl.col(c).fill_null(0.0) for c in zero_cols if c in joined.columns])
+    joined = price_cvd_divergence(joined)
     joined = oi_funding_features(joined)
     return joined.sort("timestamp")

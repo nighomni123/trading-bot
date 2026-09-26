@@ -12,6 +12,7 @@ These are LABELS. They may use the future. They must never enter a feature.
 """
 from __future__ import annotations
 
+import numpy as np
 import polars as pl
 
 from .schema import TARGET_VERSION
@@ -35,11 +36,9 @@ def build_forward_targets(bars: pl.DataFrame, horizons=FORWARD_HORIZONS) -> pl.D
     highs = frame["high"].to_numpy()
     lows = frame["low"].to_numpy()
 
-    import numpy as np
-
     def _nullable(arr: np.ndarray) -> pl.Series:
-        """NaN -> null so `is_not_null()` is meaningful for label boundaries."""
-        return pl.Series(np.where(np.isfinite(arr), arr, None))
+        """NaN -> null so `is_not_null()` is meaningful, keeping Float64 dtype."""
+        return pl.Series(arr.astype(np.float64)).fill_nan(None)
 
     for h in horizons:
         entry_idx = np.arange(n) + 1

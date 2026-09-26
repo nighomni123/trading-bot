@@ -60,6 +60,16 @@ def trades_to_bars(trades: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def _to_canonical(frame: pl.DataFrame) -> pl.DataFrame:
+    """Accept either already-canonical columns or raw archive column names."""
+    rename = {}
+    if "transact_time" in frame.columns:
+        rename["transact_time"] = "trade_timestamp"
+    if rename:
+        frame = frame.rename(rename)
+    return frame
+
+
 def load_trade_range(start: str, end: str) -> pl.DataFrame:
     """Load and concatenate cached daily trade parquet files for a date range."""
     first, last = date.fromisoformat(start), date.fromisoformat(end)
@@ -68,7 +78,7 @@ def load_trade_range(start: str, end: str) -> pl.DataFrame:
     while day <= last:
         path = TRADE_DIR / f"{day.isoformat()}.parquet"
         if path.exists():
-            frames.append(pl.read_parquet(path))
+            frames.append(_to_canonical(pl.read_parquet(path)))
         day = date.fromordinal(day.toordinal() + 1)
     if not frames:
         return pl.DataFrame(schema=MicrostructureSchema.trades())
