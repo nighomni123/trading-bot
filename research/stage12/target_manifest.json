@@ -1,0 +1,38 @@
+{
+  "target_version": "long-horizon-targets-v1",
+  "horizons_minutes": {
+    "1h": 60,
+    "2h": 120,
+    "4h": 240,
+    "8h": 480,
+    "12h": 720,
+    "24h": 1440,
+    "48h": 2880,
+    "72h": 4320
+  },
+  "threshold_bps": [
+    20,
+    50,
+    100,
+    200,
+    500
+  ],
+  "columns_per_horizon": [
+    "forward_return_{h}",
+    "forward_abs_return_{h}",
+    "forward_positive_{h}",
+    "mfe_{h}",
+    "mae_{h}",
+    "future_realized_vol_{h}",
+    "target_up_{bps}bps_{h}",
+    "target_down_{bps}bps_{h}"
+  ],
+  "label_prefixes": [
+    "target_",
+    "forward_",
+    "mfe_",
+    "mae_",
+    "time_to_",
+    "future_"
+  ]
+}

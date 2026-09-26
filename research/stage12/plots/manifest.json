@@ -1,0 +1,7 @@
+{
+  "edge_vs_cost": "research/stage12/plots/edge_vs_cost.png",
+  "state_effects_24h": "research/stage12/plots/state_effects.png",
+  "year_stability_trend_up_24h": "research/stage12/plots/year_stability.png",
+  "decile_24h": "research/stage12/plots/decile.png",
+  "tail_probability": "research/stage12/plots/tail_probability.png"
+}

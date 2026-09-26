@@ -1,0 +1,29 @@
+{
+  "alpha_id": "EXP-12-MOMENTUM-REVERSION-24H",
+  "code_version": "alpha-experiment-v1",
+  "created_at": "2026-09-26T06:10:08.990658+00:00",
+  "description": "Short when trailing 24h return is high, long when low. In-sample edge exceeds the measured 11.006 bps round-trip cost (13.3 bps, 1.21x) and is significant (corr -0.043, 68 sigma), but the effect flips sign in 2023 (corr +0.055, ~40 sigma).",
+  "event_definition": {
+    "horizon": "24h",
+    "signal": "-ret_24h normalized"
+  },
+  "event_version": "events-v1",
+  "feature_version": "features-v1",
+  "features": [
+    "ret_24h",
+    "ret_4h",
+    "ret_72h",
+    "realized_vol_24h"
+  ],
+  "horizons": [
+    1440
+  ],
+  "name": "24h momentum mean reversion",
+  "status": "INTERESTING",
+  "status_justification": "Genuine, economically-sized (1.21x cost in-sample), multi-year effect (edge>cost in 2021/2023/2025). FAILS promotion Gate 2: significant sign flip in 2023 (corr +0.055, ~40 sigma). Not validated. Requires independent out-of-sample confirmation and regime classification of the 2023 exception.",
+  "status_updated_at": "2026-09-26T06:10:32.224098+00:00",
+  "target_version": "targets-v1",
+  "targets": [
+    "forward_return_24h"
+  ]
+}

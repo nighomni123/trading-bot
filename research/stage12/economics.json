@@ -1,0 +1,24 @@
+{
+  "cost_bps": 11.006,
+  "cost_provenance": "Stage 10 measured profile (median measured slippage + 5bps/side taker + 1bps latency). configs/live.json unchanged at 15bps.",
+  "in_sample_rows": 159,
+  "in_sample_viable": 23,
+  "oos_reality_check": {
+    "4h": {
+      "mean_oos_auc": 0.5221,
+      "folds": 4,
+      "oos_predictable_edge_bps": 0.0
+    },
+    "24h": {
+      "mean_oos_auc": 0.4968,
+      "folds": 4,
+      "oos_predictable_edge_bps": 0.0
+    },
+    "72h": {
+      "mean_oos_auc": 0.4973,
+      "folds": 4,
+      "oos_predictable_edge_bps": 0.0
+    }
+  },
+  "conclusion": "In-sample state edges exceed cost at >=4h, but OOS AUC is at random (<0.55) at every horizon, so the realized predictable edge is ~0 and expected net edge is negative. The in-sample edges track BTC's non-stationary unconditional drift."
+}

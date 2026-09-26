@@ -25,6 +25,7 @@ jev = "jev_trading.live_intelligence.cli:main"
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 ui = ["streamlit>=1.30", "pyyaml>=6.0"]
+research = ["matplotlib>=3.7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

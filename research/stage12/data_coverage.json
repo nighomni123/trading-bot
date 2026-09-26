@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-09-26T06:08:12.705489+00:00",
+  "dataset_hash": "3025fc122228fc1d1f3cc87f3060cd7d4cce54f539dc4916908506e71c0a67e4",
+  "instrument": "BTCUSDT",
+  "venue": "Binance USD-M futures",
+  "contract_type": "PERPETUAL",
+  "frequency": "1m",
+  "first_timestamp": "2021-01-01T00:00:00+00:00",
+  "last_timestamp": "2025-12-31T23:59:00+00:00",
+  "rows": 2629440,
+  "expected_rows": 2629440,
+  "missing_bars": 0,
+  "duplicate_timestamps": 0,
+  "timestamp_gaps": 0,
+  "monotonic": true,
+  "invalid_open_interest": 2365,
+  "columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "funding_rate",
+    "open_interest"
+  ],
+  "field_coverage": {
+    "open": {
+      "available_from": "1970-01-01T00:00:15.502000+00:00",
+      "available_to": "1970-01-01T00:02:06.086000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "high": {
+      "available_from": "1970-01-01T00:00:15.532000+00:00",
+      "available_to": "1970-01-01T00:02:06.208000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "low": {
+      "available_from": "1970-01-01T00:00:15.443000+00:00",
+      "available_to": "1970-01-01T00:02:06.030000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "close": {
+      "available_from": "1970-01-01T00:00:15.502000+00:00",
+      "available_to": "1970-01-01T00:02:06.086000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "volume": {
+      "available_from": "1970-01-01T00:00:00+00:00",
+      "available_to": "1970-01-01T00:00:40.256000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "funding_rate": {
+      "available_from": "1970-01-01T00:00:00+00:00",
+      "available_to": "1970-01-01T00:00:00+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    },
+    "open_interest": {
+      "available_from": "1970-01-01T00:00:00+00:00",
+      "available_to": "1970-01-01T00:02:50.585000+00:00",
+      "coverage_percentage": 100.0,
+      "missing_count": 0,
+      "present": true
+    }
+  },
+  "trade_flow_coverage": {
+    "available": true,
+    "days": 30,
+    "first_day": "2025-06-01",
+    "last_day": "2025-06-30",
+    "note": "Trade flow is NOT multi-year. Long-horizon trade features are unavailable."
+  },
+  "order_book_coverage": {
+    "available": false,
+    "note": "Binance public archive has no BTCUSDT bookDepth/bookTicker. UNTESTED, never imputed."
+  },
+  "horizons_minutes": {
+    "1h": 60,
+    "2h": 120,
+    "4h": 240,
+    "8h": 480,
+    "12h": 720,
+    "24h": 1440,
+    "48h": 2880,
+    "72h": 4320
+  },
+  "timestamp_contract": {
+    "decision_timestamp": "completed 1m bar t (epoch ms, UTC)",
+    "entry_timestamp": "open[t+1]",
+    "exit_timestamp": "open[t+h+1] where h is the horizon in minutes",
+    "path_window": "bars t+1 .. t+h inclusive",
+    "reused_from": "labels/live_barrier.py and microstructure/targets.py (Stages 9-11)",
+    "note": "No close-to-close mixing. Features use information at or before t only."
+  }
+}

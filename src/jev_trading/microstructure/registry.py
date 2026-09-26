@@ -13,12 +13,15 @@ from typing import Any, Literal
 
 from .schema import ALPHA_EXPERIMENT_VERSION, EVENT_DEFINITION_VERSION, FEATURE_SET_VERSION, TARGET_VERSION
 
-Status = Literal["RESEARCH", "PROMISING", "FALSIFIED", "VALIDATED", "RETIRED"]
+Status = Literal["RESEARCH", "PROMISING", "FALSIFIED", "VALIDATED", "RETIRED",
+                 "INTERESTING", "REQUIRES_VALIDATION", "UNTESTED", "WEAK"]
 ROOT = Path("research/alphas")
 
 #: Statuses a deterministic artifact may set automatically. VALIDATED is
 #: deliberately absent: promotion is a human research decision.
-AUTO_STATUSES = {"RESEARCH", "FALSIFIED", "PROMISING"}
+#: Stage 12 adds research-only statuses (INTERESTING, REQUIRES_VALIDATION,
+#: UNTESTED) that describe evidence, never a tradeable conclusion.
+AUTO_STATUSES = {"RESEARCH", "FALSIFIED", "PROMISING", "INTERESTING", "REQUIRES_VALIDATION", "UNTESTED"}
 
 
 def hypothesis_path(alpha_id: str) -> Path:

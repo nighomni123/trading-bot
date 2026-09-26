@@ -50,3 +50,13 @@ def test_load_core_is_sorted_and_utc_milliseconds(tmp_path):
     frame = load_core()
     assert frame["timestamp"].is_sorted()
     assert frame["timestamp"].min() > 1_600_000_000_000  # ms, not seconds
+
+
+def test_research_package_does_not_shadow_runtime_exports():
+    """Regression guard: the Stage 12 package lives under jev_trading.research
+    and must keep re-exporting the runtime's ResearchMemory/StrategyRegistry."""
+    import jev_trading.research as pkg
+    from jev_trading.research import ResearchMemory, StrategyRegistry
+    assert "ResearchMemory" in pkg.__all__
+    assert "StrategyRegistry" in pkg.__all__
+    assert ResearchMemory is not None and StrategyRegistry is not None
