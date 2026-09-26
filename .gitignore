@@ -33,3 +33,7 @@ research/weekly/
 # Stage 11 research substrate: large regenerable caches stay out of git.
 research/cache/
 reports/
+
+# Local tool caches and unrelated worktrees not owned by this repo
+.npm-cache/
+dashboard/
