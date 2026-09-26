@@ -21,7 +21,10 @@ def _approved(decision_id: str, timestamp, quantity: float = 1.0) -> RiskDecisio
 
 
 def _at(env, timestamp, *, open_price: float, last_price: float | None = None, funding_rate: float | None = None):
-    one = env.timeframes["1m"].model_copy(update={"open": open_price, "timestamp": timestamp})
+    one = env.timeframes["1m"].model_copy(update={
+        "open": open_price, "timestamp": timestamp,
+        "bucket_start": timestamp - timedelta(minutes=1), "bucket_end": timestamp,
+    })
     derivatives = env.derivatives if funding_rate is None else env.derivatives.model_copy(update={"funding": funding_rate})
     return env.model_copy(update={
         "timestamp": timestamp,
@@ -114,6 +117,9 @@ def test_trade_net_pnl_includes_entry_and_exit_fees():
 
 def test_visible_funding_rate_is_charged_once_per_interval():
     settings = load_settings()
+    settings = settings.model_copy(update={
+        "paper": settings.paper.model_copy(update={"funding_model": "LIVE"}),
+    })
     executor = PaperExecutor(settings, ActiveRiskKernel(settings))
     base = environment()
     created = base.decision_timestamp
@@ -139,3 +145,19 @@ def test_visible_funding_rate_is_charged_once_per_interval():
 
 def test_partial_fill_configuration_is_explicitly_removed():
     assert "partial_fill_ratio" not in PaperConfig.model_fields
+
+
+def test_funding_is_explicitly_disabled_by_default():
+    """The demo must not claim funding it never charged."""
+    settings = load_settings()
+    assert settings.paper.funding_model == "DISABLED"
+    executor = PaperExecutor(settings, ActiveRiskKernel(settings))
+    base = environment()
+    created = base.decision_timestamp
+    intent = _intent(PolicyAction.ENTER_LONG, Side.LONG, created, stop=90, target=120)
+    entry_env = _at(base, created + timedelta(minutes=1), open_price=100, funding_rate=0.001)
+    fill = executor.execute(intent, _approved(intent.decision_id, entry_env.timestamp), entry_env)
+    executor.mark(100, entry_env.timestamp + timedelta(hours=8))
+    assert executor.cumulative_funding == 0.0
+    assert fill.funding_usd == 0.0
+    assert fill.funding_model == "DISABLED"

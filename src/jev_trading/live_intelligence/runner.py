@@ -4,13 +4,14 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import signal
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
 
-from jev_trading.data.normalization import DataFabric, MarketDataAdapter
+from jev_trading.data.normalization import DataFabric, MarketDataAdapter, ReplayAdapter
 from jev_trading.environment import assess_regime, build_market_environment, detect_events
 from jev_trading.ledger import DecisionLedger
 from jev_trading.live_intelligence.config import LiveSettings
@@ -33,6 +34,7 @@ from jev_trading.live_intelligence.schemas import (
     ExecutionState,
     JevRequest,
     PolicyAction,
+    PolicyDecision,
     PositionState,
     QuantEvidence,
     RiskStatus,
@@ -42,6 +44,8 @@ from jev_trading.live_intelligence.schemas import (
     ProviderFailureRecord,
 )
 
+RUN_MODES = ("LIVE_DATA_PAPER", "REPLAY")
+
 
 def _provider_failure_label(exc: Exception) -> str:
     if isinstance(exc, ProviderFailure):
@@ -50,10 +54,22 @@ def _provider_failure_label(exc: Exception) -> str:
     return type(exc).__name__
 
 
+def infer_run_mode(adapter: MarketDataAdapter) -> str:
+    """LIVE_DATA_PAPER drives a real public feed; REPLAY is fixture-driven."""
+    current = adapter
+    while True:
+        if isinstance(current, ReplayAdapter):
+            return "REPLAY"
+        primary = getattr(current, "primary", None)
+        if primary is None or primary is current:
+            return "LIVE_DATA_PAPER"
+        current = primary
+
+
 class ShadowRunner:
     """One-process paper runner; every external dependency is injectable."""
 
-    def __init__(self, settings: LiveSettings, adapter: MarketDataAdapter, frontier_client: FrontierClient, jev_client: JevClient, *, arm: str = "C", ledger_path: str | Path = "research/runtime/ledger/decisions.jsonl", checkpoint_path: str | Path | None = None, clock: Callable[[], datetime] | None = None):
+    def __init__(self, settings: LiveSettings, adapter: MarketDataAdapter, frontier_client: FrontierClient, jev_client: JevClient, *, arm: str = "C", ledger_path: str | Path = "research/runtime/ledger/decisions.jsonl", checkpoint_path: str | Path | None = None, clock: Callable[[], datetime] | None = None, telemetry=None, run_mode: str | None = None):
         aliases = {
             "QUANT_ONLY": "A", "QUANT_POLICY": "A",
             "QUANT_FRONTIER": "B", "QUANT_FRONTIER_JEV": "C",
@@ -68,6 +84,10 @@ class ShadowRunner:
         self.experiment_mode = requested_arm
         self.require_jev = canonical_arm == "C"
         self.adapter = adapter
+        self.run_mode = run_mode or infer_run_mode(adapter)
+        if self.run_mode not in RUN_MODES:
+            raise ValueError(f"run_mode must be one of {RUN_MODES}")
+        self.telemetry = telemetry
         self.quant = QuantRegistry()
         frontier_prompt = load_prompt(Path(__file__).parent / settings.frontier.prompt_file)
         self.frontier = FrontierStrategist(
@@ -101,30 +121,58 @@ class ShadowRunner:
         self.execution = ExecutionState()
         self._last_frontier_call: datetime | None = None
         self._frontier_call_times: list[datetime] = []
+        self._frontier_event_keys: set[tuple[str, str]] = set()
         self._last_jev_call: datetime | None = None
         self._jev_call_times: list[datetime] = []
         self._pending_intent = None
         self._pending_risk = None
         self._pending_decision_id = None
         self._pending_state: PendingIntentState | None = None
+        self._last_boundary: datetime | None = None
+        self._last_cancellation: str | None = None
+        self._timings_ms: dict[str, float] = {}
+        self._latency_samples: dict[str, list[float]] = {}
+        self._stopping = False
         self._trading_day = self._clock().date()
         self._restore_checkpoint()
 
+    # -- cadence -----------------------------------------------------------
+    def _prune_hour(self, timestamps: list[datetime], current: datetime) -> list[datetime]:
+        return [timestamp for timestamp in timestamps if timestamp >= current - timedelta(hours=1)]
+
     def should_call_frontier(self, events, *, now: datetime | None = None) -> bool:
+        """Periodic cadence, with a new high-severity event as the exception.
+
+        The minimum call interval is a hard floor for every call, and the
+        hourly cap is authoritative; a repeated event never re-triggers.
+        """
         current = now or self._clock()
-        self._frontier_call_times = [
-            timestamp for timestamp in self._frontier_call_times
-            if timestamp >= current - timedelta(hours=1)
-        ]
+        self._frontier_call_times = self._prune_hour(self._frontier_call_times, current)
         if len(self._frontier_call_times) >= self.settings.frontier.max_calls_per_hour:
             return False
-        if any(event.severity >= self.settings.frontier.event_severity_threshold for event in events):
-            return True
-        return (
-            self._last_frontier_call is None
-            or (current - self._last_frontier_call).total_seconds()
-            >= self.settings.frontier.min_call_interval_seconds
+        floor = self.settings.frontier.min_call_interval_seconds
+        since_last = (
+            None if self._last_frontier_call is None
+            else (current - self._last_frontier_call).total_seconds()
         )
+        if since_last is not None and since_last < floor:
+            return False
+        if any(
+            event.severity >= self.settings.frontier.event_severity_threshold
+            and self._event_key(event) not in self._frontier_event_keys
+            for event in events
+        ):
+            return True
+        if since_last is None:
+            return True
+        return since_last >= self.settings.frontier.periodic_seconds
+
+    @staticmethod
+    def _event_key(event) -> tuple[str, str]:
+        return (event.event_type, event.event_timestamp.isoformat())
+
+    def _mark_frontier_events(self, events) -> None:
+        self._frontier_event_keys = {self._event_key(event) for event in events}
 
     def _record_frontier_call(self, timestamp: datetime) -> None:
         self._last_frontier_call = timestamp
@@ -132,10 +180,7 @@ class ShadowRunner:
 
     def should_call_jev(self, *, now: datetime | None = None) -> bool:
         current = now or self._clock()
-        self._jev_call_times = [
-            timestamp for timestamp in self._jev_call_times
-            if timestamp >= current - timedelta(hours=1)
-        ]
+        self._jev_call_times = self._prune_hour(self._jev_call_times, current)
         if len(self._jev_call_times) >= self.settings.jev.max_calls_per_hour:
             return False
         return (
@@ -249,11 +294,32 @@ class ShadowRunner:
                 return record
         return None
 
-    def _clear_pending(self) -> None:
+    def _clear_pending(self, reason: str | None = None) -> None:
+        if reason is not None:
+            self._last_cancellation = reason
         self._pending_intent = None
         self._pending_risk = None
         self._pending_decision_id = None
         self._pending_state = None
+
+    def _timed(self, name: str):
+        return _Stopwatch(self, name)
+
+    def _resolve_pending(self, environment) -> bool:
+        """Revalidate and settle a pending paper intent outside a decision boundary.
+
+        A 15s poll must still be able to fill an intent approved a minute ago,
+        using the policy that authorised it and a *fresh* risk evaluation.
+        """
+        if self._pending_state is None:
+            return False
+        policy = self._pending_state.policy
+        risk = self.risk.evaluate(
+            policy, environment, self.account, self.execution,
+            position=self.position, decision_id=self._pending_intent.decision_id,
+        )
+        _valid, executed = self._revalidate_pending(environment, policy, risk, policy.candidate)
+        return executed
 
     def _roll_trading_day(self, now: datetime) -> None:
         if now.date() != self._trading_day:
@@ -295,35 +361,35 @@ class ShadowRunner:
             return False, False
         now = environment.decision_timestamp
         if not environment.data_quality.safe_for_trading or environment.timestamp > now:
-            self._clear_pending()
+            self._clear_pending("CURRENT_DATA_UNSAFE")
             return False, False
         if intent.expires_at is not None and now >= intent.expires_at:
-            self._clear_pending()
+            self._clear_pending("INTENT_EXPIRED")
             return False, False
         if now < intent.created_at or policy.action != intent.action or risk.status != RiskStatus.APPROVED:
-            self._clear_pending()
+            self._clear_pending("POLICY_OR_RISK_NO_LONGER_COMPATIBLE")
             return False, False
         if intent.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
             if self.position.side != Side.FLAT or candidate is None or candidate.side != intent.side:
-                self._clear_pending()
+                self._clear_pending("POSITION_OR_CANDIDATE_CONFLICT")
                 return False, False
             if candidate.strategy_id != intent.strategy_id:
-                self._clear_pending()
+                self._clear_pending("STRATEGY_CHANGED")
                 return False, False
         else:
             if self.position.side == Side.FLAT or self.position.side != intent.side:
-                self._clear_pending()
+                self._clear_pending("NO_MATCHING_POSITION")
                 return False, False
             if intent.quantity > self.position.quantity + 1e-12:
-                self._clear_pending()
+                self._clear_pending("POSITION_SIZE_CHANGED")
                 return False, False
         if environment.timestamp < intent.earliest_execution_at:
             return True, False
         execution_risk = risk.model_copy(update={"decision_id": intent.decision_id})
         try:
             fill = self.paper.execute(intent, execution_risk, environment)
-        except (TypeError, ValueError):
-            self._clear_pending()
+        except (TypeError, ValueError) as exc:
+            self._clear_pending(f"EXECUTION_REJECTED:{exc}")
             return False, False
         self.ledger.append_fill(fill)
         self.position = self.paper.position
@@ -366,42 +432,77 @@ class ShadowRunner:
             model_version="quant-baseline-v1", prompt_version="quant-baseline-v1",
         )
 
-    def run_once(self) -> DecisionRecord:
-        # Deterministic per (experiment, decision time): a committed decision is
-        # replayed, never re-decided, so a resumed run cannot re-query the provider
-        # or append a duplicate decision.
-        request_id = self._request_id(self._clock())
-        committed = self._committed_decision(request_id)
-        if committed is not None and self._pending_state is None:
-            return committed
-        bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
-        if bars.is_empty():
-            raise RuntimeError("market adapter returned no closed bars")
-        self.fabric.ingest_bars(bars)
-        observations = self.adapter.snapshot()
-        self.fabric.ingest(observations)
-        quality = self.fabric.quality()
-        environment = build_market_environment(
-            bars, ticks=self.fabric.latest(), quality=quality,
-            position=self.position, decision_timestamp=self._clock(),
-        )
+    def _observe(self):
+        """Ingest the feed and build the environment for the current clock."""
+        now = self._clock()
+        with self._timed("data_fetch"):
+            bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
+            if bars.is_empty():
+                raise RuntimeError("market adapter returned no closed bars")
+            self.fabric.ingest_bars(bars)
+            self.fabric.ingest(self.adapter.snapshot())
+        quality = self.fabric.quality(now=now)
+        with self._timed("environment"):
+            environment = build_market_environment(
+                bars, ticks=self.fabric.latest(), quality=quality,
+                position=self.position, decision_timestamp=now,
+            )
         position_before = self.position
         if environment.price.last is not None:
             self.position = self.paper.mark(environment.price.last, environment.timestamp)
         environment = environment.model_copy(update={
             "position": self.position,
+            # Measured, never assumed: half the spread is the observable cost of
+            # crossing to the touch. Unknown stays unknown.
             "liquidity": environment.liquidity.model_copy(update={
-                "estimated_slippage": self.settings.costs.slippage_bps_per_side / 10_000,
+                "estimated_slippage": (
+                    environment.liquidity.spread / 2
+                    if environment.liquidity.spread is not None else None
+                ),
             }),
         })
         self._sync_runtime_state(environment)
-        events = detect_events(environment, self.settings.quant)
-        environment = environment.model_copy(update={"events": events})
+        environment = environment.model_copy(update={
+            "events": detect_events(environment, self.settings.quant),
+        })
+        return environment, position_before, assess_regime(environment)
+
+    def run_once(self) -> DecisionRecord | None:
+        """One poll: observe, settle any pending intent, decide only on a new bar.
+
+        The decision boundary is the close of the latest completed 1m bar, so a
+        15-second poll loop produces one logically independent decision per
+        minute and a resumed run re-uses the committed one.
+        """
+        self._timings_ms = {}
+        try:
+            environment, _position_before, _regime = self._observe()
+        except ValueError as exc:
+            # A data problem must not kill the loop: record it and retry.
+            self._last_cancellation = f"ENVIRONMENT_UNUSABLE:{exc}"
+            self._emit_event("environment_unusable", reason=str(exc))
+            return None
+        boundary = environment.timestamp
+        request_id = self._request_id(boundary)
+        committed = self._committed_decision(request_id)
+        if committed is not None:
+            self._last_boundary = boundary
+            if self._pending_state is not None:
+                self._resolve_pending(environment)
+            self._publish(environment, committed, phase="REPLAYED")
+            return committed
+        self._last_boundary = boundary
+        return self._decide(environment, request_id)
+
+    def _decide(self, environment, request_id: str) -> DecisionRecord:
+        position_before = self.position
         regime = assess_regime(environment)
-        analyses = [
-            result for result in self.quant.run_all(environment)
-            if result.analysis_name not in {"path", "opportunity"}
-        ]
+        events = environment.events
+        with self._timed("quant"):
+            analyses = [
+                result for result in self.quant.run_all(environment)
+                if result.analysis_name not in {"path", "opportunity"}
+            ]
         preliminary_evidence = QuantEvidence(
             timestamp=environment.decision_timestamp,
             regime=regime.trend,
@@ -412,11 +513,10 @@ class ShadowRunner:
             )),
             analyzer_versions={result.analysis_name: result.analyzer_version for result in analyses},
         )
-        # Deterministic per (experiment, decision time): a resumed run reuses the
-        # committed ledger decision instead of re-querying the provider.
-        request_id = self._request_id(environment.decision_timestamp)
         provider_failures: list[ProviderFailureRecord] = []
         committed = self._committed_decision(request_id)
+        quality = environment.data_quality
+        bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
         hypothesis: StrategyHypothesis
         if committed is not None and committed.frontier_hypothesis is not None:
             hypothesis = committed.frontier_hypothesis
@@ -438,16 +538,19 @@ class ShadowRunner:
             )
         else:
             self._record_frontier_call(environment.decision_timestamp)
+            self._mark_frontier_events(events)
             try:
-                hypothesis = self.frontier.generate(
-                    environment, request_id=request_id, regime=regime.trend,
-                    quant_evidence=preliminary_evidence,
-                    research_memory=self.research.frontier_context(self.ledger),
-                    system_health={
-                        "data_quality": environment.data_quality.model_dump(mode="json"),
-                        "execution_mode": self.settings.execution_mode,
-                    },
-                )
+                with self._timed("frontier"):
+                    hypothesis = self.frontier.generate(
+                        environment, request_id=request_id, regime=regime.trend,
+                        quant_evidence=preliminary_evidence,
+                        research_memory=self.research.frontier_context(self.ledger),
+                        system_health={
+                            "data_quality": environment.data_quality.model_dump(mode="json"),
+                            "execution_mode": self.settings.execution_mode,
+                            "run_mode": self.run_mode,
+                        },
+                    )
             except Exception as exc:
                 provider_failures.append(ProviderFailureRecord.from_exception(
                     component="frontier",
@@ -525,7 +628,8 @@ class ShadowRunner:
                     jev_evaluation = committed.jev_evaluation
                 else:
                     try:
-                        jev_evaluation = self.jev.evaluate(jev_request)
+                        with self._timed("jev"):
+                            jev_evaluation = self.jev.evaluate(jev_request)
                     except Exception as exc:
                         provider_failures.append(ProviderFailureRecord.from_exception(
                             component="jev",
@@ -535,12 +639,17 @@ class ShadowRunner:
                         ))
                         hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": f"jev_unavailable:{_provider_failure_label(exc)}"})
                         candidate = None
-        policy = self.policy.finalize(
-            environment, hypothesis, economic_value, jev_evaluation,
-            position=self.position, candidate=candidate, require_jev=self.require_jev,
-            decision_id=request_id,
-        )
-        risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
+        with self._timed("policy"):
+            policy = self.policy.finalize(
+                environment, hypothesis, economic_value, jev_evaluation,
+                position=self.position, candidate=candidate, require_jev=self.require_jev,
+                decision_id=request_id,
+            )
+        with self._timed("risk"):
+            risk = self.risk.evaluate(policy, environment, self.account, self.execution, position=self.position)
+        # The next-open contract: a decision taken at the close of this bucket is
+        # filled at the open of the bucket that follows it.
+        boundary = environment.timestamp
         _pending_valid, pending_executed = self._revalidate_pending(environment, policy, risk, candidate)
         intent = None
         if self._pending_intent is None and not pending_executed and risk.status == RiskStatus.APPROVED and policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
@@ -548,8 +657,8 @@ class ShadowRunner:
                 intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER",
                 action=policy.action, side=candidate.side, quantity=risk.approved_quantity,
                 reference_price=environment.price.last, stop=candidate.stop, target=candidate.target,
-                created_at=environment.decision_timestamp,
-                earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1),
+                created_at=boundary,
+                earliest_execution_at=boundary + timedelta(minutes=1),
                 expires_at=environment.decision_timestamp + timedelta(seconds=self.settings.pending_intent_ttl_seconds),
                 strategy_id=candidate.strategy_id, strategy_version=candidate.strategy_version,
             )
@@ -557,8 +666,8 @@ class ShadowRunner:
             intent = ExecutionIntent(
                 intent_id=str(uuid4()), decision_id=policy.decision_id, mode="PAPER",
                 action=policy.action, side=self.position.side, quantity=risk.approved_quantity,
-                reference_price=environment.price.last, created_at=environment.decision_timestamp,
-                earliest_execution_at=environment.decision_timestamp + timedelta(minutes=1),
+                reference_price=environment.price.last, created_at=boundary,
+                earliest_execution_at=boundary + timedelta(minutes=1),
                 expires_at=environment.decision_timestamp + timedelta(seconds=self.settings.pending_intent_ttl_seconds),
                 strategy_id=self.position.strategy_id or "unknown", strategy_version=self.position.strategy_version or "unknown",
             )
@@ -567,6 +676,7 @@ class ShadowRunner:
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
             quant_evidence=quant_evidence, jev_request=jev_request, jev_evaluation=jev_evaluation, economic_value=economic_value, policy_decision=policy, risk_decision=risk,
             provider_failures=tuple(provider_failures),
+            pending_cancellation=self._last_cancellation,
             runtime_state=self._runtime_state(),
             execution_intent=intent, position_before=position_before, position_after=self.position,
             versions=make_versions(
@@ -605,11 +715,15 @@ class ShadowRunner:
             self._pending_intent = intent
             self._pending_risk = risk
             self._pending_decision_id = policy.decision_id
-            self._pending_state = PendingIntentState(intent=intent, risk_decision=risk, created_at=intent.created_at)
+            self._pending_state = PendingIntentState(
+                intent=intent, risk_decision=risk, policy=policy, created_at=intent.created_at,
+            )
             self.risk.record_order(environment.decision_timestamp)
         self._sync_runtime_state(environment)
-        self._persist_checkpoint()
+        with self._timed("ledger"):
+            self._persist_checkpoint()
         self._persist_metrics(record)
+        self._publish(environment, record, phase="DECIDED")
         return record
 
     def _persist_metrics(self, record: DecisionRecord) -> None:
@@ -624,9 +738,148 @@ class ShadowRunner:
         metrics.increment(f"risk_{record.risk_decision.status.value.lower()}")
         metrics.flush()
 
-    def run_forever(self, *, iterations: int | None = None) -> None:
+    def _emit_event(self, event_type: str, **fields) -> None:
+        telemetry = self.telemetry
+        if telemetry is not None:
+            telemetry.event(event_type, **fields)
+
+    def _publish(self, environment, record, *, phase: str) -> None:
+        """Hand one poll's state to telemetry (append-only metrics/events)."""
+        telemetry = self.telemetry
+        if telemetry is None:
+            return
+        for name, value in self._timings_ms.items():
+            self._latency_samples.setdefault(name, []).append(value)
+        telemetry.sample(
+            {
+                "timestamp": environment.decision_timestamp.isoformat(),
+                "phase": phase,
+                "run_mode": self.run_mode,
+                "arm": self.arm,
+                "experiment_id": self.settings.experiment_id,
+                "decision_id": record.decision_id,
+                "feed_age_ms": environment.data_quality.timestamp_lag_ms,
+                "feed_status": "HEALTHY" if environment.data_quality.safe_for_trading else "UNSAFE",
+                "bar_timestamp": environment.timestamp.isoformat(),
+                "position": self.position.side.value,
+                "position_quantity": self.position.quantity,
+                "entry_price": self.position.entry_price,
+                "mark_price": environment.price.last,
+                "equity": self.account.capital_usd,
+                "realized_pnl": self.paper.position.realized_pnl,
+                "unrealized_pnl": self.position.unrealized_pnl,
+                "funding_pnl": self.position.funding_pnl_usd,
+                "daily_pnl": self.account.daily_realized_pnl_usd,
+                "drawdown_pct": max(
+                    0.0,
+                    (self.account.peak_equity_usd - self.account.capital_usd)
+                    / self.account.peak_equity_usd * 100,
+                ) if self.account.peak_equity_usd else 0.0,
+                "quant_status": "OK" if record.quant_evidence else "UNAVAILABLE",
+                "frontier_status": _component_status(record.frontier_hypothesis),
+                "jev_status": _component_status(record.jev_evaluation),
+                "policy_action": record.policy_decision.action.value,
+                "risk_status": record.risk_decision.status.value,
+                "pending_order": self._pending_intent.action.value if self._pending_intent else "NONE",
+                "pending_cancellation": record.pending_cancellation,
+                "last_cancellation": self._last_cancellation,
+                "provider_failures": len(record.provider_failures),
+                "latency_ms": dict(self._timings_ms),
+                "ledger_sequence": len(self.ledger.records()),
+                "ledger_hash": self.ledger.last_hash,
+                "cumulative_fees": self.paper.cumulative_fees,
+                "cumulative_slippage": self.paper.cumulative_slippage,
+                "cumulative_funding": self.paper.cumulative_funding,
+                "funding_model": self.paper.funding_model,
+                "event_count": len(environment.events),
+            }
+        )
+        for event in environment.events:
+            telemetry.event("market_event", **event.model_dump(mode="json"))
+        for failure in record.provider_failures:
+            telemetry.event("provider_failure", **failure.model_dump(mode="json"))
+
+    def latency_report(self) -> dict[str, dict[str, float]]:
+        return {
+            name: {
+                "samples": len(values),
+                "mean_ms": sum(values) / len(values),
+                "max_ms": max(values),
+            }
+            for name, values in self._latency_samples.items() if values
+        }
+
+    def install_signal_handlers(self) -> bool:
+        """Stop cleanly on SIGINT/SIGTERM; never leave an executable order."""
+        def handler(signum, _frame):
+            self._stopping = True
+        installed = False
+        for name in ("SIGINT", "SIGTERM"):
+            try:
+                signal.signal(getattr(signal, name), handler)
+                installed = True
+            except (AttributeError, ValueError, OSError):
+                continue
+        return installed
+
+    def shutdown(self) -> dict:
+        """Cancel any outstanding intent, persist, and report the final state."""
+        cancelled = None
+        if self._pending_state is not None:
+            cancelled = self._pending_intent.intent_id
+            self._clear_pending("SHUTDOWN")
+        self._persist_checkpoint()
+        return {
+            "experiment_id": self.settings.experiment_id,
+            "run_mode": self.run_mode,
+            "arm": self.arm,
+            "decisions": len(self.ledger.records()),
+            "fills": len(self.ledger.fills()),
+            "trades": len(self.ledger.trades()),
+            "position": self.position.side.value,
+            "equity": self.account.capital_usd,
+            "realized_pnl": self.paper.position.realized_pnl,
+            "cancelled_pending_intent": cancelled,
+            "ledger_hash": self.ledger.last_hash,
+        }
+
+    def run_forever(self, *, iterations: int | None = None) -> dict:
+        self.install_signal_handlers()
         count = 0
-        while iterations is None or count < iterations:
-            self.run_once(); count += 1
-            if iterations is None:
-                time.sleep(self.settings.market.poll_seconds)
+        try:
+            while (iterations is None or count < iterations) and not self._stopping:
+                self.run_once()
+                count += 1
+                if iterations is None and not self._stopping:
+                    time.sleep(self.settings.market.poll_seconds)
+        finally:
+            summary = self.shutdown()
+            if self.telemetry is not None:
+                self.telemetry.close(summary)
+        return summary
+
+
+class _Stopwatch:
+    def __init__(self, runner: "ShadowRunner", name: str):
+        self.runner = runner
+        self.name = name
+
+    def __enter__(self):
+        self.started = time.perf_counter()
+        return self
+
+    def __exit__(self, *_):
+        self.runner._timings_ms[self.name] = round(
+            (time.perf_counter() - self.started) * 1000, 3
+        )
+
+
+def _component_status(component) -> str:
+    if component is None:
+        return "UNAVAILABLE"
+    if getattr(component, "abstain", False):
+        return "ABSTAIN"
+    reason = getattr(component, "reason", "") or ""
+    if "unavailable" in reason or "expired" in reason:
+        return "ERROR"
+    return "OK"

@@ -107,6 +107,9 @@ class PolicyFinalizer:
             reasons.append("missing_jev")
         elif jev is not None and jev.recommended_state != JevState.ENTER:
             reasons.append(f"jev_state_{jev.recommended_state.value.lower()}")
+        if jev is not None and jev.valid_until <= now:
+            # An expired evaluation is an abstention, never a stale approval.
+            reasons.append("jev_expired")
         if jev and jev.recommended_state == JevState.ENTER:
             if jev.target_probability is None or jev.entry_quality is None or jev.failure_risk is None:
                 reasons.append("jev_evidence_incomplete")
@@ -119,7 +122,10 @@ class PolicyFinalizer:
                     reasons.append("jev_failure_risk_above_maximum")
         if jev and jev.probabilities.get("stop", 1.0) > self.settings.jev.maximum_stop_probability:
             reasons.append("jev_stop_probability_above_maximum")
-        if environment.liquidity.top_level_notional is not None and environment.liquidity.top_level_notional < self.thresholds.minimum_liquidity_notional:
+        if environment.liquidity.top_level_notional is None:
+            # Policy cannot approve what it cannot measure.
+            reasons.append("missing_liquidity")
+        elif environment.liquidity.top_level_notional < self.thresholds.minimum_liquidity_notional:
             reasons.append("liquidity_below_minimum")
         if reasons:
             action = PolicyAction.NO_TRADE

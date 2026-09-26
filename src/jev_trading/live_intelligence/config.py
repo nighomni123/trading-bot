@@ -127,6 +127,9 @@ class CostsConfig(StrictConfig):
 class PaperConfig(StrictConfig):
     capital_usd: float = Field(default=10_000.0, gt=0)
     funding_interval_hours: int = Field(default=8, gt=0)
+    # DISABLED means funding is explicitly not charged and the manifest reports
+    # so; LIVE charges only when the position spans a funding interval.
+    funding_model: Literal["DISABLED", "LIVE"] = "DISABLED"
 
 
 class ResearchConfig(StrictConfig):

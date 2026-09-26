@@ -219,7 +219,10 @@ def test_risk_can_approve_only_valid_entry_and_paper_execution_is_explicit():
     intent = ExecutionIntent(intent_id="i", decision_id="d", mode="PAPER", action=PolicyAction.ENTER_LONG, side=Side.LONG, quantity=risk.approved_quantity, reference_price=100, stop=candidate.stop, target=candidate.target, created_at=env.decision_timestamp, earliest_execution_at=env.decision_timestamp + timedelta(minutes=1), strategy_id="momentum")
     executor = PaperExecutor(settings, ActiveRiskKernel(settings))
     later_time = env.timestamp + timedelta(minutes=1)
-    one_minute = env.timeframes["1m"].model_copy(update={"open": 100.0, "timestamp": later_time})
+    one_minute = env.timeframes["1m"].model_copy(update={
+        "open": 100.0, "timestamp": later_time,
+        "bucket_start": env.decision_timestamp, "bucket_end": later_time,
+    })
     later = env.model_copy(update={
         "timestamp": later_time,
         "decision_timestamp": later_time,

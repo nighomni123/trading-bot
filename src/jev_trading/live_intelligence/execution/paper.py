@@ -20,7 +20,14 @@ from ..schemas import (
 
 
 class PaperExecutor:
-    """Full-fill paper executor. Venue partial fills are intentionally unsupported."""
+    """Full-fill paper executor. Venue partial fills are intentionally unsupported.
+
+    Execution convention: a decision taken at the close of bucket ``t`` is
+    filled at the open of the next 1m bucket, which is observable only once that
+    bucket has closed. Nothing else may set a fill price.
+    """
+
+    version = "paper-next-open-v1"
 
     def __init__(self, settings: LiveSettings, risk: ActiveRiskKernel):
         if settings.execution_mode != "PAPER":
@@ -35,10 +42,15 @@ class PaperExecutor:
         self._cumulative_funding = 0.0
         self._funding_events_charged = 0
         self._funding_accrued = 0.0
+        self._last_funding_charged = 0.0
 
     @property
     def mode(self) -> str:
         return "PAPER"
+
+    @property
+    def funding_model(self) -> str:
+        return self.settings.paper.funding_model
 
     @property
     def last_trade(self) -> TradeRecord | None:
@@ -64,29 +76,48 @@ class PaperExecutor:
             return reference - slip, slip
         return reference, 0.0
 
-    def _next_open(self, environment: MarketEnvironment, intent: ExecutionIntent) -> float:
-        one_minute = environment.timeframes.get("1m")
-        return float(one_minute.open if one_minute is not None else environment.price.last or intent.reference_price)
+    def _slippage_envelope_bps(self, environment: MarketEnvironment) -> float:
+        """The worse of the configured cost and the measured market slippage."""
+        configured = self.settings.costs.slippage_bps_per_side
+        measured = environment.liquidity.estimated_slippage
+        return max(configured, (measured * 10_000) if measured is not None else 0.0)
 
-    def _accrue_funding(self, mark_price: float, timestamp: datetime) -> None:
+    def _next_open(self, environment: MarketEnvironment, intent: ExecutionIntent) -> float:
+        """Return the open of the one-minute bucket that follows the decision."""
+        one_minute = environment.timeframes.get("1m")
+        if one_minute is None or one_minute.open is None:
+            raise ValueError("next-open execution requires a completed 1m bucket")
+        if one_minute.bucket_start != intent.created_at:
+            raise ValueError(
+                "next-open execution requires the 1m bucket that opens at the decision boundary"
+            )
+        return float(one_minute.open)
+
+    def _accrue_funding(self, mark_price: float, timestamp: datetime) -> float:
+        """Charge funding for whole funding intervals the position has spanned."""
+        self._last_funding_charged = 0.0
+        if self.settings.paper.funding_model != "LIVE":
+            return 0.0
         if self.position.side == Side.FLAT or self.position.opened_at is None:
-            return
+            return 0.0
         interval = timedelta(hours=self.settings.paper.funding_interval_hours)
         elapsed_intervals = int((timestamp - self.position.opened_at) // interval)
         new_intervals = elapsed_intervals - self._funding_events_charged
         if new_intervals <= 0:
-            return
+            return 0.0
         self._funding_events_charged = elapsed_intervals
         rate = self._entry.get("funding_rate") if self._entry else None
         if rate is None:
-            return
+            return 0.0
         sign = 1.0 if self.position.side == Side.LONG else -1.0
         funding_cost = sign * self.position.quantity * mark_price * float(rate) * new_intervals
         self._funding_accrued += funding_cost
         self._cumulative_funding += funding_cost
+        self._last_funding_charged = funding_cost
         self.position = self.position.model_copy(update={
             "funding_pnl_usd": self.position.funding_pnl_usd - funding_cost,
         })
+        return funding_cost
 
     def execute(self, intent: ExecutionIntent, risk_decision: RiskDecision, environment: MarketEnvironment) -> PaperFill:
         if intent.mode.value != "PAPER" or risk_decision.status != RiskStatus.APPROVED:
@@ -115,6 +146,14 @@ class PaperExecutor:
 
         order_side = intent.side if is_entry else (Side.SHORT if self.position.side == Side.LONG else Side.LONG)
         reference = self._next_open(environment, intent)
+        # A fill outside the configured envelope is rejected, never capped into a
+        # favourable price.
+        envelope_bps = self._slippage_envelope_bps(environment)
+        if envelope_bps > self.settings.risk.maximum_slippage_bps:
+            raise ValueError(
+                f"slippage {envelope_bps:.4f}bps exceeds the configured envelope "
+                f"{self.settings.risk.maximum_slippage_bps:.4f}bps"
+            )
         fill_price, slip = self._fill_price(reference, order_side)
         if is_entry:
             if intent.stop is None or intent.target is None:
@@ -200,7 +239,11 @@ class PaperExecutor:
             fill_id=fill_id, intent_id=intent.intent_id, decision_id=intent.decision_id,
             execution_timestamp=environment.timestamp, intended_price=reference,
             fill_price=fill_price, quantity=quantity, fee_usd=fee,
-            slippage_usd=slippage, funding_usd=0.0, status="FILLED", mode="PAPER",
+            slippage_usd=slippage, funding_usd=self._last_funding_charged, status="FILLED", mode="PAPER",
+            experiment_id=self.settings.experiment_id, symbol=environment.instrument,
+            side=order_side, price_source="primary_1m_open",
+            bar_timestamp=environment.timeframes["1m"].bucket_start,
+            execution_model_version=self.version, funding_model=self.funding_model,
         )
 
     def to_state(self) -> dict:

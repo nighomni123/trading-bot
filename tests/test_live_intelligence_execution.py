@@ -30,7 +30,10 @@ def test_paper_entry_waits_for_next_bar_and_exit_creates_trade(tmp_path: Path):
     with pytest.raises(ValueError):
         executor.execute(entry_intent, entry_risk, env)
     later_time = decision_time + timedelta(minutes=1)
-    one_minute = env.timeframes["1m"].model_copy(update={"open": 100.0, "timestamp": later_time})
+    one_minute = env.timeframes["1m"].model_copy(update={
+        "open": 100.0, "timestamp": later_time,
+        "bucket_start": decision_time, "bucket_end": later_time,
+    })
     later = env.model_copy(update={
         "timestamp": later_time,
         "decision_timestamp": later_time,
@@ -42,7 +45,10 @@ def test_paper_entry_waits_for_next_bar_and_exit_creates_trade(tmp_path: Path):
     exit_intent = ExecutionIntent(intent_id="exit-intent", decision_id="exit-decision", mode="PAPER", action=PolicyAction.EXIT, side=Side.LONG, quantity=0.1, reference_price=102, created_at=later.timestamp, earliest_execution_at=later.timestamp + timedelta(minutes=1), strategy_id="momentum")
     exit_risk = approved("exit-decision", 0.1, later.timestamp)
     exit_time = later.timestamp + timedelta(minutes=1)
-    exit_one_minute = one_minute.model_copy(update={"open": 102.0, "timestamp": exit_time})
+    exit_one_minute = one_minute.model_copy(update={
+        "open": 102.0, "timestamp": exit_time,
+        "bucket_start": later.timestamp, "bucket_end": exit_time,
+    })
     exit_env = later.model_copy(update={
         "timestamp": exit_time,
         "decision_timestamp": exit_time,

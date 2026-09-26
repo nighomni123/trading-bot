@@ -70,19 +70,21 @@ class ActiveRiskKernel:
         timestamp = now or environment.decision_timestamp
         ident = decision_id or policy.decision_id
         reasons: list[str] = []
+        # Kill switches stop new risk; they never trap an open position.
+        kill_reasons: list[str] = []
         self._prune_orders(timestamp)
         if self.limits.kill_switch:
-            reasons.append("configured_kill_switch")
+            kill_reasons.append("configured_kill_switch")
         if self._halt_reason:
-            reasons.append(f"kill_switch:{self._halt_reason}")
+            kill_reasons.append(f"kill_switch:{self._halt_reason}")
+        if account.kill_switch:
+            kill_reasons.append("account_kill_switch")
         if execution.mode.value != "PAPER":
             reasons.append("execution_mode_not_paper")
         if not environment.data_quality.safe_for_trading:
             reasons.append("data_unsafe")
         if environment.data_quality.stale:
             reasons.append("stale_data")
-        if account.kill_switch:
-            reasons.append("account_kill_switch")
         if execution.feed_healthy is False:
             reasons.append("feed_unhealthy")
         if policy.action == PolicyAction.DATA_UNSAFE:
@@ -126,19 +128,23 @@ class ActiveRiskKernel:
                 if approved_quantity <= 0:
                     reasons.append("exit_size_zero")
                 elif not reasons:
+                    # Reducing risk stays permitted under a kill switch; the
+                    # switch is recorded so the run is auditable.
                     return RiskDecision(
                         decision_id=ident, timestamp=timestamp, status=RiskStatus.APPROVED,
                         approved_quantity=approved_quantity,
                         approved_notional=approved_quantity * (environment.price.last or position.entry_price),
-                        maximum_loss_usd=0.0, reasons=("risk_reducing_exit_approved",),
+                        maximum_loss_usd=0.0,
+                        reasons=("risk_reducing_exit_approved", *kill_reasons),
                         risk_config_version=self.version,
                     )
 
         if policy.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT} and policy.candidate is not None:
+            entry_reasons = reasons + kill_reasons
             entry = policy.candidate.entry_reference
             stop_distance = abs(entry - policy.candidate.stop)
             if stop_distance <= 0:
-                reasons.append("invalid_stop_distance")
+                entry_reasons.append("invalid_stop_distance")
             notional_cap = min(self.limits.maximum_position_notional_usd, account.capital_usd * self.limits.maximum_leverage)
             risk_cap = min(self.limits.maximum_capital_at_risk_usd, account.capital_usd * self.limits.risk_per_trade_pct / 100)
             round_trip_cost = entry * (
@@ -158,16 +164,16 @@ class ActiveRiskKernel:
                 )
                 maximum_loss = quantity * loss_per_unit
                 if quantity <= 0:
-                    reasons.append("risk_size_zero")
+                    entry_reasons.append("risk_size_zero")
                 if maximum_loss > self.limits.maximum_trade_loss_usd + 1e-9:
-                    reasons.append("trade_loss_limit")
-                if not reasons:
+                    entry_reasons.append("trade_loss_limit")
+                if not entry_reasons:
                     return RiskDecision(
                         decision_id=ident, timestamp=timestamp, status=RiskStatus.APPROVED,
                         approved_quantity=quantity, approved_notional=quantity * entry,
                         maximum_loss_usd=maximum_loss, reasons=("approved",), risk_config_version=self.version,
                     )
-        return self._reject(ident, timestamp, tuple(reasons or ("no_execution_authority",)))
+        return self._reject(ident, timestamp, tuple(reasons + kill_reasons or ("no_execution_authority",)))
 
     def _reject(self, decision_id: str, timestamp: datetime, reasons: tuple[str, ...]) -> RiskDecision:
         return RiskDecision(decision_id=decision_id, timestamp=timestamp, status=RiskStatus.REJECTED, reasons=reasons, risk_config_version=self.version)

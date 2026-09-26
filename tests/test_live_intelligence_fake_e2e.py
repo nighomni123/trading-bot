@@ -61,7 +61,7 @@ def test_fake_providers_execute_full_shadow_path_to_paper_ledger(tmp_path: Path)
         "frontier": settings.frontier.model_copy(update={"min_call_interval_seconds": 0}),
         "jev": settings.jev.model_copy(update={"min_call_interval_seconds": 0, "validity_seconds": 300}),
         "costs": settings.costs.model_copy(update={"fee_bps_per_side": 0.0, "slippage_bps_per_side": 0.0, "latency_bps": 0.0}),
-        "risk": settings.risk.model_copy(update={"stale_data_ms": 10_000_000, "maximum_slippage_bps": 0.0}),
+        "risk": settings.risk.model_copy(update={"stale_data_ms": 10_000_000}),
         "research": settings.research.model_copy(update={"root": str(tmp_path / "research")}),
         "observability": settings.observability.model_copy(update={"metrics_file": str(tmp_path / "metrics.json")}),
     })

@@ -715,6 +715,9 @@ class ExecutionIntent(FrozenModel):
 class PendingIntentState(FrozenModel):
     intent: ExecutionIntent
     risk_decision: RiskDecision
+    # The policy that authorised the intent, so a pending order can be
+    # revalidated against current risk without re-running intelligence.
+    policy: PolicyDecision
     created_at: datetime
 
     @model_validator(mode="after")
@@ -723,6 +726,10 @@ class PendingIntentState(FrozenModel):
             raise ValueError("pending state timestamp must match its intent")
         if self.intent.decision_id != self.risk_decision.decision_id:
             raise ValueError("pending intent and risk decision IDs must match")
+        if self.policy.decision_id != self.intent.decision_id:
+            raise ValueError("pending state policy must belong to the same decision")
+        if self.policy.action != self.intent.action:
+            raise ValueError("pending state policy action must match its intent")
         if self.risk_decision.status != RiskStatus.APPROVED:
             raise ValueError("pending state requires an approved risk decision")
         return self
@@ -846,6 +853,9 @@ class DecisionRecord(FrozenModel):
     eventual_outcome: dict[str, Any] | None = None
     counterfactual_without_jev: PolicyAction | None = None
     provider_failures: tuple[ProviderFailureRecord, ...] = ()
+    # Why an outstanding paper intent was dropped instead of filled, so a
+    # missing fill is always explainable from the ledger alone.
+    pending_cancellation: str | None = None
     # Committed runtime state, so a checkpoint that trails the ledger can be
     # rebuilt from the ledger suffix instead of guessing.
     runtime_state: dict[str, Any] | None = None

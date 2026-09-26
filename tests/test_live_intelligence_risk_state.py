@@ -124,7 +124,10 @@ def test_runner_syncs_open_position_and_order_state_after_fill(tmp_path: Path):
     )
     executor = PaperExecutor(settings, runner.risk)
     fill_time = intent.earliest_execution_at
-    one_minute = env.timeframes["1m"].model_copy(update={"open": env.price.last, "timestamp": fill_time})
+    one_minute = env.timeframes["1m"].model_copy(update={
+        "open": env.price.last, "timestamp": fill_time,
+        "bucket_start": env.decision_timestamp, "bucket_end": fill_time,
+    })
     fill_env = env.model_copy(update={
         "timestamp": fill_time,
         "decision_timestamp": fill_time,
