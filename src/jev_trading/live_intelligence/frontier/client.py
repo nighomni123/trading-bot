@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import requests
@@ -26,6 +26,27 @@ class FrontierClient(Protocol):
     model_version: str
 
     def complete(self, *, system_prompt: str, payload: dict[str, Any]) -> dict[str, Any]: ...
+
+
+def read_usage(body: dict[str, Any]) -> dict[str, int]:
+    """Token counts for one provider response, or zeros if the provider omits them.
+
+    Inference cost is part of whether a model decision is worth its complexity,
+    so it has to be measured rather than assumed. Providers that do not report
+    usage report nothing, which is a measurement gap rather than a zero cost.
+    """
+    usage = body.get("usage")
+    if not isinstance(usage, dict):
+        return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "reported": 0}
+    total = usage.get("total_tokens")
+    prompt = usage.get("prompt_tokens", 0)
+    completion = usage.get("completion_tokens", 0)
+    return {
+        "input_tokens": int(prompt or 0),
+        "output_tokens": int(completion or 0),
+        "total_tokens": int(total if total is not None else (prompt or 0) + (completion or 0)),
+        "reported": 1,
+    }
 
 
 def _parse_json_object(content: Any) -> dict[str, Any]:
@@ -134,6 +155,9 @@ class OpenAICompatibleFrontierClient:
     last_interface: str = "json"
     last_tool_name: str | None = None
     last_retry_count: int = 0
+    # Token counts from the most recent response; `reported` is 0 when the
+    # provider did not send usage, so a report can say "unmeasured" honestly.
+    last_usage: dict[str, int] = field(default_factory=dict)
 
     def complete(self, *, system_prompt: str, payload: dict[str, Any]) -> dict[str, Any]:
         key = os.environ.get(self.api_key_env)
@@ -188,7 +212,9 @@ class OpenAICompatibleFrontierClient:
                 self.last_retry_count = attempt + 1
                 continue
             try:
-                message = response.json()["choices"][0]["message"]
+                body = response.json()
+                self.last_usage = read_usage(body)
+                message = body["choices"][0]["message"]
                 tool_calls = message.get("tool_calls") or []
                 if self.supports_tool_calling and self.tool is not None:
                     if len(tool_calls) != 1:

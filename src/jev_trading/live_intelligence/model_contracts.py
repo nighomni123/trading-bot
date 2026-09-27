@@ -144,6 +144,7 @@ def frontier_to_domain(
     prompt_hash: str,
     interface_mode: str,
     tool_name: str | None,
+    usage: dict[str, int] | None = None,
 ) -> StrategyHypothesis:
     # Direction is derived from the action rather than asked for separately: two
     # model-supplied fields that must agree is one more way to be inconsistent.
@@ -213,6 +214,9 @@ def frontier_to_domain(
         interface_mode=interface_mode,
         tool_name=tool_name,
         trade_proposal=proposal,
+        input_tokens=(usage or {}).get("input_tokens", 0),
+        output_tokens=(usage or {}).get("output_tokens", 0),
+        usage_reported=bool((usage or {}).get("reported")),
     )
 
 
@@ -228,6 +232,7 @@ def jev_to_domain(
     prompt_hash: str,
     interface_mode: str,
     tool_name: str | None,
+    usage: dict[str, int] | None = None,
 ) -> JevEvaluation:
     probabilities = dict(request.quant_evidence.probabilities or {})
     if decision.recommended_state == JevState.ENTER and not probabilities:
@@ -262,4 +267,7 @@ def jev_to_domain(
         },
         interface_mode=interface_mode,
         tool_name=tool_name,
+        input_tokens=(usage or {}).get("input_tokens", 0),
+        output_tokens=(usage or {}).get("output_tokens", 0),
+        usage_reported=bool((usage or {}).get("reported")),
     )

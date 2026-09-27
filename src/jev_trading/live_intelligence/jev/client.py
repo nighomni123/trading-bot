@@ -4,13 +4,14 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Protocol
 
 import requests
 
 from jev_trading.live_intelligence.config import ProviderConfig, env_bool
+from jev_trading.live_intelligence.frontier.client import read_usage
 from jev_trading.live_intelligence.model_contracts import JEV_TOOL
 from jev_trading.live_intelligence.provider_errors import (
     ProviderFailure,
@@ -104,6 +105,7 @@ class OpenAICompatibleJevClient:
     last_interface: str = "json"
     last_tool_name: str | None = None
     last_retry_count: int = 0
+    last_usage: dict[str, int] = field(default_factory=dict)
 
     def evaluate(self, request: JevRequest) -> JevEvaluation:
         key = os.environ.get(self.api_key_env)
@@ -158,7 +160,9 @@ class OpenAICompatibleJevClient:
                 self.last_retry_count = attempt + 1
                 continue
             try:
-                message = response.json()["choices"][0]["message"]
+                body = response.json()
+                self.last_usage = read_usage(body)
+                message = body["choices"][0]["message"]
                 tool_calls = message.get("tool_calls") or []
                 if self.supports_tool_calling and self.tool is not None:
                     if len(tool_calls) != 1:

@@ -189,6 +189,10 @@ class LiveSettings(StrictConfig):
     ledger_root: str = "research/runtime/ledger"
     pending_intent_ttl_seconds: int = Field(default=120, gt=0)
     strategy_registry_version: str = "strategy-registry-v1"
+    # Blended price per million tokens, so a report can state what inference cost
+    # an arm. Zero means unpriced, which the report must then say out loud
+    # rather than silently treating tokens as free.
+    model_cost_per_mtok_usd: float = Field(default=0.0, ge=0)
 
     @model_validator(mode="after")
     def validate_paper_only(self) -> "LiveSettings":

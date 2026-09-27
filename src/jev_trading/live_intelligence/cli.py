@@ -161,6 +161,47 @@ def _shadow(args) -> int:
     return 0
 
 
+def _parse_arms(values: list[str]) -> dict[str, str]:
+    arms: dict[str, str] = {}
+    for item in values:
+        if "=" not in item:
+            raise SystemExit(f"--arm expects LABEL=LEDGER, got {item!r}")
+        label, path = item.split("=", 1)
+        arms[label] = path
+    if not arms:
+        raise SystemExit("at least one --arm LABEL=LEDGER is required")
+    return arms
+
+
+def _report(args) -> int:
+    from .arms import compare_arms, render_markdown
+
+    settings = load_settings(args.config)
+    bars = None
+    if args.bars:
+        import polars as pl
+
+        bars = pl.read_parquet(args.bars)
+    result = compare_arms(
+        _parse_arms(args.arm),
+        bars=bars,
+        capital_usd=settings.paper.capital_usd,
+        model_cost_per_mtok_usd=settings.model_cost_per_mtok_usd,
+        fee_bps_per_side=settings.costs.fee_bps_per_side,
+        slippage_bps_per_side=settings.costs.slippage_bps_per_side,
+    )
+    if args.json_out:
+        Path(args.json_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json_out).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    markdown = render_markdown(result)
+    if args.markdown_out:
+        Path(args.markdown_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.markdown_out).write_text(markdown)
+    else:
+        print(markdown)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     load_project_env()
     parser = argparse.ArgumentParser(prog="jev")
@@ -219,7 +260,20 @@ def main(argv: list[str] | None = None) -> int:
     economics.add_argument("--symbol", default="BTCUSDT")
     economics.add_argument("--samples", type=int, default=40)
     economics.add_argument("--notional", type=float, default=1000.0)
+    report = sub.add_parser(
+        "report", help="compare forward experiment arms after costs, against benchmarks"
+    )
+    report.add_argument(
+        "--arm", action="append", default=[], metavar="LABEL=LEDGER",
+        help="repeatable, e.g. --arm A=a.jsonl --arm B=b.jsonl --arm C=c.jsonl",
+    )
+    report.add_argument("--config", default="configs/forward-hourly.json")
+    report.add_argument("--bars", default=None, help="parquet of 1m bars for the buy-and-hold benchmark")
+    report.add_argument("--json-out", default=None)
+    report.add_argument("--markdown-out", default=None)
     args = parser.parse_args(argv)
+    if args.command == "report":
+        return _report(args)
     if args.command == "shadow":
         return _shadow(args)
     if args.command == "execution-costs":

@@ -55,6 +55,7 @@ class JevEvaluator:
                     model_version=self.client.model_version, prompt_version=self.prompt_version,
                     prompt_hash=self.prompt_hash,
                     interface_mode="tool_call", tool_name=getattr(self.client, "last_tool_name", None),
+                    usage=getattr(self.client, "last_usage", None),
                 )
             else:
                 response = JevEvaluation.model_validate(raw_response)

@@ -388,6 +388,11 @@ class StrategyHypothesis(FrozenModel):
     prompt_hash: str | None = None
     provider: str | None = None
     model: str | None = None
+    # Inference cost is part of whether a decision was worth making, so tokens
+    # are recorded with the decision rather than reconstructed afterwards.
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    usage_reported: bool = False
     schema_version: str = "strategy-hypothesis-v1"
     temperature: float | None = None
     max_output_tokens: int | None = Field(default=None, gt=0)
@@ -725,6 +730,9 @@ class JevEvaluation(FrozenModel):
     prompt_hash: str | None = None
     provider: str | None = None
     model: str | None = None
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    usage_reported: bool = False
     schema_version: str = "jev-evaluation-v1"
     temperature: float | None = None
     max_output_tokens: int | None = Field(default=None, gt=0)

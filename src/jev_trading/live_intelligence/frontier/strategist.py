@@ -89,6 +89,7 @@ class FrontierStrategist:
                     model_version=self.client.model_version, prompt_version=self.prompt_version,
                     prompt_hash=self.prompt_hash, interface_mode=interface,
                     tool_name=getattr(self.client, "last_tool_name", None),
+                    usage=getattr(self.client, "last_usage", None),
                 )
             if raw.get("hypothesis_id") != request_id:
                 raise ValueError("Frontier hypothesis_id does not match request")
@@ -112,6 +113,9 @@ class FrontierStrategist:
                 },
                 "interface_mode": interface,
                 "tool_name": None,
+                "input_tokens": (getattr(self.client, "last_usage", None) or {}).get("input_tokens", 0),
+                "output_tokens": (getattr(self.client, "last_usage", None) or {}).get("output_tokens", 0),
+                "usage_reported": bool((getattr(self.client, "last_usage", None) or {}).get("reported")),
             })
         except FrontierUnavailable:
             raise
