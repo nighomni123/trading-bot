@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 import math
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -394,16 +394,147 @@ class StrategyHypothesis(FrozenModel):
     capabilities: dict[str, bool] = Field(default_factory=dict)
     interface_mode: str | None = None
     tool_name: str | None = None
+    trade_proposal: TradeProposal | None = None
 
     @model_validator(mode="after")
     def validate_authority_boundary(self) -> "StrategyHypothesis":
-        forbidden = {"size", "quantity", "notional", "leverage", "order", "buy", "sell", "size_pct"}
+        forbidden = EXECUTION_AUTHORITY_FIELDS
         payload = self.model_dump()
         if forbidden & set(payload):
             raise ValueError("Frontier output contains execution-authority fields")
-        if not self.abstain and not self.primary_strategy:
-            raise ValueError("non-abstaining hypothesis requires a primary strategy")
+        if self.direction in {Direction.LONG, Direction.SHORT} and not self.primary_strategy:
+            # Only an *entry* needs a strategy family. Exiting or holding an
+            # existing position is a decision about that position, not a
+            # hypothesis about a new one.
+            raise ValueError("an entry hypothesis requires a primary strategy")
         return self
+
+
+CONDITION_KINDS = (
+    "immediate",
+    "price_above",
+    "price_below",
+    "vwap_above",
+    "vwap_below",
+    "atr_above",
+    "atr_below",
+    "spread_below_bps",
+    "trend_up",
+    "trend_down",
+)
+# Kinds that carry no threshold. Everything else needs a value to compare to.
+UNCONDITIONAL_KINDS = frozenset({"immediate", "trend_up", "trend_down"})
+# The model proposes a trade; code decides how much of it. These names can never
+# appear on a proposal, at any nesting depth.
+EXECUTION_AUTHORITY_FIELDS = frozenset(
+    {"size", "quantity", "notional", "leverage", "order", "buy", "sell", "size_pct"}
+)
+
+
+class ConditionSpec(FrozenModel):
+    """One machine-checkable rule for entry or invalidation.
+
+    A closed vocabulary on purpose. A free-text condition such as "when
+    sentiment improves" cannot be evaluated by deterministic code, so it is
+    commentary rather than a rule, and a rule nobody can check is not a
+    constraint.
+    """
+
+    kind: Literal[
+        "immediate", "price_above", "price_below", "vwap_above", "vwap_below",
+        "atr_above", "atr_below", "spread_below_bps", "trend_up", "trend_down",
+    ]
+    value: float | None = None
+    timeframe: str = "15m"
+
+    @model_validator(mode="after")
+    def require_value_where_meaningful(self) -> "ConditionSpec":
+        if self.kind in UNCONDITIONAL_KINDS:
+            return self
+        if self.value is None or not math.isfinite(self.value) or self.value < 0:
+            raise ValueError(f"condition {self.kind} requires a finite non-negative value")
+        return self
+
+    def describe(self) -> str:
+        # The timeframe is part of the rule, so it is part of the description:
+        # "trend_down" alone does not say which timeframe must turn.
+        suffix = "" if self.kind in UNCONDITIONAL_KINDS and self.timeframe == "15m" else f"@{self.timeframe}"
+        return f"{self.kind}{suffix}" if self.kind in UNCONDITIONAL_KINDS else f"{self.kind}:{self.value}{suffix}"
+
+
+class TradeProposal(FrozenModel):
+    """A bounded trade proposal from the model.
+
+    The model chooses the action, the entry trigger, the invalidation and an
+    expiry. It does not choose size: quantity is derived from the approved risk
+    budget by deterministic code, and a proposal that names one is rejected.
+    """
+
+    proposal_id: str
+    timestamp: datetime
+    instrument: str = Field(min_length=1)
+    action: Literal["LONG", "SHORT", "EXIT", "HOLD", "FLAT"]
+    abstain: bool = False
+    entry_trigger: Literal["NOW", "ON_CONDITION"] = "NOW"
+    entry_condition: ConditionSpec | None = None
+    invalidation_conditions: tuple[ConditionSpec, ...] = ()
+    expires_at: datetime
+    intended_holding_seconds: int = Field(gt=0)
+    proposed_stop_bps: float | None = Field(default=None, ge=0)
+    proposed_target_bps: float | None = Field(default=None, ge=0)
+    thesis: str = Field(min_length=1)
+    confidence: float = Field(ge=0, le=1)
+    model_version: str
+    prompt_version: str
+    prompt_hash: str | None = None
+    provider: str | None = None
+    model: str | None = None
+
+    @model_validator(mode="after")
+    def validate_authority_boundary(self) -> "TradeProposal":
+        # Defence in depth: `extra="forbid"` already rejects unknown keys, but
+        # an explicit message beats a generic "unexpected keyword" when the
+        # model tries to size its own trade.
+        payload = self.model_dump()
+        stack = [payload]
+        while stack:
+            current = stack.pop()
+            if isinstance(current, dict):
+                if EXECUTION_AUTHORITY_FIELDS & set(current):
+                    raise ValueError("proposal contains execution-authority fields")
+                stack.extend(value for value in current.values() if isinstance(value, (dict, list)))
+            elif isinstance(current, list):
+                stack.extend(item for item in current if isinstance(item, (dict, list)))
+        return self
+
+    @model_validator(mode="after")
+    def validate_action_shape(self) -> "TradeProposal":
+        if self.abstain and self.action != "FLAT":
+            raise ValueError("an abstaining proposal must be FLAT")
+        if not self.abstain and self.action not in {"LONG", "SHORT", "EXIT", "HOLD"}:
+            raise ValueError("a non-abstaining proposal must be LONG, SHORT, EXIT or HOLD")
+        return self
+
+    @model_validator(mode="after")
+    def validate_condition_shape(self) -> "TradeProposal":
+        if self.entry_trigger == "ON_CONDITION" and self.entry_condition is None:
+            raise ValueError("ON_CONDITION requires an entry_condition")
+        if self.action in {"LONG", "SHORT"} and self.entry_condition is None:
+            self_needs_now = self.entry_trigger == "NOW"
+            if not self_needs_now:
+                raise ValueError("an entry proposal must either trigger NOW or carry a condition")
+        return self
+
+    @model_validator(mode="after")
+    def validate_expiry(self) -> "TradeProposal":
+        # An expired signal is an abstention, never a stale approval.
+        if self.expires_at <= self.timestamp:
+            raise ValueError("proposal expiry must be after its timestamp")
+        return self
+
+    @property
+    def is_entry(self) -> bool:
+        return self.action in {"LONG", "SHORT"}
 
 
 class CandidateTrade(FrozenModel):
@@ -839,6 +970,10 @@ class DecisionRecord(FrozenModel):
     timestamp: datetime
     market_environment: MarketEnvironment
     frontier_hypothesis: StrategyHypothesis | None = None
+    # The bounded trade the model proposed this decision, if it proposed one.
+    # Recorded separately so decision quality can be measured without inferring
+    # intent from a policy reason string.
+    trade_proposal: TradeProposal | None = None
     quant_analyses: tuple[QuantAnalysisResult, ...] = ()
     quant_evidence: QuantEvidence | None = None
     jev_request: JevRequest | None = None

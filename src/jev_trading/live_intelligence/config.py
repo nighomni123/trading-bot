@@ -92,6 +92,12 @@ class PolicyThresholds(StrictConfig):
     stop_atr_multiple: float = Field(default=1.0, gt=0)
     minimum_distance_bps: float = Field(default=5.0, gt=0)
     maximum_holding_seconds: int = Field(default=900, gt=0)
+    # Outer bounds on levels a model is allowed to propose. A proposal outside
+    # the band is clamped by `resolve_levels`; it is never adopted verbatim.
+    maximum_stop_atr_multiple: float = Field(default=3.0, gt=0)
+    maximum_target_atr_multiple: float = Field(default=6.0, gt=0)
+    maximum_stop_bps: float = Field(default=500.0, gt=0)
+    maximum_target_bps: float = Field(default=1_500.0, gt=0)
 
 
 class QuantConfig(StrictConfig):

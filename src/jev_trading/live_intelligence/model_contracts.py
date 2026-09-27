@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .schemas import (
     CandidateTrade,
+    ConditionSpec,
     Direction,
     JevEvaluation,
     JevRequest,
     JevState,
     StrategyHypothesis,
+    TradeProposal,
 )
 
 
@@ -21,21 +23,42 @@ class ModelContract(BaseModel):
 
 
 class FrontierModelDecision(ModelContract):
+    """The bounded mandate for Frontier: what to do, under what rule, until when.
+
+    The model never names a size. It picks an action, a machine-checkable entry
+    rule, an invalidation, an expiry and a holding horizon; deterministic code
+    decides how much of that trade to take and whether it is permitted at all.
+    """
+
     regime: str = Field(min_length=1)
     strategy_family: str | None = None
-    direction: Direction = Direction.NONE
+    action: Literal["LONG", "SHORT", "EXIT", "HOLD", "FLAT"]
     confidence: float = Field(ge=0, le=1)
     abstain: bool
     thesis: str = Field(min_length=1)
-    entry_conditions: tuple[str, ...] = ()
-    invalidation_conditions: tuple[str, ...] = ()
+    entry_trigger: Literal["NOW", "ON_CONDITION"] = "NOW"
+    entry_condition: ConditionSpec | None = None
+    invalidation_conditions: tuple[ConditionSpec, ...] = ()
+    # A relative lifetime, not a wall-clock instant: the application stamps the
+    # absolute expiry from the decision timestamp so the model cannot invent
+    # time, and so an expiry is always comparable with observed data.
+    expires_in_seconds: int = Field(ge=1, le=86_400)
+    intended_holding_seconds: int = Field(ge=1, le=604_800)
+    proposed_stop_bps: float | None = Field(default=None, ge=0, le=100_000)
+    proposed_target_bps: float | None = Field(default=None, ge=0, le=100_000)
 
     @model_validator(mode="after")
-    def validate_direction(self) -> "FrontierModelDecision":
-        if not self.abstain and (self.strategy_family is None or self.direction == Direction.NONE):
-            raise ValueError("non-abstaining Frontier decision requires strategy_family and direction")
-        if self.abstain and self.direction != Direction.NONE:
-            raise ValueError("abstaining Frontier decision must use direction NONE")
+    def validate_action(self) -> "FrontierModelDecision":
+        if self.abstain and self.action != "FLAT":
+            raise ValueError("an abstaining Frontier decision must be FLAT")
+        if not self.abstain and self.action not in {"LONG", "SHORT", "EXIT", "HOLD"}:
+            raise ValueError("a non-abstaining Frontier decision must act, exit or hold")
+        if self.action in {"LONG", "SHORT"} and self.strategy_family is None:
+            raise ValueError("an entry decision requires a strategy_family")
+        if self.entry_trigger == "ON_CONDITION" and self.entry_condition is None:
+            raise ValueError("ON_CONDITION requires an entry_condition")
+        if self.entry_trigger == "NOW" and self.entry_condition is not None:
+            raise ValueError("a NOW trigger cannot carry an entry_condition")
         return self
 
 
@@ -82,8 +105,14 @@ def model_tool(name: str, description: str, model: type[ModelContract]) -> dict[
 
 
 FRONTIER_TOOL = model_tool(
-    "submit_strategy_hypothesis",
-    "Submit a strategic hypothesis for a downstream deterministic trading system. Use only supplied market and quant evidence. Do not determine size, leverage, orders, execution, or risk limits. Abstain when evidence is insufficient.",
+    "submit_trade_proposal",
+    "Submit a bounded trade proposal for a downstream deterministic trading system. "
+    "Choose only the action, a machine-checkable entry rule, invalidation, an expiry "
+    "and a holding horizon, using only the supplied market and quant evidence. "
+    "Do not determine size, quantity, notional, leverage, orders, execution, or risk "
+    "limits: code derives quantity from the approved risk budget. "
+    "Entry conditions must use the listed kinds and a numeric value where required. "
+    "Abstain (action FLAT) whenever evidence is insufficient; abstention is a valid answer.",
     FrontierModelDecision,
 )
 JEV_TOOL = model_tool(
@@ -91,6 +120,15 @@ JEV_TOOL = model_tool(
     "Submit a bounded evaluation of the supplied candidate for deterministic policy and risk. Do not place orders, determine size, or override risk. Abstain when evidence is insufficient.",
     JevModelDecision,
 )
+
+
+ACTION_DIRECTION = {
+    "LONG": Direction.LONG,
+    "SHORT": Direction.SHORT,
+    "EXIT": Direction.NONE,
+    "HOLD": Direction.NONE,
+    "FLAT": Direction.NONE,
+}
 
 
 def frontier_to_domain(
@@ -107,22 +145,53 @@ def frontier_to_domain(
     interface_mode: str,
     tool_name: str | None,
 ) -> StrategyHypothesis:
+    # Direction is derived from the action rather than asked for separately: two
+    # model-supplied fields that must agree is one more way to be inconsistent.
+    direction = ACTION_DIRECTION[decision.action]
+    # The holding horizon is bounded by configuration, not by the model's ask.
+    holding = min(decision.intended_holding_seconds, settings.policy.maximum_holding_seconds)
+    proposal = TradeProposal(
+        proposal_id=request_id,
+        timestamp=environment.decision_timestamp,
+        instrument=environment.instrument,
+        action=decision.action,
+        abstain=decision.abstain,
+        entry_trigger=decision.entry_trigger,
+        entry_condition=decision.entry_condition,
+        invalidation_conditions=decision.invalidation_conditions,
+        expires_at=environment.decision_timestamp
+        + timedelta(seconds=decision.expires_in_seconds),
+        intended_holding_seconds=holding,
+        proposed_stop_bps=decision.proposed_stop_bps,
+        proposed_target_bps=decision.proposed_target_bps,
+        thesis=decision.thesis,
+        confidence=decision.confidence,
+        model_version=model_version,
+        prompt_version=prompt_version,
+        prompt_hash=prompt_hash,
+        provider=provider,
+        model=model,
+    )
     return StrategyHypothesis(
         hypothesis_id=request_id,
         timestamp=environment.decision_timestamp,
         regime=decision.regime,
         regime_confidence=decision.confidence,
         primary_strategy=decision.strategy_family,
-        direction=decision.direction,
-        horizon_seconds=None if decision.abstain else settings.policy.maximum_holding_seconds,
+        direction=direction,
+        horizon_seconds=None if decision.abstain else holding,
         thesis=decision.thesis,
         supporting_evidence=(),
         required_quant_questions=(),
-        entry_conditions=decision.entry_conditions,
-        invalidation_conditions=decision.invalidation_conditions,
-        target_logic=None if decision.abstain else "deterministic_policy_atr_target",
-        stop_logic=None if decision.abstain else "deterministic_policy_atr_stop",
-        maximum_holding_seconds=None if decision.abstain else settings.policy.maximum_holding_seconds,
+        entry_conditions=(
+            (decision.entry_condition.describe(),) if decision.entry_condition else ()
+        ),
+        invalidation_conditions=tuple(
+            spec.describe() for spec in decision.invalidation_conditions
+        ),
+        target_logic=None if decision.abstain else "deterministic_policy_clamped_target",
+        stop_logic=None if decision.abstain else "deterministic_policy_clamped_stop",
+        maximum_holding_seconds=None if decision.abstain else holding,
         abandon_conditions=("data_becomes_unsafe",),
         jev_questions=(),
         abstain=decision.abstain,
@@ -143,6 +212,7 @@ def frontier_to_domain(
         },
         interface_mode=interface_mode,
         tool_name=tool_name,
+        trade_proposal=proposal,
     )
 
 

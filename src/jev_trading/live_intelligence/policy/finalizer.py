@@ -20,7 +20,48 @@ from ..schemas import (
     PositionState,
     Side,
     StrategyHypothesis,
+    TradeProposal,
 )
+from .conditions import evaluate_condition
+
+
+def resolve_levels(
+    price: float,
+    atr_fraction: float,
+    policy: PolicyThresholds,
+    proposal: TradeProposal | None,
+) -> tuple[float, float, tuple[str, ...]]:
+    """Stop and target distance in price units, plus any clamping notes.
+
+    The model may propose both levels, and code still owns the bound: a proposal
+    is clamped into the permitted ATR band, never adopted verbatim. An absurd
+    stop therefore becomes the ATR default rather than the model's own number.
+    """
+    atr_bps = atr_fraction * 10_000
+    minimum = price * policy.minimum_distance_bps / 10_000
+    stop_default = max(price * atr_fraction * policy.stop_atr_multiple, minimum)
+    target_default = max(price * atr_fraction * policy.target_atr_multiple, minimum)
+    notes: list[str] = []
+
+    if proposal is None or proposal.proposed_stop_bps is None:
+        return stop_default, target_default, tuple(notes)
+
+    floor_bps = policy.minimum_distance_bps
+    stop_ceiling = min(atr_bps * policy.maximum_stop_atr_multiple, policy.maximum_stop_bps)
+    stop_bps = min(max(proposal.proposed_stop_bps, floor_bps), stop_ceiling)
+    if abs(stop_bps - proposal.proposed_stop_bps) > 1e-9:
+        notes.append("stop_clamped_to_policy_band")
+
+    target_bps: float | None = None
+    if proposal.proposed_target_bps is not None:
+        target_ceiling = min(atr_bps * policy.maximum_target_atr_multiple, policy.maximum_target_bps)
+        target_bps = min(max(proposal.proposed_target_bps, floor_bps), target_ceiling)
+        if abs(target_bps - proposal.proposed_target_bps) > 1e-9:
+            notes.append("target_clamped_to_policy_band")
+
+    stop_distance = max(price * stop_bps / 10_000, minimum)
+    target_distance = max(price * (target_bps or atr_bps * policy.target_atr_multiple) / 10_000, minimum)
+    return stop_distance, target_distance, tuple(notes)
 
 
 def make_candidate(
@@ -48,16 +89,33 @@ def make_candidate(
         return None
     state = environment.timeframes["15m"]
     atr_fraction = state.atr_fraction or 0.001
-    minimum = price * settings.policy.minimum_distance_bps / 10_000
-    target_distance = max(price * atr_fraction * settings.policy.target_atr_multiple, minimum)
-    stop_distance = max(price * atr_fraction * settings.policy.stop_atr_multiple, minimum)
+    proposal = hypothesis.trade_proposal
+    stop_distance, target_distance, _ = resolve_levels(
+        price, atr_fraction, settings.policy, proposal
+    )
+    holding = (
+        min(proposal.intended_holding_seconds, settings.policy.maximum_holding_seconds)
+        if proposal is not None
+        else settings.policy.maximum_holding_seconds
+    )
+    # A conditional entry is only actionable once its rule provably holds. An
+    # unmet condition is "not yet", not a rejection, so the runner keeps the
+    # proposal alive until it triggers or expires.
+    trigger = "immediate"
+    if proposal is not None and proposal.entry_trigger == "ON_CONDITION":
+        if not evaluate_condition(environment, proposal.entry_condition):
+            return None
+        trigger = proposal.entry_condition.describe() if proposal.entry_condition else "immediate"
+    else:
+        trigger = "; ".join(hypothesis.entry_conditions) or "immediate"
+
     if hypothesis.direction.value == "LONG":
         return CandidateTrade(side=Side.LONG, entry_reference=price, target=price + target_distance, stop=price - stop_distance,
-                              max_holding_seconds=settings.policy.maximum_holding_seconds, strategy_id=hypothesis.primary_strategy,
-                              strategy_version=strategy_version, entry_condition="; ".join(hypothesis.entry_conditions))
+                              max_holding_seconds=holding, strategy_id=hypothesis.primary_strategy,
+                              strategy_version=strategy_version, entry_condition=trigger)
     return CandidateTrade(side=Side.SHORT, entry_reference=price, target=price - target_distance, stop=price + stop_distance,
-                          max_holding_seconds=settings.policy.maximum_holding_seconds, strategy_id=hypothesis.primary_strategy,
-                          strategy_version=strategy_version, entry_condition="; ".join(hypothesis.entry_conditions))
+                          max_holding_seconds=holding, strategy_id=hypothesis.primary_strategy,
+                          strategy_version=strategy_version, entry_condition=trigger)
 
 
 class PolicyFinalizer:
@@ -97,6 +155,11 @@ class PolicyFinalizer:
             return PolicyDecision(decision_id=ident, timestamp=now, action=PolicyAction.HOLD, confidence=jev.confidence if jev else 0.0, reasons=("position_aware_hold",), policy_version="policy-v1", hypothesis_id=hypothesis.hypothesis_id)
         if hypothesis.abstain:
             reasons.append("frontier_abstain")
+        proposal = hypothesis.trade_proposal
+        if proposal is not None and now >= proposal.expires_at:
+            # An expired proposal is an abstention, never a stale approval: the
+            # model said this trade was good for a window, and the window closed.
+            reasons.append("proposal_expired")
         if economic_value is None:
             reasons.append("missing_economic_value")
         elif economic_value.sample_size < self.settings.quant.path_minimum_samples:

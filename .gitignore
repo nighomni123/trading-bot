@@ -36,3 +36,6 @@ reports/
 
 # Local tool caches and unrelated worktrees not owned by this repo
 .npm-cache/
+
+# Forward experiment runtime output (paper accounts, ledgers, telemetry).
+research-forward/

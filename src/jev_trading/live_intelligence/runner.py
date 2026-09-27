@@ -21,7 +21,7 @@ from jev_trading.live_intelligence.frontier.client import FrontierClient, Fronti
 from jev_trading.live_intelligence.frontier.strategist import FrontierStrategist, load_prompt
 from jev_trading.live_intelligence.jev.client import JevClient
 from jev_trading.live_intelligence.jev.evaluator import JevEvaluator
-from jev_trading.live_intelligence.policy import PolicyFinalizer, make_candidate
+from jev_trading.live_intelligence.policy import PolicyFinalizer, evaluate_condition, make_candidate
 from jev_trading.live_intelligence.quant import QuantRegistry, analyze_path, build_completed_path_samples, calculate_economic_value
 from jev_trading.live_intelligence.risk import ActiveRiskKernel
 from jev_trading.research import ResearchMemory, StrategyRegistry
@@ -30,6 +30,7 @@ from jev_trading.live_intelligence.schemas import (
     AccountState,
     DataQuality,
     DecisionRecord,
+    Direction,
     ExecutionIntent,
     ExecutionState,
     JevRequest,
@@ -42,9 +43,29 @@ from jev_trading.live_intelligence.schemas import (
     StrategyHypothesis,
     PendingIntentState,
     ProviderFailureRecord,
+    TradeProposal,
 )
 
 RUN_MODES = ("LIVE_DATA_PAPER", "REPLAY")
+
+
+def stored_action_direction(proposal: TradeProposal) -> Direction:
+    """Direction implied by a stored proposal's action."""
+    return Direction(proposal.action) if proposal.action in {"LONG", "SHORT"} else Direction.NONE
+
+
+def stored_action_strategy(
+    proposal: TradeProposal, hypothesis: StrategyHypothesis
+) -> str | None:
+    """Strategy to trade under, preferring one the registry already accepted."""
+    if hypothesis.primary_strategy:
+        return hypothesis.primary_strategy
+    return "momentum" if proposal.action in {"LONG", "SHORT"} else None
+
+
+PROPOSAL_EXPIRY_REASONS = frozenset(
+    {"proposal_expired", "conditional_proposal_expired"}
+)
 
 
 def _provider_failure_label(exc: Exception) -> str:
@@ -128,6 +149,7 @@ class ShadowRunner:
         self._pending_risk = None
         self._pending_decision_id = None
         self._pending_state: PendingIntentState | None = None
+        self._pending_proposal: TradeProposal | None = None
         self._last_boundary: datetime | None = None
         self._last_cancellation: str | None = None
         self._timings_ms: dict[str, float] = {}
@@ -200,6 +222,13 @@ class ShadowRunner:
             "account": self.account.model_dump(mode="json"),
             "execution": self.execution.model_dump(mode="json"),
             "pending": self._pending_state.model_dump(mode="json") if self._pending_state else None,
+            # A conditional entry outlives the model call that made it: the
+            # model speaks on its own cadence while this loop runs every minute,
+            # so an unmet condition has to survive in committed state.
+            "pending_proposal": (
+                self._pending_proposal.model_dump(mode="json")
+                if self._pending_proposal is not None else None
+            ),
             "trading_day": self._trading_day.isoformat(),
             "paper": self.paper.to_state(),
         }
@@ -215,6 +244,11 @@ class ShadowRunner:
         self._pending_risk = self._pending_state.risk_decision if self._pending_state else None
         self._pending_decision_id = self._pending_intent.decision_id if self._pending_intent else None
         self._trading_day = datetime.fromisoformat(payload["trading_day"]).date()
+        # Fail closed: a malformed stored proposal is dropped, not guessed at.
+        stored_proposal = payload.get("pending_proposal")
+        self._pending_proposal = (
+            TradeProposal.model_validate(stored_proposal) if stored_proposal else None
+        )
 
     def _ledger_committed_state(self) -> dict | None:
         """Rebuild committed state from the ledger when the checkpoint is stale.
@@ -520,8 +554,14 @@ class ShadowRunner:
         quality = environment.data_quality
         bars = self.adapter.fetch_closed_bars(limit=self.settings.market.warmup_bars)
         hypothesis: StrategyHypothesis
+        # Whether the model was actually consulted this poll. A cadence abstain
+        # is silence, not a decision, so a stored conditional proposal survives
+        # it -- whereas a real abstention is the model changing its mind and
+        # retires the stored proposal.
+        frontier_called = False
         if committed is not None and committed.frontier_hypothesis is not None:
             hypothesis = committed.frontier_hypothesis
+            frontier_called = True
         elif not quality.safe_for_trading:
             hypothesis = StrategyHypothesis(
                 hypothesis_id=request_id, timestamp=environment.decision_timestamp, regime=regime.trend,
@@ -541,6 +581,7 @@ class ShadowRunner:
         else:
             self._record_frontier_call(environment.decision_timestamp)
             self._mark_frontier_events(events)
+            frontier_called = True
             try:
                 with self._timed("frontier"):
                     hypothesis = self.frontier.generate(
@@ -566,11 +607,52 @@ class ShadowRunner:
                     reason=f"frontier_unavailable:{_provider_failure_label(exc)}", model_version=self.frontier.client.model_version,
                     prompt_version=self.settings.frontier.prompt_version, prompt_hash=self.frontier.prompt_hash,
                 )
+        # A conditional entry waits across polls. The model speaks on its own
+        # cadence while this loop runs every minute, so an unmet condition has to
+        # live in committed state and be re-tested against fresh data each poll.
+        stored = self._pending_proposal
+        if stored is not None and frontier_called:
+            # The model was consulted and said something else. That supersedes
+            # whatever it asked for earlier, including by abstaining.
+            self._pending_proposal = None
+            stored = None
+        if stored is not None:
+            if environment.decision_timestamp >= stored.expires_at:
+                # An expired proposal is an abstention, never a stale approval.
+                self._pending_proposal = None
+                hypothesis = hypothesis.model_copy(
+                    update={"abstain": True, "reason": "conditional_proposal_expired"}
+                )
+            elif evaluate_condition(environment, stored.entry_condition):
+                hypothesis = hypothesis.model_copy(
+                    update={
+                        "abstain": False,
+                        "primary_strategy": stored_action_strategy(stored, hypothesis),
+                        "direction": stored_action_direction(stored),
+                        "trade_proposal": stored,
+                        "maximum_holding_seconds": stored.intended_holding_seconds,
+                        "horizon_seconds": stored.intended_holding_seconds,
+                        "reason": f"conditional_entry_triggered:{stored.proposal_id}",
+                    }
+                )
         candidate = make_candidate(
             environment, hypothesis, settings=self.settings, strategy_registry=self.strategy_registry,
         )
+        if candidate is not None and stored is not None and hypothesis.trade_proposal is stored:
+            # The rule held and a candidate was built: this proposal is spent.
+            self._pending_proposal = None
         if candidate is None and not hypothesis.abstain and hypothesis.primary_strategy:
             hypothesis = hypothesis.model_copy(update={"abstain": True, "reason": "strategy_not_registered_or_allowed"})
+        fresh = hypothesis.trade_proposal
+        if (
+            fresh is not None
+            and fresh is not stored
+            and not fresh.abstain
+            and fresh.entry_trigger == "ON_CONDITION"
+            and candidate is None
+        ):
+            # The rule is not met yet: hold the proposal until it is, or it expires.
+            self._pending_proposal = fresh
         path_result = None
         economic_value = None
         if candidate is not None:
@@ -676,6 +758,7 @@ class ShadowRunner:
         record = DecisionRecord(
             decision_id=policy.decision_id, experiment_id=self.settings.experiment_id, timestamp=environment.decision_timestamp,
             market_environment=environment, frontier_hypothesis=hypothesis, quant_analyses=analyses,
+            trade_proposal=hypothesis.trade_proposal,
             quant_evidence=quant_evidence, jev_request=jev_request, jev_evaluation=jev_evaluation, economic_value=economic_value, policy_decision=policy, risk_decision=risk,
             provider_failures=tuple(provider_failures),
             pending_cancellation=self._last_cancellation,
@@ -745,6 +828,23 @@ class ShadowRunner:
         if telemetry is not None:
             telemetry.event(event_type, **fields)
 
+    def _proposal_state(self, record: DecisionRecord) -> str:
+        """Where a proposal ended up: accepted, rejected, waiting, or expired."""
+        if record.trade_proposal is None:
+            return "none"
+        if record.trade_proposal.abstain:
+            return "abstained"
+        reasons = set(record.policy_decision.reasons)
+        if reasons & PROPOSAL_EXPIRY_REASONS:
+            return "expired"
+        if record.policy_decision.action in {PolicyAction.ENTER_LONG, PolicyAction.ENTER_SHORT}:
+            return "accepted" if record.risk_decision.status == RiskStatus.APPROVED else "risk_rejected"
+        if any(reason.startswith("conditional_entry_triggered") for reason in reasons):
+            return "triggered"
+        if self._pending_proposal is not None:
+            return "waiting"
+        return "rejected"
+
     def _publish(self, environment, record, *, phase: str) -> None:
         """Hand one poll's state to telemetry (append-only metrics/events)."""
         telemetry = self.telemetry
@@ -796,6 +896,12 @@ class ShadowRunner:
                 "policy_action": record.policy_decision.action.value,
                 "risk_status": record.risk_decision.status.value,
                 "pending_order": self._pending_intent.action.value if self._pending_intent else "NONE",
+                # Exposed so a report can separate "no proposal" from "a proposal
+                # that was proposed and rejected", which policy reasons alone
+                # cannot distinguish.
+                "proposal_action": record.trade_proposal.action if record.trade_proposal else "NONE",
+                "proposal_state": self._proposal_state(record),
+                "pending_conditional": self._pending_proposal.proposal_id if self._pending_proposal else None,
                 "pending_cancellation": record.pending_cancellation,
                 "last_cancellation": self._last_cancellation,
                 "provider_failures": len(record.provider_failures),
