@@ -319,6 +319,14 @@ def _await_websocket(adapter, seconds: float) -> bool:
     return False
 
 
+def _doctor_clock_sources(adapter) -> list[tuple[str, object]]:
+    """Adapters carrying a venue clock, primary first."""
+    sources = [("binance", getattr(adapter, "primary", None) or adapter)]
+    for index, secondary in enumerate(getattr(adapter, "secondary", ()) or ()):
+        sources.append((getattr(secondary, "venue", f"secondary{index}"), secondary))
+    return [(name, source) for name, source in sources if source is not None]
+
+
 def run_doctor(
     settings: LiveSettings,
     adapter,
@@ -372,6 +380,30 @@ def run_doctor(
 
     live = _await_websocket(adapter, feed_wait_seconds)
     add("public WebSocket connectivity", live, "websocket feed observed" if live else f"no websocket tick within {feed_wait_seconds:.0f}s")
+
+    # Clock health is reported separately from feed health on purpose: a feed
+    # rejected purely because the venue clock runs ahead is an instrumentation
+    # problem, not a broken socket, and collapsing the two hides the cause.
+    for name, source in _doctor_clock_sources(adapter):
+        health = source.clock_health() if hasattr(source, "clock_health") else None
+        if health is None:
+            add(f"venue clock ({name})", True, "synchronization disabled", mandatory=False)
+            continue
+        if health["status"] != "HEALTHY":
+            add(
+                f"venue clock ({name})", False,
+                f"{health['status']}: {health['reason']} "
+                f"(samples={health['samples']} error={health['last_error']})",
+                mandatory=False,
+            )
+        else:
+            add(
+                f"venue clock ({name})", True,
+                f"offset {health['offset_ms']:+d} ms, "
+                f"uncertainty {health['uncertainty_ms']} ms, "
+                f"samples {health['samples']}",
+                mandatory=False,
+            )
 
     if bars is not None and not bars.is_empty():
         from jev_trading.environment import build_market_environment

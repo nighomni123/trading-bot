@@ -27,6 +27,21 @@ class MarketConfig(StrictConfig):
     poll_seconds: float = Field(default=15.0, gt=0)
 
 
+class ClockConfig(StrictConfig):
+    """Bounds on the venue clock calibration.
+
+    These are fail-closed limits, not tuning. A calibration outside them is not
+    applied at all, so the feed keeps rejecting future-dated events exactly as
+    it does with no clock synchronization.
+    """
+
+    enabled: bool = True
+    refresh_seconds: float = Field(default=60.0, gt=0)
+    bootstrap_samples: int = Field(default=5, ge=1, le=20)
+    max_offset_ms: int = Field(default=2_000, gt=0)
+    max_uncertainty_ms: int = Field(default=600, gt=0)
+
+
 class ProviderConfig(StrictConfig):
     provider: Literal["disabled", "openai_compatible", "replay"] = "disabled"
     base_url: str | None = None
@@ -155,6 +170,7 @@ class LiveSettings(StrictConfig):
     execution_mode: Literal["PAPER"] = "PAPER"
     code_version: str = "live-intelligence-v1"
     market: MarketConfig = Field(default_factory=MarketConfig)
+    clock: ClockConfig = Field(default_factory=ClockConfig)
     frontier: FrontierConfig = Field(default_factory=FrontierConfig)
     jev: JevConfig = Field(default_factory=JevConfig)
     quant: QuantConfig = Field(default_factory=QuantConfig)

@@ -20,6 +20,7 @@ from jev_trading.data.venue_adapters import (
     BinanceLivePerpAdapter,
     BybitPerpAdapter,
     CompositeMarketDataAdapter,
+    build_venue_clock,
 )
 from jev_trading.replay import ReplayEngine
 from jev_trading.research import ResearchMemory
@@ -30,8 +31,15 @@ def _build_live_components(settings, arm: str):
     frontier_client = FrontierClientFactory.create(settings.frontier.provider, replay_allow_trade=True)
     jev_prompt = load_prompt(Path(__file__).parent / settings.jev.prompt_file)
     jev_client = JevClientFactory.create(settings.jev.provider, prompt=jev_prompt)
-    primary = BinanceLivePerpAdapter(source_role=settings.market.primary_source_role)
-    secondary = (BybitPerpAdapter(),) if settings.market.secondary_source == "bybit" else ()
+    primary = BinanceLivePerpAdapter(
+        source_role=settings.market.primary_source_role,
+        clock=build_venue_clock("binance", settings.clock),
+    )
+    secondary = (
+        (BybitPerpAdapter(clock=build_venue_clock("bybit", settings.clock)),)
+        if settings.market.secondary_source == "bybit"
+        else ()
+    )
     adapter = CompositeMarketDataAdapter(primary, secondary)
     del arm  # arms are selected by the runner, not by transport construction
     return adapter, frontier_client, jev_client

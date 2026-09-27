@@ -16,6 +16,7 @@ import polars as pl
 import requests
 from websockets.sync.client import connect
 
+from jev_trading.data.clock import VenueClock
 from jev_trading.data.fetch import (
     DAY_MS,
     MINUTE_MS,
@@ -33,13 +34,55 @@ from jev_trading.live_intelligence.schemas import (
     SourceHealth,
 )
 
-BINANCE_WS = (
-    "wss://fstream.binance.com/market/stream?streams="
-    "btcusdt@aggTrade/btcusdt@ticker/btcusdt@markPrice@1s/btcusdt@forceOrder"
-)
-BINANCE_BOOK_WS = (
-    "wss://fstream.binance.com/public/stream?streams=btcusdt@depth5@100ms"
-)
+BINANCE_WS = "wss://fstream.binance.com/market/stream?streams="
+BINANCE_BOOK_WS = "wss://fstream.binance.com/public/stream?streams="
+BINANCE_SERVER_TIME_URL = "https://fapi.binance.com/fapi/v1/time"
+BYBIT_SERVER_TIME_URL = "https://api.bybit.com/v5/market/time"
+
+
+def _binance_symbol(symbol: str) -> str:
+    # Accept "BTCUSDT" or "BTCUSDT_PERP" alike: silently subscribing to the
+    # wrong symbol is exactly the failure this builder exists to prevent.
+    return symbol.removesuffix("_PERP").lower()
+
+
+def binance_ws(symbol: str) -> str:
+    stream = _binance_symbol(symbol)
+    return (
+        f"{BINANCE_WS}{stream}@aggTrade/{stream}@ticker/"
+        f"{stream}@markPrice@1s/{stream}@forceOrder"
+    )
+
+
+def binance_book_ws(symbol: str) -> str:
+    return f"{BINANCE_BOOK_WS}{_binance_symbol(symbol)}@depth5@100ms"
+
+
+def _bybit_server_ms(payload: dict[str, Any]) -> int:
+    # Bybit v5 reports nanoseconds. The millisecond `time` field is a second
+    # coarse and would quantise the estimate into uselessness.
+    return int(payload["result"]["timeNano"]) // 1_000_000
+
+
+def build_venue_clock(venue: str, config) -> "VenueClock | None":
+    """Construct a clock for a venue, or None when synchronization is off."""
+    if config is None or not getattr(config, "enabled", False):
+        return None
+    if venue == "bybit":
+        extract = _bybit_server_ms
+        url = BYBIT_SERVER_TIME_URL
+    else:
+        extract = lambda payload: int(payload["serverTime"])
+        url = BINANCE_SERVER_TIME_URL
+    return VenueClock(
+        venue, url, extract,
+        max_offset_ms=config.max_offset_ms,
+        max_uncertainty_ms=config.max_uncertainty_ms,
+        refresh_seconds=config.refresh_seconds,
+        bootstrap_samples=config.bootstrap_samples,
+    )
+
+
 BYBIT_WS = "wss://stream.bybit.com/v5/public/linear"
 BYBIT_REST = "https://api.bybit.com"
 MINUTE = 60_000
@@ -192,6 +235,11 @@ class BinanceLiveState:
     symbol: str = "BTCUSDT"
     generation: int = 0
     event_ms: int | None = None
+    # The exchange stamps events with its own wall clock. `raw_event_ms` keeps
+    # the uncorrected value for provenance; every timestamp below is corrected
+    # once, on ingest, so downstream causal guards all see comparable time.
+    raw_event_ms: int | None = None
+    clock: "VenueClock | None" = None
     last: float | None = None
     bid: float | None = None
     ask: float | None = None
@@ -207,6 +255,9 @@ class BinanceLiveState:
     funding_rate: float | None = None
     open_interest: float | None = None
     trade_event_ms: int | None = None
+    # Advanced by both ticker and aggTrade: `last` is published from either, so
+    # the price group needs its own event time rather than trades alone.
+    price_event_ms: int | None = None
     trade_active: bool = False
     liquidation_active: bool = False
     last_trade_id: int | None = None
@@ -218,15 +269,33 @@ class BinanceLiveState:
             return
         self.generation = value
         self.event_ms = None
+        self.raw_event_ms = None
         self.last = self.bid = self.ask = None
         self.bid_depth = self.ask_depth = self.bid_notional = self.ask_notional = None
         self.book_update_id = self.book_event_ms = None
         self.mark = self.index = self.funding_rate = None
         self.mark_event_ms = self.trade_event_ms = None
+        self.price_event_ms = None
         self.open_interest = self.last_trade_id = None
         self.trade_active = self.liquidation_active = False
         self.trades.clear()
         self.liquidations.clear()
+
+    def _correct(self, raw_ms: int) -> int:
+        """Apply the venue clock calibration to one raw event time.
+
+        Below the state machine on purpose: every consumer of these timestamps
+        then inherits a locally-comparable time without deciding anything about
+        clock trust.
+        """
+        if not raw_ms:
+            return raw_ms
+        if self.clock is None:
+            return raw_ms
+        corrected = self.clock.correct(raw_ms)
+        if corrected != raw_ms:
+            self.raw_event_ms = raw_ms
+        return corrected
 
     def apply(
         self, payload: dict[str, Any], generation: int, *, book: bool = False
@@ -237,13 +306,14 @@ class BinanceLiveState:
         if not isinstance(event, dict) or event.get("s") != self.symbol:
             return
         kind = event.get("e")
-        timestamp = int(event.get("E", event.get("T", 0)))
+        timestamp = self._correct(int(event.get("E", event.get("T", 0))))
         if kind == "aggTrade":
             self.last = _positive(event.get("p")) or self.last
             self.trade_event_ms = timestamp or self.trade_event_ms
+            self.price_event_ms = timestamp or self.price_event_ms
             _trade(
                 self.trades,
-                int(event.get("T", timestamp)),
+                self._correct(int(event.get("T", timestamp))),
                 "sell" if event.get("m") else "buy",
                 _nonnegative(event.get("q")) or 0.0,
             )
@@ -268,6 +338,7 @@ class BinanceLiveState:
         elif kind in {"ticker", "24hrTicker"}:
             self.last = _positive(event.get("c")) or self.last
             self.open_interest = _nonnegative(event.get("o"))
+            self.price_event_ms = timestamp or self.price_event_ms
         elif kind in {"markPrice", "markPriceUpdate"}:
             self.mark, self.index = _positive(event.get("p")), _positive(event.get("i"))
             self.funding_rate = _number(event.get("r"))
@@ -282,22 +353,56 @@ class BinanceLiveState:
         if timestamp:
             self.event_ms = max(self.event_ms or timestamp, timestamp)
 
+    def _tolerance_ms(self) -> int:
+        """How far ahead of local time a corrected event may legitimately sit.
+
+        Derived from the live calibration rather than hardcoded, so book, mark
+        and the aggregate snapshot agree on what "skewed" means. With no
+        trustworthy calibration this collapses to zero and the guard is exactly
+        as strict as it was before any clock synchronization existed.
+        """
+        if self.clock is None or not self.clock.healthy:
+            return 0
+        return int(self.clock.offset_ms or 0) + int(self.clock.uncertainty_ms or 0) + 200
+
+    def _observation_watermark_ms(self, now_ms: int, max_age_ms: int) -> int | None:
+        """The oldest contributing field group, i.e. the honest as-of time.
+
+        A composite snapshot mixes independently-timed sockets, so claiming the
+        newest component's time overstates how current the older ones are. The
+        rare liquidation stream is excluded: it would otherwise pin a healthy
+        feed permanently stale.
+        """
+        tolerance = self._tolerance_ms()
+        groups = []
+        for stamp in (self.price_event_ms, self.book_event_ms, self.mark_event_ms):
+            if stamp is None:
+                continue
+            age = now_ms - stamp
+            if -tolerance <= age <= max_age_ms:
+                groups.append(stamp)
+        return min(groups) if groups else None
+
     def fields(self, now: datetime, max_age_ms: int = 15_000) -> dict[str, Any] | None:
         if not self.generation or self.event_ms is None:
             return None
-        age = int(now.timestamp() * 1000) - self.event_ms
-        if age < 0 or age > max_age_ms:
+        now_ms = int(now.timestamp() * 1000)
+        age = now_ms - self.event_ms
+        # The feed is alive if *something* arrived recently; `event_ms` is the
+        # newest arrival across streams. How current the composite is, and
+        # whether any single group stalled, is the watermark's job below.
+        if age < -self._tolerance_ms() or age > max_age_ms:
             return None
         _prune(self.trades, self.event_ms)
         _prune(self.liquidations, self.event_ms)
         buy, sell = _bucket_values(self.trades, self.event_ms)
         long_liq, short_liq = _bucket_values(self.liquidations, self.event_ms)
-        book_age = (
-            int(now.timestamp() * 1000) - self.book_event_ms
-            if self.book_event_ms is not None
-            else None
-        )
-        book_fresh = book_age is not None and -1_000 <= book_age <= max_age_ms
+        tolerance = self._tolerance_ms()
+        watermark = self._observation_watermark_ms(now_ms, max_age_ms)
+        if watermark is None:
+            return None
+        book_age = now_ms - self.book_event_ms if self.book_event_ms is not None else None
+        book_fresh = book_age is not None and -tolerance <= book_age <= max_age_ms
         bid = self.bid if book_fresh else None
         ask = self.ask if book_fresh else None
         bid_depth = self.bid_depth if book_fresh else None
@@ -306,15 +411,16 @@ class BinanceLiveState:
         ask_notional = self.ask_notional if book_fresh else None
         # The market and book sockets are independent, so every field group
         # carries its own event time and is nulled when it goes stale.
-        now_ms = int(now.timestamp() * 1000)
         mark_age = now_ms - self.mark_event_ms if self.mark_event_ms is not None else None
-        mark_fresh = mark_age is not None and -1_000 <= mark_age <= max_age_ms
+        mark_fresh = mark_age is not None and -tolerance <= mark_age <= max_age_ms
+        price_age = now_ms - self.price_event_ms if self.price_event_ms is not None else None
+        price_fresh = price_age is not None and -tolerance <= price_age <= max_age_ms
         mark = self.mark if mark_fresh else None
         index = self.index if mark_fresh else None
         funding_rate = self.funding_rate if mark_fresh else None
         return {
-            "event_timestamp": _utc(self.event_ms),
-            "last": self.last,
+            "event_timestamp": _utc(watermark),
+            "last": self.last if price_fresh else None,
             "bid": bid,
             "ask": ask,
             "bid_depth": bid_depth,
@@ -334,6 +440,15 @@ class BinanceLiveState:
                 "depth_levels": 5 if book_fresh else 0,
                 "book_last_update_id": self.book_update_id if book_fresh else None,
                 "last_event_timestamp": self.event_ms,
+                "observation_watermark_timestamp": watermark,
+                "raw_event_timestamp": self.raw_event_ms,
+                "clock_offset_ms": None if self.clock is None else self.clock.offset_ms,
+                "clock_offset_uncertainty_ms": (
+                    None if self.clock is None else self.clock.uncertainty_ms
+                ),
+                "clock_status": "DISABLED" if self.clock is None else self.clock.status,
+                "price_event_timestamp": self.price_event_ms if price_fresh else None,
+                "price_event_age_ms": price_age if price_fresh else None,
                 "book_event_timestamp": self.book_event_ms if book_fresh else None,
                 "book_event_age_ms": book_age if book_fresh else None,
                 "mark_event_timestamp": self.mark_event_ms if mark_fresh else None,
@@ -353,6 +468,10 @@ class BybitLiveState:
     symbol: str = "BTCUSDT"
     generation: int = 0
     event_ms: int | None = None
+    # Bybit's clock runs further ahead of this machine than Binance's (measured
+    # ~+296 ms vs ~+176 ms), so it needs the same correction, not a shared one.
+    raw_event_ms: int | None = None
+    clock: "VenueClock | None" = None
     last: float | None = None
     mark: float | None = None
     index: float | None = None
@@ -378,6 +497,7 @@ class BybitLiveState:
             return
         self.generation = value
         self.event_ms = None
+        self.raw_event_ms = None
         self.last = self.mark = self.index = self.funding_rate = None
         self.open_interest = self.ticker_bid = self.ticker_ask = None
         self.ticker_bid_size = self.ticker_ask_size = None
@@ -387,6 +507,27 @@ class BybitLiveState:
         self.trades.clear()
         self.liquidations.clear()
         self.trade_active = self.liquidation_active = self.book_active = False
+
+    def _correct(self, raw_ms: int) -> int:
+        """Apply this venue's clock calibration to one raw event time."""
+        if not raw_ms:
+            return raw_ms
+        if self.clock is None:
+            return raw_ms
+        corrected = self.clock.correct(raw_ms)
+        if corrected != raw_ms:
+            self.raw_event_ms = raw_ms
+        return corrected
+
+    def _tolerance_ms(self) -> int:
+        """How far ahead of local time a corrected event may legitimately sit.
+
+        Zero without a trustworthy calibration, which keeps the guard exactly
+        as strict as it was before clock synchronization existed.
+        """
+        if self.clock is None or not self.clock.healthy:
+            return 0
+        return int(self.clock.offset_ms or 0) + int(self.clock.uncertainty_ms or 0) + 200
 
     @staticmethod
     def _levels(book: dict[float, float], rows: list[Any]) -> None:
@@ -430,7 +571,7 @@ class BybitLiveState:
             return
         topic = payload.get("topic", "")
         data = payload.get("data")
-        timestamp = int(payload.get("ts", payload.get("cts", 0)))
+        timestamp = self._correct(int(payload.get("ts", payload.get("cts", 0))))
         if topic == f"tickers.{self.symbol}" and isinstance(data, dict):
             self.last = _positive(data.get("lastPrice")) or self.last
             self.mark = _positive(data.get("markPrice")) or self.mark
@@ -449,7 +590,7 @@ class BybitLiveState:
             for item in data:
                 if not isinstance(item, dict) or item.get("s") != self.symbol:
                     continue
-                at = int(item.get("T", timestamp))
+                at = self._correct(int(item.get("T", timestamp)))
                 self.last = _positive(item.get("p")) or self.last
                 _trade(
                     self.trades,
@@ -465,7 +606,7 @@ class BybitLiveState:
             for item in items:
                 if not isinstance(item, dict) or item.get("s") != self.symbol:
                     continue
-                at = int(item.get("T", timestamp))
+                at = self._correct(int(item.get("T", timestamp)))
                 side = 0 if item.get("S") == "Buy" else 1
                 values = self.liquidations.setdefault(_minute(at), [0.0, 0.0])
                 values[side] += _nonnegative(item.get("v")) or 0.0
@@ -499,8 +640,14 @@ class BybitLiveState:
     def fields(self, now: datetime, max_age_ms: int = 15_000) -> dict[str, Any] | None:
         if not self.generation or self.event_ms is None:
             return None
-        age = int(now.timestamp() * 1000) - self.event_ms
-        if age < 0 or age > max_age_ms:
+        now_ms = int(now.timestamp() * 1000)
+        age = now_ms - self.event_ms
+        # ponytail: Bybit tracks one aggregate `event_ms` rather than the
+        # per-group watermarks Binance uses, so this snapshot can still mix
+        # independently-timed streams. Ceiling: add book/ticker event times and
+        # an observation watermark as Binance has. Not worth it yet — Bybit is
+        # an optional secondary source and is not in any required_source_roles.
+        if age < -self._tolerance_ms() or age > max_age_ms:
             return None
         _prune(self.trades, self.event_ms)
         _prune(self.liquidations, self.event_ms)
@@ -532,6 +679,13 @@ class BybitLiveState:
                 "depth_levels": 50 if self.book_update_id is not None else 1,
                 "book_last_update_id": self.book_update_id,
                 "book_sequence": self.book_sequence,
+                "last_event_timestamp": self.event_ms,
+                "raw_event_timestamp": self.raw_event_ms,
+                "clock_offset_ms": None if self.clock is None else self.clock.offset_ms,
+                "clock_offset_uncertainty_ms": (
+                    None if self.clock is None else self.clock.uncertainty_ms
+                ),
+                "clock_status": "DISABLED" if self.clock is None else self.clock.status,
                 "last_trade_id": self.last_trade_id,
                 "bid_depth_notional": bid_notional,
                 "ask_depth_notional": ask_notional,
@@ -697,27 +851,39 @@ def _live_health(source: str, role: str, fields: dict[str, Any], now: datetime) 
 @dataclass
 class BinanceLivePerpAdapter(BinancePerpAdapter):
     source_role: str = "primary"
+    clock: "VenueClock | None" = None
     _bars: pl.DataFrame | None = field(default=None, init=False)
     _bar_lock: Lock = field(default_factory=Lock, init=False)
     _live_seen: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        self._state = BinanceLiveState(self.instrument.removesuffix("_PERP"))
-        self._websocket = WebSocketRunner(BINANCE_WS, self._state.apply)
+        symbol = self.instrument.removesuffix("_PERP")
+        self._state = BinanceLiveState(symbol, clock=self.clock)
+        self._websocket = WebSocketRunner(binance_ws(symbol), self._state.apply)
         self._book_websocket = WebSocketRunner(
-            BINANCE_BOOK_WS,
+            binance_book_ws(symbol),
             lambda payload, generation: self._state.apply(
                 payload, generation, book=True
             ),
         )
 
     def start(self) -> None:
+        # The clock refreshes in the background: blocking on calibration would
+        # stall startup, and until it is healthy the feed fails closed exactly
+        # as it does with no clock at all.
+        if self.clock is not None:
+            self.clock.start()
         self._websocket.start()
         self._book_websocket.start()
 
     def close(self) -> None:
+        if self.clock is not None:
+            self.clock.close()
         self._websocket.close()
         self._book_websocket.close()
+
+    def clock_health(self) -> dict[str, Any] | None:
+        return None if self.clock is None else self.clock.health()
 
     def _rest_bars(self, start: int, end: int, enrich: bool) -> pl.DataFrame:
         symbol = self.instrument.removesuffix("_PERP")
@@ -785,22 +951,32 @@ class BybitPerpAdapter:
     market_type: MarketType = MarketType.PERPETUAL
     source_role: str = "secondary"
     timeout_seconds: float = 30.0
+    clock: "VenueClock | None" = None
     _bars: pl.DataFrame | None = field(default=None, init=False)
     _bar_lock: Lock = field(default_factory=Lock, init=False)
     _live_seen: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        self._state = BybitLiveState(self.instrument.removesuffix("_PERP"))
+        self._state = BybitLiveState(
+            self.instrument.removesuffix("_PERP"), clock=self.clock
+        )
         self._websocket = WebSocketRunner(
             BYBIT_WS, self._state.apply, subscribe=_bybit_subscribe,
             heartbeat=_bybit_ping,
         )
 
     def start(self) -> None:
+        if self.clock is not None:
+            self.clock.start()
         self._websocket.start()
 
     def close(self) -> None:
+        if self.clock is not None:
+            self.clock.close()
         self._websocket.close()
+
+    def clock_health(self) -> dict[str, Any] | None:
+        return None if self.clock is None else self.clock.health()
 
     def fetch_closed_bars(self, *, limit: int = 3000) -> pl.DataFrame:
         if limit < 1:
