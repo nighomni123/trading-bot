@@ -1,0 +1,1566 @@
+Response 1:
+Stop the current directional-alpha search. Your record supports "no demonstrated tradable edge in this research direction," not "markets contain no edge." Preserve the system, but stop treating additional modeling on the same BTC time series as the default next investment.
+Two qualifications matter. EXP-12's quoted significance is not credible if calculated from overlapping minute observations. And its positive annual "optimal linear gross" figures are not necessarily returns from one implementable, fixed-sign strategy.
+I read the repository overview, not the implementation or experiment artifacts. It describes the boundaries you reported; that is not an independent verification of the empirical results. I take your supplied empirical record as given. Repository
+1. What is binding?
+My ranking is (e) opportunity specification, (b) costs, (d) dependence-aware research design, (c) targets, (a) model implementation. If forced to choose only among a-d, costs come first.
+First: the opportunity is too small for the trading mechanism
+You are asking a weak directional forecast to pay a nearly fixed transaction toll.
+For the best short-horizon result:
+$$ \text{net expectation}=2.00-11.01=-9.01\text{ bps}. $$
+Break-even requires either:
+$$ \frac{11.01}{2.00}=5.505 $$
+times the gross signal, or an 81.8% reduction in costs, or a combination.
+That is an opportunity-selection problem before it is a LightGBM problem. An institution would generally look for a different source of payment, not assume a better estimator will manufacture 9 additional bps.
+Second: fees dominate; ordinary execution improvements cannot rescue this
+Even removing two sides of median measured slippage saves only approximately:
+$$ 2(0.0060)=0.0120\text{ bps}. $$
+That is about 0.13% of the 9.01-bp deficit. Whether spread and slippage overlap in your accounting should be resolved before summing them, but it does not change the conclusion.
+The earlier cost correction was important: 15.00 to 11.01 bps is a 26.6% reduction. It still left the best short-horizon signal deeply negative.
+There is also an accounting reconciliation flag:
+$$ C_{TM}=\frac{C_{TT}+C_{MM}}{2}=10.01\text{ bps} $$
+under identical, additive per-leg assumptions. Your reported taker/maker cost is 15.01 bps. Different assumptions can explain that; the labels alone cannot. Reconcile the component schedule without changing the accepted 11.01-bp hurdle or reopening past promotion decisions.
+Forty live samples establish neither historical execution conditions nor tail costs. Here that uncertainty is secondary: setting ordinary slippage to zero still does not solve the problem.
+Third: overlapping data can manufacture apparent certainty
+EXP-12's arithmetic is consistent with a naive correlation statistic:
+$$ 0.0431\sqrt{2{,}629{,}440}\approx69.9. $$
+But adjacent 24-hour returns sampled one minute apart share almost their entire windows.
+There are only:
+$$ 2{,}629{,}440/1{,}440=1{,}826 $$
+non-overlapping daily forward windows. Using that count merely as an illustration gives:
+$$ 0.0431\sqrt{1{,}826}\approx1.84. $$
+That is not a corrected test. Dependence of the relevant covariance process, shared predictor/outcome intervals, heteroskedasticity, and sampling-grid choice all matter. It demonstrates why "68 sigma" cannot be accepted from the row count.
+Similarly, for 2023:
+$$ 0.0553\sqrt{365}\approx1.06, $$
+not 40. Your research framework may already handle this elsewhere. If so, quote that dependence-adjusted result instead. Do not mistake this objection for permission to reverse the rejection.
+Fourth and fifth: targets and models
+Target choice matters, particularly if you optimize classification accuracy rather than executable net return. But you have already tested extensive barrier geometries and longer horizons. "Try another label" is not an evidence-backed rescue.
+The actual annual AUC improvements are:
+$$ 0.0014,\ 0.0190,\ 0.0146,\ 0.0171. $$
+The first is materially smaller than the stated "+0.01 to +0.02." Also, matching average predicted and realized event frequencies establishes calibration-in-the-large, not full conditional calibration.
+Model quality is insufficient, but model implementation is not the leading suspected defect. Consistent small predictive improvements can coexist with zero economic opportunity after fees.
+2. All the ways to close the gap
+The complete accounting identity is:
+$$ \text{net value}
+\text{captured price edge} +\text{other cash flows} -\text{execution costs} -\text{financing and hedge costs}. $$
+Every legitimate rescue changes at least one term, or changes how much turnover is needed to earn it.
+Shrink the denominator honestly
+	•	Actually accessible lower fees: a documented fee schedule for the relevant venue, account type, and attainable volume. Do not assume institutional tiers or manufacture turnover to qualify.
+	•	Lower turnover per unit of signal: retain or net positions instead of closing and reopening economically redundant exposures. This changes the strategy and its risks; gross returns must be recomputed.
+	•	Passive execution: potentially lower fees, but only after queue position, missed fills, adverse selection, cancellation latency, and fallback execution are represented. Your maker/maker profile is correctly inadmissible.
+	•	Better execution or a different venue: legitimate if measured with public, contemporaneous executable liquidity and all venue-specific risks. The current spread/slippage numbers leave almost no room for improvement at this notional.
+Even accepting the inadmissible 9.01-bp maker/maker estimate would leave:
+$$ 2.00-9.01=-7.01\text{ bps}. $$
+It is not a rescue.
+Increase the numerator honestly
+	•	Find a materially stronger opportunity: different information, instrument, or economic mechanism. This is new research, not a model upgrade.
+	•	Accumulate more payoff before paying another transaction toll: a longer economically justified holding period. Your existing longer-horizon nulls count against this within the current directional family.
+	•	Trade only a prospectively specified, higher-value subset: legitimate with fresh data and adequate effective samples, not by adjusting thresholds on these results.
+	•	Earn additional cash flows: funding, contractual convergence where applicable, or compensation for providing liquidity. Include the liabilities that generate the payment.
+There is no free scale solution: leverage multiplies the expected loss, larger notional does not improve per-notional fees absent a genuine schedule change, and diversification does not turn negative expected trades positive.
+What would be cheating?
+Your numerator/denominator wording needs one correction: shrinking the numerator makes gross-edge/cost coverage worse. The dishonest operations are inflating gross edge, understating cost, or redefining the exposure basis.
+Examples include:
+	•	Oracle selection: choosing reversion versus momentum after seeing each year's sign.
+	•	Unrealizable execution: assumed maker fills, midpoint fills, or next-open fills without executable-side accounting.
+	•	Incomplete economics: counting funding receipts while omitting the spot hedge, basis changes, financing, or collateral.
+	•	Selective accounting: dropping timeouts, delistings, nonfills, losing eligibility periods, or unsuccessful variants.
+	•	Denominator substitution: quoting returns on one leg while charging costs against another, or ignoring collateral to inflate return on capital.
+A new version and fresh evaluation period are necessary for legitimate changes, but they do not make an economically incomplete model legitimate.
+3. Is predicting EXP-12's sign regime more tractable?
+Not on the evidence supplied. There is one observed positive-sign year, and it was identified after examining the outcomes.
+The correlation magnitude is 0.0431, not "enormous." Its linear variance-explanation analogue is:
+$$ r^2=0.001858\approx0.186%. $$
+A small correlation can be economically useful, but large nominal significance and large economic opportunity are different claims.
+Three further problems matter:
+	•	Annual optimal sign is an oracle. If 2023's +13.11 bps comes from choosing a positive slope within 2023, it is not positive performance for a fixed reversion strategy. Under a symmetric sign reversal, it would become approximately -13.11 bps gross.
+	•	The pooled cushion is thin. Even accepting 13.33 bps as attainable gross, the residual is only 2.32 bps before any omitted costs.
+	•	Regime errors are expensive. In a deliberately simplified equal-magnitude, binary-sign setting:
+$$ 13.33(2p-1)>11.01 \quad\Longrightarrow\quad p>91.3%. $$
+That is not a forecast of required real-world accuracy. Abstention and unequal magnitudes change it. It shows why "predict the sign a little better than chance" is insufficient.
+A regime model can be easier than return prediction when it identifies a persistent, repeatedly observed economic mechanism. You have not shown repeated observations of the reversed mechanism. "What distinguishes 2023?" is a useful explanatory question, but an unusually dangerous model-selection question.
+A falsifiable sign-regime experiment, if you insist
+I would not prioritize funding this experiment. This is the minimum defensible form, not a recommendation to run a regime-feature search.
+	•	Hypothesis: lagged funding pressure changes the sign of the relationship between trailing and subsequent 24-hour BTC returns.
+	•	Target/label: realized next-24-hour return; evaluate the resulting executable net P&L, not an ex-post annual regime label.
+	•	Universe: BTCUSDT only.
+	•	Horizon: fixed daily decision time, next-bar-open execution, 24-hour holding; no overlapping positions.
+	•	Model: one frozen interaction, trailing 24-hour return multiplied by trailing 30-day realized funding. Fit coefficients once on the already examined archive; freeze normalization, position rule, and limits. The archive is development data, not confirmation.
+	•	Sample size: at least 1,095 fresh daily observations, plus a dependence-adjusted power requirement. For illustration, detecting a 5-bp paired improvement with 100-bp standard deviation requires roughly 4,015 independent observations under the conservative test below. Three years is a floor, not a guarantee.
+	•	Exact statistics: mean net return and mean paired net-return difference versus a frozen, fixed-sign reversion comparator. Use a studentized moving-block bootstrap with 30-day blocks, 10,000 resamples, and a registered seed.
+	•	Promotion threshold: both one-sided 99% lower confidence bounds above zero; mean net return at least 5 bps per completed trade; all existing applicable gates unchanged, including stability and BH-FDR.
+	•	Falsification: at the registered endpoint, a one-sided 99% upper bound below the 5-bp net hurdle falsifies the economic claim; an upper bound on incremental performance at or below zero falsifies the claimed adaptation benefit. Anything between is inconclusive and not promoted.
+The effective sample-size approximation for 80% power at one-sided 1% significance is:
+$$ N_{\mathrm{eff}}\gtrsim \left(\frac{(2.326+0.842)\sigma}{\delta}\right)^2. $$
+This does not solve the deeper identification problem: many daily observations within one regime are not many independent regime transitions. If there is no recurrence of a reversed regime, you cannot claim to have validated sign-regime recognition. That makes this a poor expected-value use of research time.
+4. Cross-sectional, market-neutral research
+A plausible second direction, not a statistical free lunch.
+It changes the question from "will BTC rise?" to "which instruments will outperform an appropriately hedged basket?" That may remove some common directional variation and expose economically different effects.
+For an equal-weight average of equally variable observations with common pairwise correlation, the elementary approximation is:
+$$ N_{\mathrm{eff}}=\frac{N}{1+(N-1)\rho}. $$
+For 50 instruments:
+Residual dependence
+Effective instruments
+Interpretation
+0.05
+14.5
+Meaningful diversification
+0.20
+4.6
+Modest independent information
+0.50
+2.0
+Mostly duplicated exposure
+These are illustrations, not estimates for your prospective universe. Cross-sectional rank statistics require their own dependence analysis. You cannot multiply 50 instruments by 1,826 dates and call the result independent samples.
+Market neutrality also changes rather than eliminates regime dependence. You exchange BTC beta for exposure to liquidity, funding, crowding, collateral, listings, and unstable hedge ratios. Dollar neutrality is not beta neutrality.
+Costs must be normalized consistently. A long-short portfolio at 100% total gross exposure, split equally between the sides, does not mechanically double an 11.01-bp round-trip charge. At 100% long plus 100% short, however, it incurs approximately 22.02 bps per equity-equivalent unit of notional, assuming identical instruments and costs.
+What breaks
+	•	Universe integrity: historical eligibility, delistings, launches, contract migrations, and survivorship become central.
+	•	Execution semantics: asynchronous quotes, partial baskets, legging exposure, hedge completion, and symbol-specific liquidity.
+	•	Risk accounting: portfolio beta, correlated liquidation exposure, collateral allocation, concentration, and funding obligations.
+	•	Statistical accounting: clustering by both time and instrument, larger hypothesis families, and correlated failures.
+Your source-aware fabric, deterministic controls, and ledger remain valuable. The single-position execution and risk assumptions do not transfer unchanged.
+One bounded cross-sectional experiment
+	•	Hypothesis: high lagged funding instruments underperform low-funding instruments sufficiently, including funding cash flows, to support a net-profitable beta-neutral spread.
+	•	Target/label: next-24-hour total return, price plus actual funding, converted into complete portfolio net P&L.
+	•	Universe: point-in-time top 20 USDT-M perpetuals by lagged 30-day median dollar volume; minimum 90-day listing age; include subsequent delistings and actual settlement outcomes. Do not silently replace missing instruments.
+	•	Horizon: daily rebalance, with costs charged only on actual position changes.
+	•	Rule: long the five lowest and short the five highest trailing-seven-day cumulative funding instruments. Freeze volatility weighting, lagged beta estimation, hedge implementation, caps, and missing-data behavior before evaluation.
+	•	Sample size: at least 1,095 fresh daily portfolio observations, plus the power requirement above using a separately reserved pilot estimate of long-run variance. Twenty symbols do not reduce this automatically.
+	•	Exact statistic: mean daily net return per unit of total gross exposure; 30-day moving-block bootstrap, 10,000 resamples.
+	•	Promotion threshold: one-sided 99% lower bound above zero, mean at least 1 bp/day per unit gross exposure, and every existing applicable gate unchanged.
+	•	Falsification: one-sided 99% upper bound below 1 bp/day at the fixed endpoint; otherwise insufficient evidence means no promotion.
+The 1-bp/day hurdle is a proposed new economic requirement, not an inferred result or a substitute for any stricter existing gate. If historical point-in-time data cannot support this faithfully, do not run a survivor-only approximation.
+5. Funding and basis: what was left untested?
+You left a different payoff family untested. You have not established that you left a reliable profit on the table.
+For a matched long-spot/short-perpetual position, using basis defined as perpetual minus spot price:
+$$ \text{P&L} \approx \text{funding received} -\text{change in basis} -\text{all-leg trading costs} -\text{financing and operational costs}. $$
+The funding payment is a cash flow. Future funding, exit basis, and net profit are not known cash flows. Unlike a dated future held to settlement, a perpetual has no fixed maturity guaranteeing convergence on your exit date.
+Published research supports the existence of substantial but volatile crypto carry and emphasizes the arbitrage constraints behind it. That is evidence for investigating the mechanism, not a base rate for profitable implementation in your system. BIS
+An illustrative calculation: at 1 bp every eight hours, receipts are 3 bps/day. An 11.01-bp perpetual round trip alone takes 3.67 days to recover. Spot costs, capital costs, and basis changes come on top. The exchange's formula documentation distinguishes its interest component from the final funding rate; neither should be treated as a promised yield. Binance
+What you need to size it
+	•	Complete cash flows: actual funding settlements, matched spot/perpetual prices, every leg's executable costs, and quantity conventions.
+	•	Capital treatment: spot funding, separate margin reserves, maintenance requirements, and no assumed portfolio-margin offsets.
+	•	Stress mechanics: adverse basis widening, mark-price liquidation, funding reversals, hedge failure, and collateral impairment.
+	•	Feasibility: public fee schedules and market data, with inaccessible account-specific benefits treated as unavailable.
+Size to margin-survival and liquidity constraints, not to a low historical volatility estimate for the hedged return. Paper testing cannot validate custody or withdrawal reliability.
+The honest base rate is unknown from your record. A funding-sign frequency would not answer it. The relevant base rate is the fraction and average outcome of all eligible, fully costed holding windows, including adverse periods.
+Highest-priority new experiment: matched carry
+	•	Hypothesis: a fully financed, long-spot/short-perpetual BTC position earns economically material positive net carry after complete costs.
+	•	Target/label: seven-day realized P&L divided by total committed capital: spot principal plus a separately specified perpetual margin reserve. Deduct a frozen capital charge of 5% annualized on that total.
+	•	Universe: BTC spot and BTCUSDT perpetual on the same venue, paper only.
+	•	Horizon: consecutive non-overlapping seven-day holding windows, entering regardless of funding sign. This deliberately tests structural carry before introducing timing.
+	•	Sample size: at least 200 fresh weekly windows, and more if the power calculation requires it. Use the archive only for accounting development and a separately defined variance pilot. Two hundred weeks is almost four years, not a quick confirmation.
+	•	Exact statistic: mean net seven-day return on committed capital; studentized moving-block bootstrap with four-week blocks and 10,000 resamples.
+	•	Promotion threshold: one-sided 99% lower bound above zero; mean at least 5 bps/week after the capital charge; existing multi-year, perturbation, adequacy, and multiplicity gates unchanged; no modeled liquidation under the frozen stress policy.
+	•	Falsification: one-sided 99% upper bound below 5 bps/week at the fixed endpoint, or inability to satisfy the declared capital and execution constraints. An interval spanning the hurdle is inconclusive, not success.
+Those economic and inference thresholds are proposed registration values, not conclusions drawn from your data. Freeze them before collecting the evaluation sample.
+6. Is AUC 0.65 necessary, and can you reach it?
+There is no universal required AUC. AUC measures ranking over all positive-negative pairs. Trading depends on conditional payoffs, tail selection, turnover, sizing rules, and execution.
+For a simplified symmetric binary payoff of ±B bps:
+$$ E[\text{net}]=(2p-1)B-C, \qquad p_{\mathrm{BE}}=\frac{1+C/B}{2}. $$
+At 11.01-bp cost:
+	•	20-bp payoff magnitude: break-even accuracy is 77.5%.
+	•	50-bp payoff magnitude: break-even accuracy is 61.0%.
+	•	100-bp payoff magnitude: break-even accuracy is 55.5%.
+Those are accuracy figures under a toy payoff model, not AUC thresholds. Timeouts and asymmetric barriers require their actual conditional payout distributions.
+Unless your 0.65 requirement comes from a frozen empirical mapping between scores and realized net payoffs, discard it as a planning target.
+My subjective priors for the first successful rescue route within the present single-asset directional mandate, under another comparable research budget, are:
+Route
+Prior
+Assessment
+Better modeling on existing information
+5%
+Small ranking gains are more plausible than a 5.5x economic gain
+Genuinely new causal data
+10%
+Possible, but historical depth and executable latency are costly
+Better target or position formulation
+10%
+Plausible economic improvement, weakened by your extensive nulls
+The remaining 75% is no successful rescue within that budget. These are mutually exclusive subjective allocations for planning, not measured frequencies and not probabilities that markets are efficient.
+I would not fund an effort specifically to achieve 0.65 AUC. I would fund a clearly specified payoff mechanism whose break-even economics do not require such a leap.
+7. Are the nulls success or failure, and what should change next?
+The nulls are a research success. Repeatedly buying the same null is a management failure.
+Your program has prevented deployment, retracted an invalid profitability claim, and refused an economically inadequate execution assumption. Those are useful outputs. They do not justify indefinite continuation.
+A healthy program now has:
+	•	A closed family: no more existing-data BTC directional feature, barrier, or regime searches.
+	•	A preserved benchmark: the current system frozen as a negative control and public-data paper observatory.
+	•	A research budget boundary: one mechanism-led new experiment at a time, with infrastructure feasibility checked before long evaluation commitments.
+	•	An independent accounting layer: every price move, funding payment, hedge, cost, and capital requirement reconciles to the ledger.
+	•	A maintained distinction: failed, falsified, and underpowered are different outcomes; none means promoted.
+My ranking by expected value per unit of effort is:
+	1	Freeze the present alpha search and reconcile the headline inference/accounting claims. Cheap, prevents false discovery, and does not reopen old candidates.
+	2	Build the minimal matched spot-perpetual carry ledger. This is the highest-EV new research change: a different economic mechanism, the same underlying asset, and relatively limited universe expansion.
+	3	Preserve the existing paper system as a benchmark and evidence collector. Useful engineering output without an alpha claim.
+	4	Undertake point-in-time cross-sectional research only if data feasibility is established. Higher potential breadth, substantially higher infrastructure burden.
+	5	Do not prioritize EXP-12 regime prediction. One reversed year, thin apparent cost coverage, and expensive prospective identification.
+	6	Stop further model/LLM complexity as an alpha investment. A bounded ablation can finish its existing mandate; do not broaden it.
+The highest-EV next action is not a carry trading rule. It is a complete carry accounting capability that can determine whether that family deserves research funding at all.
+If the expanded mandate is unacceptable, stop alpha research and use the system for causal replay, data-quality monitoring, reproducible null benchmarks, execution-model testing, and LLM decision-audit research.
+8. Strongest arguments against these recommendations
+Against stopping the current direction
+A small, consistent predictive effect can precede an economically useful tail effect. Your infrastructure may now make incremental experiments cheap, and a long observation period might reveal previously undersampled opportunities.
+The counterweight is your own record: no trades clearing the cost hurdle across the three-class grid, weak microstructure economics, and long-horizon OOS collapse. Continuing is defensible as a fixed-cost frozen observatory, not as an open-ended search through the same archive.
+Against the inference and accounting critique
+Your formal gates may already use proper dependence corrections, with "68 sigma" merely an exploratory annotation. Likewise, the mixed execution profile may intentionally include different conservative assumptions.
+If so, no result necessarily changes. The recommendation becomes narrower: stop using misleading headline significance and make the cost profiles comparable. It is not a demand to re-derive the entire program.
+Against prioritizing carry
+Carry may be compensation for precisely the risks your paper system cannot validate: exchange failure, collateral impairment, liquidation under stress, and inaccessible capital arrangements. Financing a spot leg may consume enough capital to make the return unattractive.
+That is the strongest objection. Carry accounting is worthwhile because it exposes those costs, not because it guarantees a better strategy.
+Against cross-sectional expansion
+It can become a sophisticated way to multiply mistakes. More instruments increase missing-data problems, parameter choices, correlated tests, and survivor selection. Apparent market neutrality can disappear when beta and liquidity change together.
+If point-in-time universe reconstruction is unavailable, I would not proceed. Remaining single-asset is preferable to publishing fictitious breadth.
+Against rejecting sign-regime research
+Economic relationships really can reverse, and an annual stability gate may reject a genuinely state-dependent mechanism. A causal explanation of 2023 could yield a different hypothesis rather than a disguised retry.
+That possibility is real. What is missing is independent recurrence, not intellectual plausibility. The proper price of pursuing it is a new hypothesis and fresh evidence, not rehabilitating EXP-12.
+Against my subjective priors and proposed tests
+The priors are judgment, and long tests create opportunity costs. The proposed net-return hurdles and bootstrap choices are not uniquely correct. Different variance estimates may imply an evaluation period longer than the program should fund.
+That is a reason to perform prospective power and feasibility calculations before committing. It is not a reason to declare 200 observations sufficient regardless of effect size and dependence.
+The case for doing nothing
+Doing nothing is strongest if the product is the research system rather than trading alpha. Keep it paper-only, frozen, cheap, and accumulating auditable observations. It can remain useful without ever placing a qualifying trade.
+If the objective is discovering a deployable strategy, however, continuing the same search is not neutral. It spends time on a family whose best demonstrated short-horizon economics are approximately -9 bps per round trip. On this record, I would stop that search.
+
+
+Response2:
+Working through this in order — one piece of arithmetic up front, because it changes how several of your later questions should be read.
+1. Binding constraint
+Take EXP-12's headline: r = −0.0431, n = 2,629,440, "~68σ." Run the standard correlation-significance formula, t = r·√((n−2)/(1−r²)), with those exact numbers: t ≈ −70. That reproduces your figure to within rounding — which means it was computed treating every 1-minute bar as an independent observation of a 24h-forward return.
+It isn't independent. A 24h-forward return sampled every minute is a 1,440-step moving window; adjacent observations share 1,439 of 1,440 minutes. The standard fix for overlapping-horizon return regressions (this is the Newey-West / overlapping-returns correction, not something specific to your setup) divides effective n by the horizon in bars: n_eff ≈ n_raw/1,440. Your row count, not coincidentally, is exactly 1,826 × 1,440 — five clean years of 1-minute bars, zero gaps. So n_eff ≈ 1,826, one independent 24h window per day. Redo the stat there:
+
+naive (n=2,629,440, per-minute)
+overlap-corrected (n≈1,826 days)
+year-level (n=5, your own table)
+t
+≈ −70
+≈ −1.8
+≈ −1.3
+reading
+"68σ"
+p ≈ 0.07
+p ≈ 0.25
+Two independent ways of respecting the real degrees of freedom in this dataset — daily subsampling, and treating your five yearly correlations as five data points (mean −0.038, SD 0.064, SE 0.028) — both land in the same place: marginal, not overwhelming, short of your own 2.58 stability bar even before you get to the sign-flip question.
+This isn't just an EXP-12 problem. "+2.0 bps gross at 60m (t=2.66, one month)" has the same shape: a month of 1-minute bars is ~43,000 raw rows; overlap-corrected for a 60-minute horizon, effective n is ~700. If that t=2.66 was computed the naive way, it collapses to roughly t≈0.3. If it was already computed on non-overlapping 60-minute blocks, then t=2.66 on one month is a real but tiny, single-regime, unreplicated result — exactly the caveat you already attached to it. Either branch, it shouldn't move your priors. I'd audit every σ/t figure across all 12 stages for this before using any of them to prioritize — if your "non-overlapping-grid sample adequacy" gate already applies this correction formally, good, but the number doing the talking in this document is the naive one.
+Ranking (a)–(e), with that in hand:
+	•	(d) Research design ≈ (e) "no further edge here," tied for first. The overlap bug is cheap to fix and directly recolors your best result. What's left after correcting for it is a program that's shown a consistent 0.51–0.55 AUC ceiling across a barrier classifier, an 85-feature/multi-horizon model, and an 8-family microstructure sweep — every escalation in complexity either flat or overfitting (the 1h–72h result is the clean tell: in-sample edge at ≥4h, OOS AUC ~0.50 everywhere). That's not one failed experiment, it's the same ceiling under every variation you've tried. On the most heavily-arbed instrument in crypto, that's close to the textbook signature of "there isn't more here," not "keep looking."
+	•	(c) Target/label specification, real but secondary. The single most interesting fact in your record: continuous conditioning (EXP-12) got within 1.21x of cost; discretized barrier/TP-SL framings cleared cost in 0 of 100 cells. That's evidence the barrier framing is throwing away real (small) signal through discretization — worth fixing, won't 5x anything by itself.
+	•	(a) Model quality, real but low-leverage from here. +0.01–0.02 AUC over baseline, stable across four folds, is genuine — and every attempt to push it further (more features, longer horizon) made things worse. That's "you've extracted what's extractable," not "try harder."
+	•	(b) Cost structure, least binding. 11.01 bps on $1k against $810k median book depth is already near the achievable floor — you're at ~0.12% of book, so slippage isn't a size problem. The only lever left is fee-tier negotiation, bounded at maybe 10–20%, nowhere near 5x.
+2. Closing the 5.5x gap (11.01 / 2.0 ≈ 5.5, using your own numbers)
+Legitimate — shrink the denominator:
+	•	Fee-tier negotiation: bounded, ~10–20%, and gated behind real traded volume a paper system doesn't generate.
+	•	Horizon extension: the same fixed round-trip cost amortized over a longer hold lowers the cost rate. This is already implicitly why the 24h framing looks better than the 60m one.
+	•	Selectivity (trade only the top-conviction decile): raises average edge per trade taken, but shrinks n and reopens exactly the n=26 problem — only legitimate with enough held-out high-conviction trades to trust the selection itself.
+	•	Netting across concurrent signals, if you diversify (relevant only if you pursue Q4).
+	•	Size reduction: not available — you're already near the slippage floor.
+Illegitimate — inflate the numerator:
+	•	Gate-loosening — already ruled out by you.
+	•	Re-testing EXP-12 on shifting sub-windows until one works — the exact risk sitting inside "what distinguishes 2023" if it isn't pre-registered (see Q3).
+	•	Citing the 13.33 bps "optimal linear" fit as an achievable, prospective number. It's a full-sample fit that already "knows" about the 2023 flip; a frozen weight estimated on 2021–2025 reporting 2021–2025 performance is look-ahead, not a forward result.
+	•	Assuming maker fills without a fill-probability model. Your own numbers already show why this backfires: taker/maker (15.01 bps) is worse than taker/taker (11.01 bps), which only makes sense if the fill-probability modeling behind it correctly captures adverse selection — you only get filled passively when the market has moved against you. You've already flagged maker/maker as inadmissible for exactly this reason; that's the right call, and it's the standard trap worth naming explicitly.
+	•	Using predicted rather than realized probabilities — you already caught and retracted this once (point 6). Worth a standing check, not a one-time fix.
+	•	BH-FDR controls multiple-hypothesis inflation; it does not fix the within-hypothesis overlap-inflation bug from Q1. Different bugs, different fixes — don't let one make you feel covered on the other.
+Stacking the legitimate levers optimistically buys something like 1.5–2x. That leaves a real, unclosed ~3x deficit. This is not a cost-engineering problem; it's a signal-magnitude problem, consistent with Q1.
+3. Is "predict the sign regime" more tractable?
+As literally stated — classify which year will flip — no, and you already know why: n=5, one flip. You cannot pre-register a test with five yearly labels and expect power; a 1-in-5 flip is close to what you'd expect from sampling noise around a true correlation this marginal (see Q1's corrected numbers). That's not "unstable and mysterious," it's closer to "unremarkable, once you stop treating the pooled correlation as 68σ-certain." Say it's a dead end in that literal form, because it is.
+Regime-dependence on a continuously-observed state variable is a different, legitimate question, if you don't reverse-engineer the regime definition from already knowing 2023 was the outlier:
+	•	Hypothesis: the 24h trailing/forward correlation's sign and magnitude are conditional on a state variable chosen from microstructure theory (e.g., trailing 30d realized-vol percentile — reversion typically strengthens in choppy/high-vol regimes, weakens or inverts in strong trending/low-vol regimes) — not "which year is it."
+	•	Target/label: forward_return_24h, unchanged.
+	•	Universe: BTCUSDT perp, unchanged.
+	•	Horizon: 24h, unchanged.
+	•	Sample size required: enough independent regime episodes, at daily granularity (~1,826 effective observations, per Q1), that "regime" isn't a relabeling of "year" — several dozen distinct multi-week high/low episodes minimum, not three buckets blocked by calendar.
+	•	Statistic: interaction coefficient in forward_24h ~ trailing_24h × regime_dummy, with block-bootstrap SEs (block ≥ 24h).
+	•	Pre-declared threshold: significant post-correction, AND same sign on data collected after this hypothesis is registered — not backfit into 2021–2025.
+	•	Falsifier: not significant once corrected; or the "regime" that flags 2023 turns out on inspection to just be a relabel of the year; or sign fails on fresh data.
+My prior this succeeds: ~10–15%. You'd be hunting second-order structure (regime-dependence) inside a first-order effect that Q1 just showed is itself only marginal — and if you try several candidate regime variables, that search needs its own FDR tax on top of everything else. Treat it as a cheap, bounded, fail-fast side bet. Never a program pillar.
+4. Cross-sectional / market-neutral pivot
+Nominal sample gain scales with instrument count N; real gain doesn't. Crypto cross-sections load heavily on a common factor (BTC beta) — this is a general, well-known pattern, not a number I've verified on your specific candidate universe, so run the PCA before you budget against it — meaning effective independent information typically scales more like √N to N/3, not N. Thirty to forty instruments might realistically buy something like 5–10x effective power, not 30–40x. Still a real, worthwhile gain, especially for market-neutral effects that cancel the dominant directional factor by construction — but it's not the free 30x it looks like on paper.
+What it breaks:
+	•	Survivorship bias, which you've correctly flagged as dormant at single-asset scale, becomes first-order. Crypto perp universes have churned heavily (delistings, especially post-2022); point-in-time universe membership is required, not today's top-N backfilled — this is infrastructure that must exist before any signal research, not alongside it.
+	•	Your cost model doesn't port. BTC perp is close to the liquidity floor for crypto derivatives; most alts have materially wider spreads and thinner books. Each instrument needs its own measured cost, per your own rule about versioned experiments.
+	•	Cross-sectional correlations spike toward 1 during liquidation cascades — "market-neutral" tends to fail exactly when it matters most.
+	•	The risk/portfolio layer gets meaningfully more complex: covariance estimation replaces single-asset sizing.
+Compact spec, if you pursue it:
+	•	Hypothesis: a market-neutral, cross-sectional analog of the 24h reversion effect (rank-based, dollar/beta-neutral long-short across N liquid perps) shows better cost coverage and multi-year stability than the single-asset version.
+	•	Target/label: forward 24h return, cross-sectionally demeaned.
+	•	Universe: top-N liquid perps, defined point-in-time.
+	•	Horizon: 24h.
+	•	Sample size required: N × ~1,826 days, discounted by the factor-loading estimate above; want several hundred to 1,000+ effective independent instrument-days as a floor.
+	•	Statistic: long-short Sharpe/mean, block-bootstrapped for both time-overlap and cross-sectional correlation.
+	•	Threshold: your existing BH-FDR q=0.10 and |t|>2.58 stability rule, plus per-instrument realized cost coverage.
+	•	Falsifier: fails stability; or factor-corrected effective n is too small to clear sample-adequacy; or realized per-instrument costs erase the cross-sectional gain.
+5. Has structural carry been left on the table?
+Yes, in a narrow but real sense: you've used funding only as a feature for price forecasts, never harvested as its own cash flow. Genuinely harvesting it requires a second leg — spot BTC, or an offsetting derivative — which is architecturally new, not a tweak inside the current single-instrument-perp pipeline. Under your own rule, this is a new versioned initiative with its own evaluation period, not a research variation.
+Is it worth it? The mechanism is real — Bitcoin's funding rate swung to its most negative level since 2023 as recently as April 2026, even as price kept rising, and an extreme funding dislocation on OKX in June 2026 left a cross-venue arbitrage against Binance that was reported as still largely unexploited — so the opportunity isn't fully arbitraged away at all times. But by 2026 this is not an overlooked corner: industry coverage describes basis trades and other market-neutral strategies as an established category now actively drawing dedicated institutional capital, and it isn't free money even when run professionally — a January 2026 shock drove the CME futures basis negative for the first time in years, which researchers read as institutional carry positions built up since the 2024 ETF launches unwinding all at once.
+Honest base rate (my estimate, not a backtest): modest, single-digit bps per funding interval net of both legs' costs in normal conditions, larger but episodic during extreme crowding events, and trending smaller as more capital chases it. A small paper shop entering this now is competing with faster, better-capitalized basis desks, not discovering a gap.
+What you'd need to size it (feasibility study, not yet promotable):
+	•	Hypothesis: realized cash-and-carry P&L, net of both legs' realized costs and margin/collateral opportunity cost, clears a Sharpe bar attractive enough to justify the added architecture.
+	•	Target/label: realized funding cash flow − realized round-trip cost (both legs) − margin financing cost.
+	•	Universe: BTCUSDT spot + perp, same venue first (cross-venue adds counterparty/basis risk, treat as a stretch extension).
+	•	Horizon: per funding interval (8h), aggregated.
+	•	Sample size required: ≥2 years of realized, not modeled, both-leg cost data, spanning at least one full bull/bear cycle.
+	•	Statistic: realized net Sharpe / t-stat on mean net funding P&L.
+	•	Threshold: your existing economic-magnitude and multi-year-stability gates.
+	•	Falsifier: net Sharpe doesn't clear the bar once margin cost is included, or is dominated by one or two extreme episodes.
+Scope this — spot data and cost availability, what realized net P&L would have actually been 2021–2025 — before committing build time.
+6. Is the AUC gap bridgeable?
+First, the 0.65 target is a heuristic, not a law — the real object is bps-edge-after-cost, and you already have that mapping empirically at your current skill level: 0 of 100 barrier cells cleared cost at 0.53–0.55 AUC. How much AUC "would be enough" depends on how efficiently you translate classification skill into a trading rule, which loops back to Q1(c).
+My priors, not mutually exclusive:
+Explanation
+Prior
+Why
+Better modeling, same price-only data
+~10%
+GBM + 85 features + multi-horizon already tried; consistent flat/overfit pattern across all of them
+New data (order book, on-chain, cross-venue basis, OI/liquidations)
+~25–30%
+The one category in your own record that's untested, not falsified — order flow carries information price history doesn't encode
+Different label engineering
+~15–20%
+Real efficiency gain (Q1(c)), not a new-edge-creator by itself
+No more edge in price-only, single-asset signal at this cost
+~40–50%+
+Same ceiling under every variation attempted; rises the more of this space you exhaust
+7. Null results — good, failure, or both?
+Both, and they're not in tension. Good: your gates correctly rejected EXP-12, you caught and retracted your own predicted-vs-realized-probability bug, and paper-only means the cost of all this rigor is researcher-time, not capital. That's what a functioning process looks like — most shops either don't report nulls or quietly relax standards until something "works." Mild failure mode: twelve stages inside the same family (single-asset, price-only, short-horizon technical) have converging, low-marginal-value results. The risk from here isn't bad process, it's sunk-cost-driven continuation in a family you've already characterized.
+A healthy program from here: formally retire the price-only/single-asset/barrier family as researched-to-diminishing-returns; redirect the freed budget toward the categories that are untested rather than falsified; keep EXP-12's regime idea alive only as a bounded side bet; keep the same discipline (gates, hash-chained ledger, frozen configs) and add the overlap audit to it; and report dispersion/SEs on realized cohort results (the −51.87 bps / n=26 figure) alongside point estimates, so "unlucky at n=26" and "real negative edge" stay distinguishable.
+Single highest-EV next change: the overlap-inflation audit. It's nearly free — no new data, no new infrastructure — and it directly recalibrates how much weight to put on your best-looking historical result before spending another research cycle on it.
+Ranked by EV per unit effort, across everything above:
+Rank
+Action
+Cost
+Why
+1
+Audit overlap-inflation across all 12 stages' reported significance
+Near-zero
+Recalibrates confidence in everything downstream, including EXP-12
+2
+Acquire historical order-book data, complete the microstructure family
+Moderate
+Only architecturally-ready category that's untested, not falsified
+3
+Scope funding-carry (data + realized-cost feasibility study only)
+Moderate
+Structurally motivated, but likely crowded — see Q8
+4
+Build point-in-time, survivorship-safe universe infrastructure
+High
+Prerequisite for any cross-sectional work; infra before signal research
+5
+EXP-12 regime-conditioning side bet, pre-registered
+Low
+~10–15% prior; cheap, bounded, never a pillar
+8. Strongest arguments against all of the above
+	•	Against Q1: I can't see your actual gate-testing code. It's plausible your "non-overlapping-grid sample adequacy" gate already implements this correction formally, and the naive 68σ is just descriptive color that never drove a real decision. The arithmetic is right; what it implies about your process is my inference — verify against your own machinery.
+	•	Against Q2: the ~1.5–2x legitimate cost-reduction estimate is a guess without seeing your actual fee schedule or a validated selectivity backtest. Could go either way.
+	•	Against Q3: dismissing regime-conditioning as low-probability could itself be premature — cheap, well-designed side bets are exactly what spare research capacity should fund, and 10–15% is a gut number, not a computed one.
+	•	Against Q4: cross-sectional crypto stat-arb isn't the under-arbed frontier it was in 2017–2020; by 2026 it's explicitly one of the strategies multi-strategy funds run at scale. The "more tractable than single-asset" intuition imported from equities may not transfer as cleanly now, and the √N-to-N/3 estimate is a general pattern, not measured on your universe.
+	•	Against Q5 — the one I'd push back on hardest myself: everything in current coverage says basis/funding trades are now an established, capital-attracting, institutionally-run category anchored to ETF flows, not a gap anyone's missed. My "modest but real" base rate may be optimistic; it's entirely plausible a small paper shop finds close to zero risk-adjusted edge left in vanilla funding harvesting once faster, better-capitalized desks are priced in. Weight this lower than the ranked table suggests if you take that seriously.
+	•	Against Q7 (redirect, don't stop): the strongest version of "stop" isn't "stop this specific approach" — it's "stop single-instrument crypto directional research as a category, and put researcher-hours somewhere else entirely." Five years, twelve stages, a null under every variation tried. Continuing to fund any sub-direction of this program, even the untested ones, could be sunk-cost thinking wearing a redirection costume. I haven't fully rebutted that.
+	•	Case for doing nothing: paper-only means the marginal cost of stage 13 is time, not capital. The pipeline is mature, self-consistent, and has caught its own bugs — that's a real asset. Every pivot above (order book, funding carry, cross-sectional) reopens bias categories (survivorship, new cost models, new data-quality risk) that the current single-asset design has successfully avoided. The devil you know has a real claim here.
+Bottom line: the specific sub-program — single-asset, price-only, short-horizon technical directional prediction on BTCUSDT in a barrier/TP-SL framing — is dead on this evidence. Don't run a 13th stage in that family. That's not the same as shutting the whole thing down: there's no capital to protect by stopping entirely, your gate discipline and infrastructure are reusable, and two categories (order-book microstructure, funding-carry) are untested rather than falsified. Concretely: run the overlap audit this week (free); formally retire and document the price-only family; point the existing pipeline at order-book data acquisition next (cheapest untested path, no new instrument leg); scope funding-carry with eyes open that it's now competed-for, not overlooked; keep EXP-12's regime angle alive only as one pre-registered, low-stakes side bet. If the order-book family, once actually tested rather than theorized, still lands at 0.51–0.55 AUC — that's the point to seriously entertain stopping single-asset BTCUSDT direction prediction altogether. Not yet.
+
+
+Response3:
+Your research design, data fabric, and pre-declared gates are exceptional. The fact that you have killed 12 hypotheses using rigorous out-of-sample testing and strict cost hurdles is the mark of a mature quantitative desk. Most retail and semi-pro teams would have overfit the 2023 EXP-12 sign flip, relaxed the gate, and blown up their capital. Your gates worked exactly as intended: they protected you from a mathematically insoluble strategy.
+
+Here is the adversarial, mathematically grounded assessment of your program.
+
+### 1. The Binding Constraint: Mathematical Mismatch (Cost vs. Horizon Volatility)
+The binding constraint is a structural mismatch between **(b) Cost Structure** and **(c) Target/Horizon Specification**, governed by the physics of the distribution.
+
+Let’s do the arithmetic. Assume BTC daily volatility is roughly 2.5% (250 bps).
+*   **1-minute volatility ($\sigma_{1m}$):** $250 / \sqrt{1440} \approx 6.6$ bps.
+*   **60-minute volatility ($\sigma_{60m}$):** $250 / \sqrt{24} \approx 51$ bps.
+
+For a binary classifier with an AUC of 0.53, the theoretical maximum Information Coefficient (IC)—the Pearson correlation between your forecast and realized returns—is roughly $IC \approx 2 \times (0.53 - 0.5) \times \sqrt{2/\pi} \approx 0.048$.
+*   **Expected Gross Edge at 1m:** $IC \times \sigma_{1m} \approx 0.048 \times 6.6 \text{ bps} \approx \textbf{0.31 bps}$.
+*   **Expected Gross Edge at 60m:** $IC \times \sigma_{60m} \approx 0.048 \times 51 \text{ bps} \approx \textbf{2.44 bps}$.
+
+Your measured 2.0 bps gross edge at 60m perfectly aligns with the theoretical limit of an AUC 0.53 model. **However, your round-trip taker cost is 11.01 bps.**
+You are trying to extract an 11 bps cost out of a 60-minute distribution where the maximum theoretical edge is 2.44 bps. This is not a model quality issue; it is a mathematical impossibility. No algorithmic architecture can bridge this gap because the signal is not in the data—it is bounded by the variance of the horizon.
+
+### 2. Closing the 5x Gap (2 bps vs 11 bps)
+To close the gap between your gross edge and your cost, you must either extend the horizon, change the execution venue, or cheat.
+
+**Legitimate (Shrink the denominator / Scale the numerator honestly):**
+1.  **Horizon Extension to 24h:** $\sigma_{24h} \approx 250$ bps. Expected edge = $0.048 \times 250 \approx 12$ bps. This matches your EXP-12 measurement (13.33 bps). The edge now exceeds the 11 bps cost, but as you discovered, the sign is unstable.
+2.  **Maker-Taker Execution:** If you provide liquidity, your cost drops to roughly 3-5 bps (including rebates). Against a 2.44 bps edge at 60m, you are still slightly negative, but against a 13 bps edge at 24h, you generate a massive +8 bps net edge. *Requirement: You must build a queue-position and fill-probability model.*
+3.  **Cross-Sectional Long/Short:** Go long the top decile and short the bottom decile. You effectively double your IC (long edge + short edge) while canceling market beta.
+
+**Cheating (Shrink the denominator dishonestly):**
+1.  **Assuming 100% fill rate on passive maker orders** at the touch. (In reality, limit orders suffer from adverse selection; they only fill when the market moves against you, dropping your realized win rate below 50%).
+2.  **Look-ahead bias in target labeling:** Using triple-barrier methods where a timeout is implicitly treated as a win or ignored, rather than penalized for capital lockup.
+3.  **Slicing out high-volatility periods:** Filtering out hours where the spread exceeds 2 bps, while ignoring the opportunity cost and adverse selection of the remaining hours.
+
+### 3. EXP-12 and the "Predict the Sign Regime" Dead End
+EXP-12 has a massive, economically sized correlation (-0.0431) that flipped to momentum (+0.0553) in 2023.
+Is "predict the sign regime" a more tractable target? **No. It is a statistical dead end.**
+
+You have 5 years of data. That gives you exactly $N=5$ macro annual observations. You cannot train a regime classifier (using volatility, funding, or open interest) on 5 data points. 2023 was a single, idiosyncratic macro event (post-FTX recovery, ETF anticipation, transition from bear to bull). You have zero degrees of freedom to test this out-of-sample.
+
+*   **Hypothesis:** Macro variables can predict the sign of the 24h autocorrelation regime.
+*   **Target/Label:** Binary classification of the next month's rolling 24h return correlation sign.
+*   **Universe:** BTCUSDT.
+*   **Horizon:** 1 month (regime prediction), 24h (execution).
+*   **Sample Size Required:** Minimum 50 regime switches (months/weeks) to avoid catastrophic overfitting.
+*   **Exact Statistic:** Out-of-sample Brier score of the regime classifier.
+*   **Pre-declared Threshold:** OOS Brier score must significantly beat a naive baseline (e.g., always predicting mean-reversion).
+*   **Falsification:** The classifier performs at chance (AUC ~0.50) OOS.
+*   **Verdict:** You will falsify this immediately. Do not waste compute on it.
+
+### 4. Cross-Sectional, Market-Neutral, Multi-Instrument
+Moving to the top 30 USDT-M perps is the most logical pivot.
+
+*   **Effective Sample Size:** Instead of 1 time-series of 2.6M bars, you have 30 cross-sections. Cross-sectional Rank IC aggregates across assets. Your portfolio Information Ratio scales with $\sqrt{N_{assets}}$. You gain roughly a $5.5\times$ boost in statistical power.
+*   **Regime-Dependence:** Cross-sectional momentum/mean-reversion is notoriously robust to market beta and asset-specific regime shifts (like BTC's 2023 flip).
+*   **What it Breaks:**
+    1.  **Survivorship Bias:** Crypto delists tokens constantly. Your data fabric must handle this perfectly, or your backtest will be a hallucination.
+    2.  **Execution Reality:** Altcoin spreads are 20–50 bps. Your 2 bps edge will be eradicated instantly unless you restrict the universe to the top 10 highly liquid perps (which brings you back to the BTC/ETH alpha scarcity problem).
+    3.  **Correlation:** In crypto, everything correlates to BTC. A "market-neutral" altcoin portfolio is still highly exposed to BTC beta during risk-off liquidity crunches.
+
+### 5. Funding and Basis (Structural Carry)
+You noted that funding is a cash flow, not a prediction. You are entirely correct. Treating it as a conditioning variable for price forecasts is a mistake.
+
+*   **Honest Base Rate:** Historically, BTC perp funding is positive ~75% of the time (longs pay shorts). The average is roughly 0.01% per 8h period (~10-15% annualized in bull markets).
+*   **Sizing and Constraints:** To size a carry trade, you need the variance of the funding rate and the basis spread, not the price drift. You size based on the Kelly criterion of the carry yield minus the variance of basis convergence.
+*   **The Catch:** Your constraint is *paper-only with no authenticated exchange access*. You cannot hold spot. Therefore, you cannot do cash-and-carry (long spot / short perp). You are restricted to perp-on-perp relative value or pure directional funding forecasting. This severely limits the structural carry edge, as you remain exposed to the price drift of the underlying asset.
+
+### 6. The AUC Gap (0.53 to 0.65)
+An AUC of 0.65 on 1-minute BTCUSDT is a fantasy. If you had a 0.65 AUC model on 1m bars, you would own the market microstructure of Binance within six months.
+
+*   **Prior on Better Modeling (XGBoost -> Deep Learning):** 2%. The signal is not in the non-linearities; it is not in the data.
+*   **Prior on Better Data (L3 Order Book, Tick Data):** 15%. You might reach 0.56. Institutional market makers with co-located FPGAs have this data, and they are not showing 0.65 AUCs.
+*   **Prior on Different Label (Volatility Prediction):** 25%. Volatility clustering is real and predictable, but monetizing it with directional execution is mathematically constrained by the same cost hurdle.
+*   **Prior on "There is no edge here":** 58%. The 1-minute BTCUSDT market is heavily arbitraged, highly liquid, and efficiently priced. It is essentially a random walk at this horizon.
+
+### 7. High-Quality NULL Results
+Your massive volume of NULL results is a **triumph of scientific integrity** but a **failure of alpha generation**. You have successfully proven that BTCUSDT 1m directional trading with taker fees is a negative expected value game.
+
+A healthy program at this point stops trying to extract water from a stone. The highest expected-value change is to pivot your excellent, rigorously tested infrastructure (the causal data fabric, the hash-chained ledger, the LLM ablation framework) away from single-asset 1m BTC and apply it to a market inefficiency that actually exists.
+
+### 8. Arguments AGAINST Every Recommendation
+*   **Against Cross-Sectional Pivot:** Survivorship bias is a graveyard. If you do not perfectly model altcoin delistings, your backtest will show a 500% return, and your live paper account will draw down 50%. Furthermore, liquidity in the 30th altcoin is fake; you will suffer 50 bps of slippage.
+*   **Against Carry/Funding Pivot:** Tail risk. During a short squeeze, funding can spike to 1% per 8 hours. If you are short the perp to collect funding, you will be wiped out. Additionally, without spot access, you cannot delta-hedge properly.
+*   **Against Doing Nothing (Continuing 1m BTC):** Sunk cost fallacy. You are burning compute and time.
+*   **The Case FOR Doing Nothing:** BTCUSDT 1m is the *only* market on earth where you can deploy $100M of capital without moving the order book. If you *do* somehow find a 0.56 AUC edge, it scales infinitely. Furthermore, your LLM layers (Frontier/Jev) are currently a controlled ablation. It is possible the LLM strategist actually *is* the edge, but you haven't let it run autonomously long enough to prove it.
+
+---
+
+### Final Verdict and Ranked Recommendations
+
+**1. Pivot to Cross-Sectional Top-10 Perps (Highest EV)**
+Keep the pipeline. Expand the universe to the top 10 most liquid USDT-M perps (BTC, ETH, SOL, BNB, XRP, etc.). Test cross-sectional momentum and short-term reversal. The spreads are tight enough (5-10 bps) that your 2-4 bps edge might survive, and the statistical power increases dramatically.
+
+**2. Maker-Taker Execution Modeling (High EV)**
+If you insist on staying on 1m/5m BTC, you must abandon taker execution. Build a simulator that models queue position, limit order fill probability, and adverse selection. If you can prove a 3 bps maker-taker cost, your 2.44 bps 60m edge becomes borderline viable.
+
+**3. Structural Carry / Funding Forecasting (Medium EV)**
+Pivot the target from "next bar direction" to "next 8h funding rate magnitude". Build a mean-variance optimizer that goes long perps with negative expected funding and short perps with positive expected funding. This requires a completely different risk model (basis variance), but it is a known, structural market inefficiency.
+
+**4. Kill the 1m Directional BTC Program (Immediate Action)**
+Accept that the 1m BTCUSDT directional alpha, net of taker fees, is exactly zero. Close the EXP-12 and 1m barrier experiments. Do not loosen the gates. The gates saved you from losing real money.
+
+You built a beautiful machine. Now you need to point it at a target that is actually moving.
+
+Response4:
+Bottom line
+I would stop spending research capital on the current single-BTC, 1-minute, directional prediction problem as the primary alpha program.
+Not because the system is badly built. Quite the opposite: the research apparatus is now good enough that its repeated failures are informative. The strongest observed directional effect is about 2 bps gross versus 11.01 bps round-trip cost; the measured execution friction itself is tiny relative to that denominator, so the problem is overwhelmingly economic signal strength / target formulation, not infrastructure.
+The system's architecture should survive. The research question should change.
+My preferred sequence is:
+	1	Separate structural carry from directional prediction and test BTC funding/basis properly.
+	2	Move the alpha search cross-sectionally / market-neutrally across liquid instruments.
+	3	Run one tightly pre-registered EXP-12 regime test because it is cheap and intellectually unresolved.
+	4	Only after a quantitative edge exists, test whether Jev/frontier adds incremental value.
+	5	Keep the existing single-BTC directional program as a null-control benchmark, not the main research direction.
+The architecture already supports the important separation between frontier, quant, policy, Jev, risk and execution; that separation should be preserved. The frontier should remain a researcher/allocator rather than becoming a BTC price predictor.
+
+1. What is actually binding?
+My ranking:
+Rank
+Constraint
+Assessment
+1
+Model/economic signal quality
+Primary
+2
+Target/label specification
+Very important
+3
+Research design / search space
+Important, but not currently the cause of the failures
+4
+Cost structure
+Important, but mostly as a hurdle
+5
+Missing data / market structure
+Potentially major for a different strategy
+Why I put signal quality first
+Your best ordinary directional effect is:
+~2 bps gross / 11.01 bps cost = 0.182× cost.
+Equivalently, the gross signal needs to become:
+11.01
+/
+2
+=
+5.505
+×
+11.01/2 = 5.505\times
+larger merely to break even.
+That is not a small modeling improvement.
+Your LightGBM improvement is roughly:
+	•	2022: +0.0014 AUC
+	•	2023: +0.0190
+	•	2024: +0.0146
+	•	2025: +0.0171
+relative to the baseline.
+That is genuine predictive information, but it is not remotely a 5.5× economic improvement.
+And the most revealing result is that 100 target/stop/horizon cells produced zero cost-surviving trades.
+That is strong evidence that the problem is not simply "we haven't found the right threshold."
+Why cost is not #1
+Your measured market friction is remarkably small at $1k:
+	•	spread median = 0.0119 bps
+	•	taker slippage median = 0.0060 bps
+	•	combined = ~0.0179 bps
+versus:
+	•	taker/taker round trip = 11.01 bps
+So the denominator is predominantly the fee schedule, not your inability to execute a $1k order.
+That matters.
+You could improve execution, but you are not sitting on a 2-bps strategy that merely needs 1 bp better execution. You need to manufacture roughly 9 bps of additional economics or eliminate roughly 82% of the current cost.
+The latter is difficult without changing the trading mechanism.
+Target specification is #2
+Your current question is essentially:
+Can I predict short-horizon directional movement sufficiently well to overcome transaction costs?
+That is potentially the wrong economic question.
+A model can have AUC 0.53 and be profitable if its errors are economically asymmetric.
+Conversely, AUC 0.65 can be useless if it predicts tiny moves while losing on the expensive tail.
+Your next generation should therefore predict economic distributions, not simply direction:
+E
+[
+r
+h
+]
+,
+
+P
+(
+r
+h
+>
+c
+)
+,
+
+P
+(
+r
+h
+<
+−
+c
+)
+,
+
+E
+[
+∣
+r
+h
+∣
+]
+,
+
+u
+n
+c
+e
+r
+t
+a
+i
+n
+t
+y
+E[r_h],\quad P(r_h>c),\quad P(r_h<-c),\quad E[|r_h|],\quad uncertainty
+and ultimately:
+E
+V
+=
+E
+[
+r
+h
+]
+−
+C
+fees
+−
+C
+slippage
+−
+C
+funding
+−
+C
+execution
+EV = E[r_h]-C_{\text{fees}}-C_{\text{slippage}}-C_{\text{funding}}-C_{\text{execution}}
+That is consistent with the earlier repo audit's conclusion that binary p_up was too crude for the economic decision layer.
+
+2. How do you close the 5.5× gap?
+First, the arithmetic.
+You have approximately:
+G
+=
+2
+ bps
+G=2\text{ bps}
+and
+C
+=
+11.01
+ bps
+C=11.01\text{ bps}
+so:
+G
+/
+C
+=
+0.182
+G/C=0.182
+You need:
+G
+/
+C
+>
+1
+G/C>1
+or a 5.505× improvement in the ratio.
+There are only two fundamental levers:
+gross edge
+cost
+\frac{\text{gross edge}}{\text{cost}}
+A. Increase the numerator legitimately
+1. Find a genuinely stronger signal
+You need something closer to 11–15+ bps gross at comparable turnover.
+Legitimate.
+But this is not "improve LightGBM." It means finding a different source of economic variation.
+Examples:
+	•	cross-sectional relative value
+	•	funding/basis carry
+	•	liquidation/flow dislocations
+	•	volatility/convexity
+	•	market-neutral spreads
+	•	event-driven dislocations
+	•	cross-venue basis
+	•	longer-horizon effects
+2. Change the horizon
+If a 5-minute signal produces 2 bps and a 4-hour signal produces 15 bps, turnover falls while gross opportunity potentially increases.
+Legitimate.
+But your existing long-horizon model failed OOS, so simply moving from 1m to 4h is not a recommendation. The target has to be redesigned.
+3. Change from absolute to relative prediction
+Instead of:
+Will BTC go up?
+ask:
+Which asset will outperform which other asset?
+That can remove the common BTC market component.
+Legitimate.
+This is the principal reason I think cross-sectional research is worth doing.
+4. Combine independent sources of return
+For example:
+carry
++
+relative-value
++
+momentum
+\text{carry}+\text{relative-value}+\text{momentum}
+provided the combination is specified ex ante and tested jointly.
+Legitimate.
+
+B. Reduce the denominator legitimately
+1. Better fee tier
+Legitimate if actually available at the intended scale and account.
+But you must model the actual fee schedule and volume requirements.
+2. Maker execution
+Potentially enormous.
+But your own data correctly rejects simply assuming maker/maker = 9.01 bps.
+The missing variable is:
+P
+(
+fill
+)
+×
+P
+(
+adverse selection
+∣
+fill
+)
+P(\text{fill}) \times P(\text{adverse selection}\mid\text{fill})
+A maker strategy has to be modeled as:
+E
+V
+maker
+=
+P
+f
+E
+[
+price improvement
+]
+−
+P
+f
+E
+[
+adverse selection
+]
+−
+P
+cancel
+C
+opportunity
+EV_{\text{maker}} = P_f E[\text{price improvement}] - P_fE[\text{adverse selection}] - P_{\text{cancel}}C_{\text{opportunity}}
+If you cannot model fills, the 9.01-bps figure is not admissible.
+3. Lower turnover
+This is underappreciated.
+Suppose you hold for substantially longer and trade one-quarter as often.
+Then transaction costs per unit of exposure can fall dramatically.
+Legitimate.
+But only if the gross signal survives the longer holding period.
+4. Trade only when expected edge is large
+Instead of:
+trade when probability > 55%
+use:
+E
+V
+>
+C
++
+margin of safety
+EV > C+\text{margin of safety}
+Legitimate.
+But this is a selection mechanism, not a magical source of alpha. If your distribution contains no sufficiently positive tail, it simply produces fewer trades.
+5. Cross-venue / cross-instrument hedging
+Potentially legitimate.
+But then you have:
+	•	multiple fees
+	•	basis risk
+	•	funding differences
+	•	transfer/settlement risk
+	•	synchronization risk
+	•	margin requirements
+So it can lower directional exposure while increasing operational complexity.
+
+C. "Shrink the denominator" by cheating
+These are invalid:
+	•	assuming maker fills without fill modeling
+	•	using realized best-case execution
+	•	excluding trades that would not have filled
+	•	replacing measured costs with theoretical costs
+	•	using future spread information
+	•	selecting the favorable exchange after seeing results
+	•	ignoring funding on positions that would have incurred it
+	•	assuming zero market impact because $1k was cheap
+	•	optimizing the cost model after seeing P&L
+Likewise, "shrinking the numerator" through research manipulation is invalid:
+	•	selecting only favorable regimes after seeing returns
+	•	changing labels until the effect appears
+	•	repeatedly retesting the 2023/2025 split
+	•	choosing the best horizon after seeing the result
+	•	tuning thresholds against OOS
+	•	removing losing instruments
+	•	survivorship-biased universes
+	•	cherry-picking fills
+The distinction I would enforce is:
+You may change the economic mechanism. You may not change the historical accounting of that mechanism after observing the result.
+
+3. EXP-12: should you predict the sign regime?
+Yes as a research question.
+No as a trading hypothesis yet.
+This distinction is critical.
+The observed result is extraordinary:
+r
+=
+−
+0.0431
+r=-0.0431
+with
+n
+≈
+2.63
+m
+n\approx2.63m
+.
+Under iid assumptions:
+t
+≈
+r
+n
+−
+2
+1
+−
+r
+2
+≈
+−
+70
+t\approx r\sqrt{\frac{n-2}{1-r^2}} \approx -70
+which is consistent with your reported ~68σ.
+But that does not mean the trading strategy is robust.
+The annual results are:
+Year
+Correlation
+2021
+-0.0823
+2022
+-0.0193
+2023
++0.0553
+2024
+-0.0335
+2025
+-0.1098
+There are only five annual observations.
+One positive year out of five is not enough to build a regime classifier.
+So the hypothesis:
+"2023 was a predictable positive-reversion regime"
+is currently an interesting post-hoc explanation, not evidence of a tradable regime.
+The experiment I would permit
+EXP-13: EXP-12 regime predictability
+Hypothesis
+Observable state variables available before the forecast window predict whether the EXP-12 relationship will be positive or negative.
+Target
+Do not label every minute as positive/negative.
+Instead construct non-overlapping regime blocks.
+For example:
+	•	monthly blocks
+	•	each month's EXP-12 conditional correlation
+	•	label:
+	◦	+1 if correlation > predeclared positive threshold
+	◦	−1 if correlation < predeclared negative threshold
+	◦	0 otherwise
+The thresholds must be frozen before looking at the classification results.
+Universe
+BTCUSDT only.
+Horizon
+24h.
+Predictors
+Only information available before the block:
+	•	realized volatility
+	•	volatility term structure
+	•	funding
+	•	basis
+	•	OI
+	•	BTC trend
+	•	volume
+	•	liquidation intensity if available
+	•	cross-sectional BTC/alt dispersion if added
+	•	macro state if independently timestamped
+No variable may be chosen because it "explains 2023."
+Training
+Expanding walk-forward.
+Critical point: because 2023 was already discovered using the 2021–2025 dataset, the historical version is exploratory.
+A truly confirmatory version needs a future untouched period.
+At present, that means collecting a new 2026+ evaluation sample rather than quietly recycling 2025.
+Sample size
+I would require at least:
+	•	36 non-overlapping monthly regime observations for exploratory statistical adequacy
+	•	preferably 60+ monthly observations
+	•	and at least 12 independently occurring regime episodes
+because monthly observations within a persistent regime are not independent.
+Statistic
+Primary:
+A
+U
+C
+(
+regime classifier
+)
+AUC(\text{regime classifier})
+Secondary:
+mean net EXP-12 return conditional on predicted regime
+\text{mean net EXP-12 return conditional on predicted regime}
+and block-bootstrap confidence intervals.
+Promotion threshold
+I would predeclare:
+	1	AUC ≥ 0.60
+	2	HAC/block-bootstrap significance p < 0.01  p<0.01 
+	3	positive economic edge after costs
+	4	positive net result in ≥ 70% of evaluation blocks
+	5	no single block contributes > 25% of total P&L
+	6	survives 2× cost
+	7	survives leave-one-year-out.
+Falsification
+Kill it if:
+	•	AUC ≤ 0.55
+	•	regime accuracy is no better than a persistence baseline
+	•	economic effect disappears after costs
+	•	the result requires 2023
+	•	one or two blocks explain most P&L
+	•	regime labels become unstable under modest threshold changes.
+My prior
+I would assign this a low-to-moderate probability of being useful, perhaps 15–25%.
+The reason isn't that the observed effect is weak.
+It's that you currently have one sign reversal.
+Five years do not constitute a regime dataset.
+So I would spend a small amount of research budget on this, but I would not build architecture around it.
+
+4. Move to cross-sectional, market-neutral, multi-instrument?
+Yes. This is the biggest change I would make.
+Your current research has:
+one asset × one market × one directional factor structure.
+That creates a brutal statistical problem:
+you have 2.63 million bars but essentially one economic realization of BTC.
+The 2.63m observations are not 2.63m independent bets.
+If minute returns have serial dependence and regime dependence, your effective sample size can be dramatically smaller.
+
+Cross-sectional research changes the experiment
+Suppose you have 50 liquid instruments.
+Nominal observations become:
+2.63
+m
+×
+50
+=
+131.5
+m
+2.63m\times50=131.5m
+asset-minute observations.
+That does not mean 50× effective sample size.
+Cross-sectional returns are correlated.
+A simple illustration:
+N
+eff
+≈
+N
+1
++
+(
+N
+−
+1
+)
+ρ
+N_{\text{eff}} \approx \frac{N}{1+(N-1)\rho}
+For 50 assets:
+Average cross-sectional correlation
+Approx. effective assets
+0.05
+17.2
+0.10
+8.5
+0.30
+3.1
+0.50
+2.0
+So the realistic benefit might be 2–10× effective cross-sectional information per timestamp, not 50×.
+And you still have time dependence.
+But that is potentially transformative.
+
+What you gain
+1. Market-neutrality
+Instead of:
+B
+T
+C
+→
++
+1
+BTC\rightarrow +1
+you can have:
+long winners
+−
+short losers
+\text{long winners} - \text{short losers}
+and remove much of the market-direction problem.
+2. More independent economic states
+BTC only gives you:
+"What happened to BTC?"
+A 50-asset universe gives you:
+"Which assets behaved unusually relative to their peers?"
+That is a much richer prediction problem.
+3. Relative signals
+You can test:
+r
+i
+−
+r
+BTC
+r_i-r_{\text{BTC}}
+or:
+r
+i
+−
+r
+sector
+r_i-r_{\text{sector}}
+or cross-sectional rank.
+4. The literature gives this direction some justification—but not a free pass
+Published crypto research has found cross-sectional momentum/reversal effects, although results differ substantially depending on universe and implementation. (SSRN)
+More recent work specifically emphasizes that universe construction, volatility, liquidity and state dependence materially affect cross-sectional results. (SSRN)
+And there is an important warning: another recent study finds that apparently strong crypto momentum results can deteriorate substantially once realistic liquidation and profitability considerations are introduced. (SSRN)
+So this is a new research domain, not evidence that you have an edge waiting to be harvested.
+
+What it breaks
+This is substantial.
+You introduce:
+	•	survivorship bias
+	•	listing/delisting bias
+	•	changing universe membership
+	•	token-specific liquidity
+	•	funding differences
+	•	borrow/shortability
+	•	stablecoin differences
+	•	exchange-specific listings
+	•	contract migrations
+	•	corporate/token events
+	•	heterogeneous tick sizes
+	•	heterogeneous fees
+	•	cross-asset correlation
+	•	factor concentration
+	•	crowded trades
+Your current single-asset setup is beautifully clean.
+Cross-sectional research is much messier.
+The universe must therefore be point-in-time reconstructed.
+No:
+"top 50 coins today applied backwards."
+Instead:
+"assets eligible at time
+t
+t
+, according to information available at
+t
+t
+."
+That is where survivorship becomes first-order.
+
+Experiment specification
+EXP-CS-01
+Hypothesis
+Cross-sectional signals predict next-period relative returns sufficiently to produce positive market-neutral net returns.
+Universe
+30–50 liquid BTC-quoted/USDT-margined perpetuals with point-in-time eligibility.
+Exclude assets failing:
+	•	minimum trading volume
+	•	minimum age
+	•	price floor
+	•	continuous availability
+	•	maximum spread
+	•	maximum estimated market impact.
+Target
+For asset
+i
+i
+:
+y
+i
+,
+t
++
+h
+=
+r
+i
+,
+t
+:
+t
++
+h
+−
+cross-sectional mean
+(
+r
+⋅
+,
+t
+:
+t
++
+h
+)
+y_{i,t+h} = r_{i,t:t+h} - \text{cross-sectional mean}(r_{\cdot,t:t+h})
+Test:
+	•	1h
+	•	4h
+	•	24h
+as separate hypotheses.
+Portfolio
+Long top decile/quintile.
+Short bottom decile/quintile.
+Dollar neutral.
+Volatility neutral.
+Sample
+At least:
+	•	30 assets
+	•	3+ years
+	•	≥1,000 non-overlapping daily cross-sections for 24h research
+and preferably:
+	•	50 assets
+	•	≥1,500 daily cross-sections.
+For shorter horizons, block by day rather than pretending every hourly observation is independent.
+Primary statistic
+Cross-sectional rank IC.
+Secondary:
+	•	mean market-neutral return
+	•	Newey-West/block-bootstrap t-stat
+	•	turnover
+	•	cost-adjusted expectancy.
+Promotion
+I would require:
+	•	mean net return > 0
+	•	HAC/block-bootstrap t > 3  t>3 
+	•	positive net return in ≥4 of 5 calendar years where available
+	•	no year >50% of cumulative P&L
+	•	survives 2× measured cost
+	•	survives universe perturbation
+	•	survives point-in-time membership reconstruction
+	•	BH-FDR q≤0.10 across the pre-registered strategy family.
+Falsify
+Kill if:
+	•	IC collapses after costs
+	•	long-short return disappears after realistic turnover
+	•	result is concentrated in illiquid tails
+	•	changing the universe slightly destroys the result
+	•	survivorship correction eliminates it.
+
+5. Funding and basis: yes, you have probably left something important unexplored
+This is the area I would investigate before another directional ML experiment.
+Funding isn't inherently a prediction.
+It is a cash flow attached to maintaining the position.
+That makes the economics fundamentally different.
+The literature treats crypto basis/carry as a major structural feature of the market, and perpetual futures specifically use funding to keep the contract aligned with its underlying. (Bank for International Settlements)
+Recent work also continues to find meaningful variation in funding and basis across perpetual markets and venues. (SSRN)
+But that doesn't mean:
+"short BTC perp whenever funding is positive."
+That would be naïve.
+
+The clean experiment
+EXP-CARRY-01
+Hypothesis
+A delta-neutral spot/perpetual carry portfolio generates positive net return after all trading costs, funding variation and basis risk.
+Position
+Long BTC spot.
+Short equal BTCUSDT perpetual notional.
+Therefore:
+Δ
+≈
+0
+\Delta\approx0
+The expected source of return is primarily:
+funding received
++
+basis economics
+−
+execution/financing costs
+\text{funding received} + \text{basis economics} - \text{execution/financing costs}
+Target
+For each non-overlapping 8h funding interval:
+R
+t
+=
+F
+t
++
+Δ
+B
+t
+−
+C
+t
+R_t= F_t + \Delta B_t - C_t
+where
+B
+t
+B_t
+is the spot/perp basis and
+C
+t
+C_t
+contains actual costs.
+Do not predict BTC direction.
+Universe
+Initially only BTC.
+Later:
+BTC, ETH, then liquid perps.
+Sample
+2021–2025 gives roughly:
+5
+×
+365
+×
+3
+≈
+5
+,
+475
+5\times365\times3\approx5,475
+8-hour observations.
+That is a much healthier sample than five annual EXP-12 regime observations.
+But use block/HAC statistics because funding and basis are serially persistent.
+Primary statistic
+Mean net carry per 8h.
+Secondary
+	•	annualized return
+	•	Sharpe
+	•	worst drawdown
+	•	funding volatility
+	•	negative-funding frequency
+	•	basis volatility
+	•	margin requirement
+	•	tail loss.
+Promotion
+I would require:
+	1	positive mean net carry
+	2	HAC t > 3  t>3 
+	3	positive in ≥4/5 years
+	4	survives 2× execution cost
+	5	no single year contributes >40% of total P&L
+	6	remains positive when funding is shocked downward
+	7	survives a realistic margin/liquidation model.
+Falsify
+Kill if:
+	•	mean net carry ≤0
+	•	significance disappears after actual costs
+	•	profitability comes from one funding regime
+	•	basis losses overwhelm funding
+	•	the strategy requires leverage to become attractive
+	•	margin/liquidation risk dominates the carry.
+What I expect
+I have a higher prior for this than for another BTC directional classifier, because you're finally measuring something closer to the economic mechanism of the instrument rather than trying to infer price direction.
+But I would not assign a profitability probability without running the data.
+
+6. AUC 0.53–0.55 versus 0.65: can the gap be bridged?
+Here is my prior.
+Explanation
+My prior as dominant explanation
+Better modeling alone
+10%
+Better/missing data
+15%
+Different target/label/economic objective
+25%
+Different market structure / cross-sectional/carry formulation
+25%
+There simply isn't enough directional edge in this formulation
+25%
+These are subjective research priors, not statistical estimates.
+I would not put a 50–70% probability on "better model fixes it."
+Why?
+Because you've already demonstrated that:
+	•	multiple models were tested
+	•	walk-forward validation was used
+	•	the AUC uplift repeats
+	•	calibration is reasonable
+	•	multiple horizons/geometries were tested
+	•	microstructure families were tested
+	•	long-horizon state modeling was tested
+	•	economics repeatedly failed.
+That pattern is very different from:
+"We have AUC 0.53 because we used a bad classifier."
+It looks more like:
+There is some information, but the information may not be aligned with a monetizable single-asset directional decision.
+That's a much more important distinction.
+The 0.65 assumption itself
+I would also challenge:
+"0.65 is required."
+There is no universal AUC profitability threshold.
+AUC is invariant to the economic payoff function.
+A model with AUC 0.57 can beat a model with AUC 0.70 if its 57% correct calls occur where the payoff is asymmetric.
+Therefore, stop optimizing toward 0.65 as a goal.
+Optimize toward:
+E[\text{net P&L}\mid X]
+with calibration, uncertainty and execution costs explicitly represented.
+
+7. Are the NULL results good or bad?
+Both.
+They are good scientifically.
+You have prevented yourself from promoting:
+	•	weak classifiers
+	•	unstable microstructure signals
+	•	in-sample state effects
+	•	fake probability-based P&L
+	•	cost-infeasible strategies
+	•	a potentially misleading LLM layer.
+The fact that the research program refuses to promote a hypothesis is evidence that the gates are actually functioning.
+The architecture was explicitly designed so that Jev/frontier could be removed if they don't provide incremental value.
+That is healthy.
+But there is a failure mode
+If you keep doing:
+BTC 1m → new features → new model → new label → new threshold → another null
+then the research program becomes a very sophisticated machine for establishing that BTC 1-minute directional prediction is difficult.
+That is no longer productive.
+You've already learned that.
+
+What a healthy program looks like now
+I'd want the research tree to become:
+                 TRADING ECONOMICS
+                        │
+       ┌────────────────┼─────────────────┐
+       │                │                 │
+     CARRY          CROSS-SECTIONAL    DIRECTIONAL
+       │                │                 │
+    funding          RV/momentum       BTC
+    basis             factors          time-series
+       │                │                 │
+       └────────────────┼─────────────────┘
+                        │
+                common evaluation
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+          quantitative         AI layer
+           baseline          incremental test
+The current BTC directional system becomes the control arm.
+That's valuable.
+
+8. What is the highest-EV change?
+My ranking:
+Rank
+Research change
+Expected value / effort
+1
+BTC funding/basis carry experiment
+Very high
+2
+Cross-sectional market-neutral research
+Very high
+3
+One bounded EXP-12 regime experiment
+High
+4
+Improve economic return/distribution targets
+High
+5
+Real Jev incremental-value experiment
+Medium
+6
+Frontier as strategy allocator
+Medium, contingent on alpha
+7
+Historical order-book/microstructure acquisition
+Medium/high but expensive
+8
+More BTC 1m directional features
+Very low
+9
+Laya fine-tuning
+Very low at present
+10
+More infrastructure
+Near zero
+The earlier repository audit reached a similar architectural conclusion: the quant decision layer needs improvement before adding more AI, and Laya should sit above quantitative specialists as a strategy selector rather than directly predicting trades.
+
+The role of Frontier changes here
+This is where I would change the original vision slightly.
+Originally:
+Frontier
+   ↓
+strategy
+   ↓
+Jev
+   ↓
+trade
+I would now make it:
+             MARKET
+                │
+       ┌────────┼─────────┐
+       │        │         │
+     Carry     RV       Direction
+     model    models      models
+       │        │         │
+       └────────┼─────────┘
+                │
+        Quant opportunity
+             vector
+                │
+                ▼
+        ┌───────────────┐
+        │   FRONTIER    │
+        │               │
+        │ regime        │
+        │ strategy      │
+        │ arbitration   │
+        │ research      │
+        │ abstention    │
+        └───────┬───────┘
+                │
+         strategy profile
+                │
+                ▼
+       ECONOMIC EV ENGINE
+                │
+                ▼
+        DETERMINISTIC POLICY
+                │
+                ▼
+           RISK KERNEL
+                │
+                ▼
+           EXECUTION
+This is much more defensible than asking an LLM to extract 11 bps of BTC alpha from 1-minute candles.
+Your repository's existing separation of strategy, risk and execution is already strong enough to support this transition.
+
+The strongest argument against each recommendation
+Against funding/basis
+Funding can look structural while actually compensating you for:
+	•	basis risk
+	•	liquidation risk
+	•	leverage demand
+	•	adverse selection
+	•	changing funding regimes.
+A delta-neutral position isn't risk-free.
+And funding is endogenous: once enough capital harvests it, the opportunity can compress.
+Therefore: treat it as another empirical hypothesis, not "free money."
+
+Against cross-sectional trading
+This is probably the biggest source of hidden research fraud.
+You can accidentally construct:
+"the coins that survived"
+rather than:
+"the coins that existed."
+A dynamic crypto universe can produce catastrophic survivorship bias.
+Furthermore, the apparently huge nominal sample size can be mostly fake because all assets respond to the same market shock.
+And recent research itself gives conflicting conclusions on crypto cross-sectional momentum depending on methodology and realistic implementation. (SSRN)
+Therefore: point-in-time universe construction is non-negotiable.
+
+Against EXP-12 regime prediction
+The strongest objection is devastating:
+There is one sign-flip year.
+That's it.
+You can invent 20 explanations for 2023.
+With one observation, you cannot distinguish them.
+A regime classifier trained to recognize "2023-like conditions" could simply be a sophisticated historical-description machine.
+Therefore: run the experiment cheaply, but don't let it become a project.
+
+Against changing the label
+A new target can absolutely reveal economically useful information.
+But this is also the easiest route to p-hacking.
+You could try:
+	•	5m
+	•	7m
+	•	13m
+	•	17m
+	•	37m
+	•	61m
+	•	4h
+	•	8h
+	•	12h
+	•	24h
+until something works.
+That is exactly what your current research discipline is designed to prevent.
+Therefore: pre-register the economic target family before looking at results.
+
+Against cross-sectional multi-instrument expansion
+Your system is currently beautifully auditable.
+Moving to 50 assets makes:
+data integrity
+universe integrity
+execution
+funding
+liquidity
+shortability
+survivorship
+much harder.
+You could spend months building the universe and discover the alpha was a data artifact.
+Therefore: build the smallest point-in-time universe capable of answering the question.
+
+Against doing nothing
+There is a legitimate case for continuing the existing program.
+You have an unusually valuable five-year BTC dataset and an extremely disciplined test harness.
+Continuing the same program gives you:
+	•	more out-of-sample observations
+	•	better estimates of cost
+	•	stronger null evidence
+	•	a clean benchmark for future strategies.
+And your architecture is already designed around replayability and controlled ablations rather than uncontrolled adaptive trading.
+If the goal is research methodology, continuing is defensible.
+If the goal is finding a profitable strategy, however, continuing to search the same BTC-1m-directional space has declining expected value.
+
+My actual recommendation
+I would freeze the current system as:
+BTC-1m directional control / null benchmark.
+Do not delete it.
+Then create three new research branches:
+Branch A — Carry
+BTC spot
++
+BTC perpetual
+↓
+delta-neutral
+↓
+funding + basis
+↓
+actual costs
+This is the first thing I would test.
+Branch B — Cross-sectional
+30–50 liquid instruments
+↓
+point-in-time universe
+↓
+relative-return targets
+↓
+market-neutral portfolios
+↓
+actual funding + costs
+This is the biggest potential expansion.
+Branch C — EXP-12 regime
+pre-period state
+↓
+predict EXP-12 sign
+↓
+monthly/non-overlapping regimes
+↓
+strict walk-forward
+This gets one limited research budget.
+
+And only then return to the AI question
+If one of those quantitative layers produces a cost-surviving signal, then your Frontier/Jev architecture becomes scientifically interesting.
+You can test:
+Quant
+vs
+Quant + deterministic selector
+vs
+Quant + Jev
+vs
+Quant + Frontier
+vs
+Quant + Frontier + Jev
+with identical candidate sets and identical costs.
+The question becomes:
+Does AI improve selection among economically valid opportunities?
+rather than:
+"Can an LLM find an edge in BTC?"
+That's a much stronger experiment.
+Your existing architecture was already designed around this separation: the frontier generates hypotheses, Jev evaluates bounded questions, and deterministic risk retains absolute authority.
+
+Final verdict
+If you force me to make the uncomfortable call:
+I would stop the current research direction as an alpha-discovery program.
+Not stop the repository.
+Not stop the paper trader.
+Not stop the research infrastructure.
+Stop trying to squeeze a cost-surviving BTC 1-minute directional strategy out of the same basic problem.
+The evidence is now too consistent:
+predictive information
+≠
+economic edge
+\text{predictive information} \neq \text{economic edge}
+and:
+2
+ bps
+≪
+11.01
+ bps
+2\text{ bps}\ll11.01\text{ bps}
+is too large a gap for "better AI" to be the default answer.
+The most promising change isn't more intelligence.
+It is changing what constitutes an opportunity:
+directional BTC prediction
+→
+carry + relative value + cross-sectional opportunity
+\boxed{ \text{directional BTC prediction} \rightarrow \text{carry + relative value + cross-sectional opportunity} }
+Then, if those layers actually produce something worth trading, Frontier and Jev get promoted from interesting architecture to testable sources of incremental decision value.
+That is the point at which I would become interested in training Laya, expanding Frontier, and eventually letting the system search a much larger hypothesis space. Until then, doing so risks building a more intelligent machine for making decisions about an opportunity that isn't there.
